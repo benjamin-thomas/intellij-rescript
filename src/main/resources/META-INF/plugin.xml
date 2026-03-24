@@ -1,0 +1,14 @@
+<idea-plugin>
+    <id>com.github.benjamin_thomas.intellijrescript</id>
+    <name>ReScript</name>
+    <vendor url="https://github.com/benjamin-thomas/intellij-rescript">benjamin-thomas</vendor>
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.redhat.devtools.lsp4ij</depends>
+
+    <description><![CDATA[
+        ReScript language support for JetBrains IDEs.
+    ]]></description>
+
+    <extensions defaultExtensionNs="com.intellij">
+    </extensions>
+</idea-plugin>
