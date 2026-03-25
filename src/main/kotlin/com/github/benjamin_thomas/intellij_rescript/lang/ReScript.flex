@@ -15,6 +15,7 @@ import com.github.benjamin_thomas.intellij_rescript.lang.ReScriptTokenTypes;
 
 WHITE_SPACE = [ \t\n\r]+
 LOWER_IDENT = [a-z_][a-zA-Z0-9_]*
+UPPER_IDENT = [A-Z][a-zA-Z0-9_]*
 
 %%
 
@@ -29,6 +30,7 @@ LOWER_IDENT = [a-z_][a-zA-Z0-9_]*
     "else"              { return ReScriptTokenTypes.ELSE; }
 
     {LOWER_IDENT}       { return ReScriptTokenTypes.LIDENT; }
+    {UPPER_IDENT}       { return ReScriptTokenTypes.UIDENT; }
 }
 
 [^]                     { return TokenType.BAD_CHARACTER; }

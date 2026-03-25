@@ -11,6 +11,7 @@ object ReScriptTokenTypes {
     @JvmField val ELSE = ReScriptTokenType("ELSE")
 
     @JvmField val LIDENT = ReScriptTokenType("LIDENT")
+    @JvmField val UIDENT = ReScriptTokenType("UIDENT")
 
     @JvmField val WHITE_SPACE = TokenType.WHITE_SPACE
     @JvmField val BAD_CHARACTER = TokenType.BAD_CHARACTER
