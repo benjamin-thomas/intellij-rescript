@@ -61,6 +61,17 @@ STRING = \" ([^\"\\\n] | \\.)* \"
     "/"                 { return ReScriptTokenTypes.SLASH; }
     "<"                 { return ReScriptTokenTypes.LT; }
     ">"                 { return ReScriptTokenTypes.GT; }
+
+    "("                 { return ReScriptTokenTypes.LPAREN; }
+    ")"                 { return ReScriptTokenTypes.RPAREN; }
+    "{"                 { return ReScriptTokenTypes.LBRACE; }
+    "}"                 { return ReScriptTokenTypes.RBRACE; }
+    "["                 { return ReScriptTokenTypes.LBRACKET; }
+    "]"                 { return ReScriptTokenTypes.RBRACKET; }
+    ","                 { return ReScriptTokenTypes.COMMA; }
+    ";"                 { return ReScriptTokenTypes.SEMICOLON; }
+    ":"                 { return ReScriptTokenTypes.COLON; }
+    "."                 { return ReScriptTokenTypes.DOT; }
 }
 
 [^]                     { return TokenType.BAD_CHARACTER; }

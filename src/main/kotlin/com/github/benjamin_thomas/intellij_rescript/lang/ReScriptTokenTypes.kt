@@ -39,6 +39,17 @@ object ReScriptTokenTypes {
     @JvmField val STAR_DOT = ReScriptTokenType("STAR_DOT")
     @JvmField val SLASH_DOT = ReScriptTokenType("SLASH_DOT")
 
+    @JvmField val LPAREN = ReScriptTokenType("LPAREN")
+    @JvmField val RPAREN = ReScriptTokenType("RPAREN")
+    @JvmField val LBRACE = ReScriptTokenType("LBRACE")
+    @JvmField val RBRACE = ReScriptTokenType("RBRACE")
+    @JvmField val LBRACKET = ReScriptTokenType("LBRACKET")
+    @JvmField val RBRACKET = ReScriptTokenType("RBRACKET")
+    @JvmField val COMMA = ReScriptTokenType("COMMA")
+    @JvmField val SEMICOLON = ReScriptTokenType("SEMICOLON")
+    @JvmField val COLON = ReScriptTokenType("COLON")
+    @JvmField val DOT = ReScriptTokenType("DOT")
+
     @JvmField val WHITE_SPACE = TokenType.WHITE_SPACE
     @JvmField val BAD_CHARACTER = TokenType.BAD_CHARACTER
 }
