@@ -2,7 +2,7 @@ import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 plugins {
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "1.9.25"
+    id("org.jetbrains.kotlin.jvm") version "2.3.20"
     id("org.jetbrains.intellij.platform") version "2.9.0"
 }
 
@@ -18,7 +18,7 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        intellijIdeaCommunity("2024.3")
+        intellijIdea("2025.3")
         plugin("com.redhat.devtools.lsp4ij:0.13.0")
         pluginVerifier()
         zipSigner()
@@ -35,7 +35,9 @@ tasks {
     }
 
     withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-        kotlinOptions.jvmTarget = "17"
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
     }
 
     buildSearchableOptions {
@@ -48,7 +50,7 @@ tasks {
     }
 
     patchPluginXml {
-        sinceBuild.set("243")
-        untilBuild.set("252.*")
+        sinceBuild.set("253")
+        untilBuild.set("253.*")
     }
 }

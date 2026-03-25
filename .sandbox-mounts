@@ -1,0 +1,5 @@
+# Extra mounts for sandbox-agent (one per line)
+# Formats: ro:/path, rw:/path, path:/path/bin
+
+# Gradle
+rw:~/.gradle
