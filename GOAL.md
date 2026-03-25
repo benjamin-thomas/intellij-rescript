@@ -320,10 +320,35 @@ Small. Maintainable. Well-tested.
 - **Capabilities**: completion, hover, definition, references, rename,
   diagnostics, formatting, code actions, semantic tokens
 
-## What NOT to build
+## What NOT to build (for now)
 
 - **Type checker** — the ReScript compiler + LSP handles this
 - **Build system integration** — `rescript build` from terminal is fine
 - **Deep expression parsing** — keep expressions flat, let LSP do semantics
 - **Package manager UI** — npm/yarn/pnpm work fine
 - **Debugger / REPL** — out of scope for now
+
+## Long-term goal — Replace LSP features with native PSI implementations
+
+Inspiration: [intellij-elm](https://github.com/intellij-elm/intellij-elm), which
+implements everything natively (type inference, rename, extract variable, find
+usages) with no LSP at all. The result is extremely responsive.
+
+**Strategy**: Start with LSP for all semantic features, then progressively replace
+them with PSI-based implementations where it matters. Each replacement is a
+self-contained project. IntelliJ's priority system makes this seamless — when you
+register a language-specific handler, it takes priority over LSP4IJ's generic one.
+No "disable LSP for this feature" code needed.
+
+**First target: Extract to Variable (Introduce Variable)**
+
+Register a `RefactoringSupportProvider` with `language="ReScript"` in plugin.xml.
+IntelliJ will pick the native handler over LSP4IJ's generic code action. The
+handler reads the PSI tree to find the selected expression, creates new PSI nodes
+(a `let` declaration + a reference), and modifies the tree atomically. This runs
+in-process — no IPC round-trip, instant response.
+
+**Later targets** (in rough order of difficulty):
+- Rename (PSI-based find-and-replace across files)
+- Find usages / go-to-definition (PSI reference resolution)
+- Type inference (major project, requires deep understanding of ReScript's type system)
