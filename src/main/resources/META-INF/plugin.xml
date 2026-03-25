@@ -1,5 +1,5 @@
 <idea-plugin>
-    <id>com.github.benjamin_thomas.intellijrescript</id>
+    <id>com.github.benjamin_thomas.intellij_rescript</id>
     <name>ReScript</name>
     <vendor url="https://github.com/benjamin-thomas/intellij-rescript">benjamin-thomas</vendor>
     <depends>com.intellij.modules.platform</depends>
@@ -12,12 +12,12 @@
     <extensions defaultExtensionNs="com.intellij">
         <fileType
                 name="ReScript"
-                implementationClass="com.github.benjamin_thomas.intellijrescript.ReScriptFileType"
+                implementationClass="com.github.benjamin_thomas.intellij_rescript.ReScriptFileType"
                 language="ReScript"
                 extensions="res"/>
         <fileType
                 name="ReScript Interface"
-                implementationClass="com.github.benjamin_thomas.intellijrescript.ReScriptInterfaceFileType"
+                implementationClass="com.github.benjamin_thomas.intellij_rescript.ReScriptInterfaceFileType"
                 language="ReScript"
                 extensions="resi"/>
     </extensions>

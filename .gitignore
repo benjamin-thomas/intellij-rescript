@@ -2,4 +2,5 @@
 /.gradle/
 /.intellijPlatform/
 /build/
+/src/main/gen/
 /.kotlin/errors/

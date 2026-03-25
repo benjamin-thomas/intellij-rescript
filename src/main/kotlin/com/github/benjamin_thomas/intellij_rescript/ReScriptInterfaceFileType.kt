@@ -1,4 +1,4 @@
-package com.github.benjamin_thomas.intellijrescript
+package com.github.benjamin_thomas.intellij_rescript
 
 import com.intellij.openapi.fileTypes.LanguageFileType
 
