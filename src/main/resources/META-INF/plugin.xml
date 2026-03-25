@@ -20,5 +20,8 @@
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.ReScriptInterfaceFileType"
                 language="ReScript"
                 extensions="resi"/>
+        <lang.syntaxHighlighterFactory
+                language="ReScript"
+                implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptSyntaxHighlighterFactory"/>
     </extensions>
 </idea-plugin>
