@@ -150,32 +150,53 @@ src/test/kotlin/.../ReScriptFileTypeTest.kt
 
 ### Phase 1 — Lexer + syntax highlighting
 
-**Goal**: ReScript source files have proper syntax coloring.
+**Goal**: ReScript source files have proper syntax coloring in `runIde`.
+
+Strategy: implement a basic lexer first (enough for visible syntax coloring), then
+incrementally expand to cover the full ReScript syntax. The lexer design must not
+paint us into a corner — keep token types general enough to accommodate future
+syntax without breaking changes.
+
+#### Phase 1a — Basic lexer (get to `runIde` with colors)
 
 TDD cycles (one per token category):
 1. **Test**: keywords — `let` → `LET`, `type` → `TYPE`, `module` → `MODULE`, etc.
 2. **Test**: identifiers — `foo` → `LIDENT`, `Foo` → `UIDENT`
 3. **Test**: literals — `"hello"` → `STRING`, `42` → `INT`, `3.14` → `FLOAT`
-4. **Test**: comments — `// line` → `COMMENT`, `/* block */` → `BLOCK_COMMENT`
-5. **Test**: operators — `->` → `ARROW`, `=>` → `FAT_ARROW`, `|>` → `PIPE`
+4. **Test**: comments — `// line` → `LINE_COMMENT`, `/* block */` → `BLOCK_COMMENT`
+5. **Test**: operators — `->` → `ARROW`, `=>` → `FAT_ARROW`, `|>` → `PIPE`, `=` → `EQ`
 6. **Test**: delimiters — `(`, `)`, `{`, `}`, `[`, `]`
 7. **Test**: decorators — `@module` → `AT` + `LIDENT`
 8. **Test**: special — `...` → `DOTDOTDOT`, `~` → `TILDE`
-9. **Test**: template strings — `` `hello ${name}` ``
+9. Wire up `ReScriptSyntaxHighlighter.kt` mapping tokens to colors.
+10. Manual check: `runIde`, open a `.res` file, see colored syntax.
 
-Each test uses `LexerTestCase.doTest(input, expectedTokenStream)`.
+#### Phase 1b — Full numeric literals
 
-Then wire up `ReScriptSyntaxHighlighter.kt` mapping tokens to colors.
+ReScript has rich numeric syntax (reference: tree-sitter-rescript grammar.js):
+- Underscore separators: `1_000_000`, `0xa_b_c`
+- Leading-dot floats: `.123`, `.4_5e6`
+- Hex: `0xFF`, `0xA_B_C` (also hex floats: `0x1.2p+10`)
+- Octal: `0o77`, `0o1_1`
+- Binary: `0b1010`, `0b1_000_000`
+- Exponents: `1e10`, `3.14e-2`
+- BigInt suffix: `42n`, `0xFFn`
+- int32/int64 suffix: `10l`, `1L`
+- Signed literals: `-3`, `+3.0`
 
-Files created:
-```
-src/main/kotlin/.../language/ReScript.flex       (~300 lines)
-src/main/kotlin/.../language/ReScriptLexer.kt    (~5 lines, adapter)
-src/main/kotlin/.../language/ReScriptTokenType.kt (~5 lines)
-src/main/kotlin/.../language/ReScriptSyntaxHighlighter.kt  (~80 lines)
-src/main/kotlin/.../language/ReScriptSyntaxHighlighterFactory.kt  (~5 lines)
-src/test/kotlin/.../language/ReScriptLexerTest.kt
-```
+#### Phase 1c — Template strings
+
+Backtick template strings with interpolation: `` `hello ${name}` ``
+
+#### Phase 1d — v12 operator tokens
+
+New tokens introduced in ReScript v12:
+- Bitwise (F# style): `&&&`, `|||`, `^^^`, `~~~`
+- Shift: `<<`, `>>`, `>>>`
+- Regex literals: `/pattern/flags` (context-sensitive, like JS)
+- `dict{` syntax (contextual keyword)
+- `let?` binding (experimental)
+- Deprecated but still valid: `+.`, `-.`, `*.`, `/.`, `++`
 
 ---
 
