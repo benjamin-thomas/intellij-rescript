@@ -42,6 +42,25 @@ STRING = \" ([^\"\\\n] | \\.)* \"
 
     {LOWER_IDENT}       { return ReScriptTokenTypes.LIDENT; }
     {UPPER_IDENT}       { return ReScriptTokenTypes.UIDENT; }
+
+    "=="                { return ReScriptTokenTypes.EQEQ; }
+    "!="                { return ReScriptTokenTypes.BANGEQ; }
+    "<="                { return ReScriptTokenTypes.LTEQ; }
+    ">="                { return ReScriptTokenTypes.GTEQ; }
+    "->"                { return ReScriptTokenTypes.ARROW; }
+    "=>"                { return ReScriptTokenTypes.FAT_ARROW; }
+    "|>"                { return ReScriptTokenTypes.PIPE_FORWARD; }
+    "+."                { return ReScriptTokenTypes.PLUS_DOT; }
+    "-."                { return ReScriptTokenTypes.MINUS_DOT; }
+    "*."                { return ReScriptTokenTypes.STAR_DOT; }
+    "/."                { return ReScriptTokenTypes.SLASH_DOT; }
+    "="                 { return ReScriptTokenTypes.EQ; }
+    "+"                 { return ReScriptTokenTypes.PLUS; }
+    "-"                 { return ReScriptTokenTypes.MINUS; }
+    "*"                 { return ReScriptTokenTypes.STAR; }
+    "/"                 { return ReScriptTokenTypes.SLASH; }
+    "<"                 { return ReScriptTokenTypes.LT; }
+    ">"                 { return ReScriptTokenTypes.GT; }
 }
 
 [^]                     { return TokenType.BAD_CHARACTER; }

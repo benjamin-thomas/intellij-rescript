@@ -20,6 +20,25 @@ object ReScriptTokenTypes {
     @JvmField val LINE_COMMENT = ReScriptTokenType("LINE_COMMENT")
     @JvmField val BLOCK_COMMENT = ReScriptTokenType("BLOCK_COMMENT")
 
+    @JvmField val EQ = ReScriptTokenType("EQ")
+    @JvmField val PLUS = ReScriptTokenType("PLUS")
+    @JvmField val MINUS = ReScriptTokenType("MINUS")
+    @JvmField val STAR = ReScriptTokenType("STAR")
+    @JvmField val SLASH = ReScriptTokenType("SLASH")
+    @JvmField val EQEQ = ReScriptTokenType("EQEQ")
+    @JvmField val BANGEQ = ReScriptTokenType("BANGEQ")
+    @JvmField val LT = ReScriptTokenType("LT")
+    @JvmField val GT = ReScriptTokenType("GT")
+    @JvmField val LTEQ = ReScriptTokenType("LTEQ")
+    @JvmField val GTEQ = ReScriptTokenType("GTEQ")
+    @JvmField val ARROW = ReScriptTokenType("ARROW")
+    @JvmField val FAT_ARROW = ReScriptTokenType("FAT_ARROW")
+    @JvmField val PIPE_FORWARD = ReScriptTokenType("PIPE_FORWARD")
+    @JvmField val PLUS_DOT = ReScriptTokenType("PLUS_DOT")
+    @JvmField val MINUS_DOT = ReScriptTokenType("MINUS_DOT")
+    @JvmField val STAR_DOT = ReScriptTokenType("STAR_DOT")
+    @JvmField val SLASH_DOT = ReScriptTokenType("SLASH_DOT")
+
     @JvmField val WHITE_SPACE = TokenType.WHITE_SPACE
     @JvmField val BAD_CHARACTER = TokenType.BAD_CHARACTER
 }
