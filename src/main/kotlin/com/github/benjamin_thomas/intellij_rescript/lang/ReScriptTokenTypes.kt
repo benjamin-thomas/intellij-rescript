@@ -50,6 +50,13 @@ object ReScriptTokenTypes {
     @JvmField val COLON = ReScriptTokenType("COLON")
     @JvmField val DOT = ReScriptTokenType("DOT")
     @JvmField val AT = ReScriptTokenType("AT")
+    @JvmField val DOTDOTDOT = ReScriptTokenType("DOTDOTDOT")
+    @JvmField val TILDE = ReScriptTokenType("TILDE")
+    @JvmField val PIPE = ReScriptTokenType("PIPE")
+    @JvmField val UNDERSCORE = ReScriptTokenType("UNDERSCORE")
+    @JvmField val BANG = ReScriptTokenType("BANG")
+    @JvmField val QUESTION = ReScriptTokenType("QUESTION")
+    @JvmField val HASH = ReScriptTokenType("HASH")
 
     @JvmField val WHITE_SPACE = TokenType.WHITE_SPACE
     @JvmField val BAD_CHARACTER = TokenType.BAD_CHARACTER

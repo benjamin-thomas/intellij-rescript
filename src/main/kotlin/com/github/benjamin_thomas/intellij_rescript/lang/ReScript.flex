@@ -40,6 +40,7 @@ STRING = \" ([^\"\\\n] | \\.)* \"
     {INT}               { return ReScriptTokenTypes.INT; }
     {STRING}            { return ReScriptTokenTypes.STRING; }
 
+    "_"                 { return ReScriptTokenTypes.UNDERSCORE; }
     {LOWER_IDENT}       { return ReScriptTokenTypes.LIDENT; }
     {UPPER_IDENT}       { return ReScriptTokenTypes.UIDENT; }
 
@@ -71,8 +72,14 @@ STRING = \" ([^\"\\\n] | \\.)* \"
     ","                 { return ReScriptTokenTypes.COMMA; }
     ";"                 { return ReScriptTokenTypes.SEMICOLON; }
     ":"                 { return ReScriptTokenTypes.COLON; }
+    "..."               { return ReScriptTokenTypes.DOTDOTDOT; }
     "."                 { return ReScriptTokenTypes.DOT; }
     "@"                 { return ReScriptTokenTypes.AT; }
+    "~"                 { return ReScriptTokenTypes.TILDE; }
+    "|"                 { return ReScriptTokenTypes.PIPE; }
+    "!"                 { return ReScriptTokenTypes.BANG; }
+    "?"                 { return ReScriptTokenTypes.QUESTION; }
+    "#"                 { return ReScriptTokenTypes.HASH; }
 }
 
 [^]                     { return TokenType.BAD_CHARACTER; }

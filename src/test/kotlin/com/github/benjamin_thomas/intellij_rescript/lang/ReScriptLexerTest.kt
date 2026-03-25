@@ -26,4 +26,7 @@ class ReScriptLexerTest {
 
     @Test
     fun testDecorators() = runLexerTest("Decorators.res", "Decorators.out")
+
+    @Test
+    fun testSpecial() = runLexerTest("Special.res", "Special.out")
 }
