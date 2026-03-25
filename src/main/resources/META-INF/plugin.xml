@@ -28,5 +28,22 @@
         <lang.parserDefinition
                 language="ReScript"
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptParserDefinition"/>
+        
+        <!--suppress PluginXmlI18n -->
+        <notificationGroup id="ReScript"
+                           displayType="BALLOON"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="com.redhat.devtools.lsp4ij">
+        <server id="rescriptLanguageServer"
+                name="ReScript Language Server"
+                factoryClass="com.github.benjamin_thomas.intellij_rescript.lsp.ReScriptLanguageServerFactory">
+            <description><![CDATA[
+                ReScript Language Server providing hover, completion, diagnostics, and more.
+            ]]></description>
+        </server>
+        <languageMapping language="ReScript"
+                         serverId="rescriptLanguageServer"
+                         languageId="rescript"/>
     </extensions>
 </idea-plugin>
