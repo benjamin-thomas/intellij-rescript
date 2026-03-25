@@ -10,5 +10,15 @@
     ]]></description>
 
     <extensions defaultExtensionNs="com.intellij">
+        <fileType
+                name="ReScript"
+                implementationClass="com.github.benjamin_thomas.intellijrescript.ReScriptFileType"
+                language="ReScript"
+                extensions="res"/>
+        <fileType
+                name="ReScript Interface"
+                implementationClass="com.github.benjamin_thomas.intellijrescript.ReScriptInterfaceFileType"
+                language="ReScript"
+                extensions="resi"/>
     </extensions>
 </idea-plugin>

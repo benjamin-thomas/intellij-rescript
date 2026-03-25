@@ -1,7 +1,6 @@
 package com.github.benjamin_thomas.intellijrescript
 
 import com.intellij.openapi.fileTypes.LanguageFileType
-import javax.swing.Icon
 
 class ReScriptFileType : LanguageFileType(ReScriptLanguage.INSTANCE) {
     companion object {
@@ -14,5 +13,5 @@ class ReScriptFileType : LanguageFileType(ReScriptLanguage.INSTANCE) {
 
     override fun getDefaultExtension(): String = "res"
 
-    override fun getIcon(): Icon? = null
+    override fun getIcon() = Icons.ReScript
 }
