@@ -49,6 +49,7 @@ object ReScriptTokenTypes {
     @JvmField val SEMICOLON = ReScriptTokenType("SEMICOLON")
     @JvmField val COLON = ReScriptTokenType("COLON")
     @JvmField val DOT = ReScriptTokenType("DOT")
+    @JvmField val AT = ReScriptTokenType("AT")
 
     @JvmField val WHITE_SPACE = TokenType.WHITE_SPACE
     @JvmField val BAD_CHARACTER = TokenType.BAD_CHARACTER

@@ -72,6 +72,7 @@ STRING = \" ([^\"\\\n] | \\.)* \"
     ";"                 { return ReScriptTokenTypes.SEMICOLON; }
     ":"                 { return ReScriptTokenTypes.COLON; }
     "."                 { return ReScriptTokenTypes.DOT; }
+    "@"                 { return ReScriptTokenTypes.AT; }
 }
 
 [^]                     { return TokenType.BAD_CHARACTER; }

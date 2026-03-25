@@ -1,0 +1,7 @@
+AT ('@')
+MODULE ('module')
+WHITE_SPACE ('\n')
+AT ('@')
+LIDENT ('react')
+DOT ('.')
+LIDENT ('component')
