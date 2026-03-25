@@ -4,7 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class ReScriptFileTypeTest {
-    private val fileType = ReScriptFileType.INSTANCE
+    private val fileType = ReScriptFileType
 
     @Test
     fun `it should have the correct name`() {

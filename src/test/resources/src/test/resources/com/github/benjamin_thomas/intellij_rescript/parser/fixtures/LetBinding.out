@@ -1,0 +1,8 @@
+ReScript File
+  PsiElement(LET)('let')
+  PsiWhiteSpace(' ')
+  PsiElement(LIDENT)('x')
+  PsiWhiteSpace(' ')
+  PsiElement(EQ)('=')
+  PsiWhiteSpace(' ')
+  PsiElement(INT)('1')

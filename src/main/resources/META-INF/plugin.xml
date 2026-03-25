@@ -12,16 +12,21 @@
     <extensions defaultExtensionNs="com.intellij">
         <fileType
                 name="ReScript"
+                fieldName="INSTANCE"
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.ReScriptFileType"
                 language="ReScript"
                 extensions="res"/>
         <fileType
                 name="ReScript Interface"
+                fieldName="INSTANCE"
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.ReScriptInterfaceFileType"
                 language="ReScript"
                 extensions="resi"/>
         <lang.syntaxHighlighterFactory
                 language="ReScript"
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptSyntaxHighlighterFactory"/>
+        <lang.parserDefinition
+                language="ReScript"
+                implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptParserDefinition"/>
     </extensions>
 </idea-plugin>

@@ -38,14 +38,14 @@ sourceSets["main"].java.srcDirs("src/main/gen")
 
 tasks {
     withType<JavaCompile> {
-        sourceCompatibility = "17"
-        targetCompatibility = "17"
+        sourceCompatibility = "21"
+        targetCompatibility = "21"
         dependsOn(generateReScriptLexer)
     }
 
     withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
         compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
         }
         dependsOn(generateReScriptLexer)
     }
@@ -64,6 +64,5 @@ tasks {
 
     patchPluginXml {
         sinceBuild.set("253")
-        untilBuild.set("253.*")
     }
 }

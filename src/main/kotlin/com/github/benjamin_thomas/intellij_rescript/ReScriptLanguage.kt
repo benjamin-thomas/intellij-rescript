@@ -2,8 +2,7 @@ package com.github.benjamin_thomas.intellij_rescript
 
 import com.intellij.lang.Language
 
-class ReScriptLanguage : Language("ReScript") {
-    companion object {
-        val INSTANCE = ReScriptLanguage()
-    }
+object ReScriptLanguage : Language("ReScript") {
+    @Suppress("unused")
+    private fun readResolve(): Any = ReScriptLanguage
 }

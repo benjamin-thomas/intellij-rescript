@@ -1,5 +1,6 @@
 package com.github.benjamin_thomas.intellij_rescript.lang
 
+import com.intellij.psi.tree.TokenSet
 import kotlin.test.Test
 
 class ReScriptLexerTest {
@@ -29,4 +30,20 @@ class ReScriptLexerTest {
 
     @Test
     fun testSpecial() = runLexerTest("Special.res", "Special.out")
+
+    @Test
+    fun testZeroStateForKeywordsAndIdentifiers() {
+        val tokens = TokenSet.create(
+            ReScriptTokenTypes.LET, ReScriptTokenTypes.TYPE,
+            ReScriptTokenTypes.MODULE, ReScriptTokenTypes.SWITCH,
+            ReScriptTokenTypes.IF, ReScriptTokenTypes.ELSE,
+            ReScriptTokenTypes.LIDENT, ReScriptTokenTypes.UIDENT,
+        )
+        checkZeroState(ReScriptLexerAdapter(), "let x = if foo { 1 } else { 2 }", tokens)
+    }
+
+    @Test
+    fun testCorrectRestart() {
+        checkCorrectRestart(ReScriptLexerAdapter(), "let x = if foo { 1 } else { 2 }")
+    }
 }
