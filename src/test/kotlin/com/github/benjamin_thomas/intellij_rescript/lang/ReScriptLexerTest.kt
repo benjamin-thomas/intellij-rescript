@@ -14,4 +14,7 @@ class ReScriptLexerTest {
 
     @Test
     fun testLiterals() = runLexerTest("Literals.res", "Literals.out")
+
+    @Test
+    fun testComments() = runLexerTest("Comments.res", "Comments.out")
 }

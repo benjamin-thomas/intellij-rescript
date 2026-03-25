@@ -1,0 +1,3 @@
+LINE_COMMENT ('// line comment')
+WHITE_SPACE ('\n')
+BLOCK_COMMENT ('/* block comment */')

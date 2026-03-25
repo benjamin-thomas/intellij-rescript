@@ -17,6 +17,9 @@ object ReScriptTokenTypes {
     @JvmField val FLOAT = ReScriptTokenType("FLOAT")
     @JvmField val STRING = ReScriptTokenType("STRING")
 
+    @JvmField val LINE_COMMENT = ReScriptTokenType("LINE_COMMENT")
+    @JvmField val BLOCK_COMMENT = ReScriptTokenType("BLOCK_COMMENT")
+
     @JvmField val WHITE_SPACE = TokenType.WHITE_SPACE
     @JvmField val BAD_CHARACTER = TokenType.BAD_CHARACTER
 }

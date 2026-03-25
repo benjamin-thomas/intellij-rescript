@@ -14,6 +14,8 @@ import com.github.benjamin_thomas.intellij_rescript.lang.ReScriptTokenTypes;
 %type IElementType
 
 WHITE_SPACE = [ \t\n\r]+
+LINE_COMMENT = "//" [^\n]*
+BLOCK_COMMENT = "/*" [^*]* ("*" [^/] [^*]*)* "*/"
 LOWER_IDENT = [a-z_][a-zA-Z0-9_]*
 UPPER_IDENT = [A-Z][a-zA-Z0-9_]*
 INT = [0-9]+
@@ -24,6 +26,8 @@ STRING = \" ([^\"\\\n] | \\.)* \"
 
 <YYINITIAL> {
     {WHITE_SPACE}       { return TokenType.WHITE_SPACE; }
+    {LINE_COMMENT}      { return ReScriptTokenTypes.LINE_COMMENT; }
+    {BLOCK_COMMENT}     { return ReScriptTokenTypes.BLOCK_COMMENT; }
 
     "let"               { return ReScriptTokenTypes.LET; }
     "type"              { return ReScriptTokenTypes.TYPE; }

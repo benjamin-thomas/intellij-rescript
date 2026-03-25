@@ -164,6 +164,9 @@ TDD cycles (one per token category):
 2. **Test**: identifiers — `foo` → `LIDENT`, `Foo` → `UIDENT`
 3. **Test**: literals — `"hello"` → `STRING`, `42` → `INT`, `3.14` → `FLOAT`
 4. **Test**: comments — `// line` → `LINE_COMMENT`, `/* block */` → `BLOCK_COMMENT`
+   **TODO**: block comments use a simple regex — doesn't handle nested `/* /* */ */`.
+   ReScript inherits OCaml's nested block comments. Fix later with a JFlex state
+   and depth counter (see Haskell plugin's `NCOMMENT` state for reference).
 5. **Test**: operators — `->` → `ARROW`, `=>` → `FAT_ARROW`, `|>` → `PIPE`, `=` → `EQ`
 6. **Test**: delimiters — `(`, `)`, `{`, `}`, `[`, `]`
 7. **Test**: decorators — `@module` → `AT` + `LIDENT`
