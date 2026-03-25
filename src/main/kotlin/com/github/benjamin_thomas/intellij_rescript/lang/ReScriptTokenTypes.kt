@@ -13,6 +13,10 @@ object ReScriptTokenTypes {
     @JvmField val LIDENT = ReScriptTokenType("LIDENT")
     @JvmField val UIDENT = ReScriptTokenType("UIDENT")
 
+    @JvmField val INT = ReScriptTokenType("INT")
+    @JvmField val FLOAT = ReScriptTokenType("FLOAT")
+    @JvmField val STRING = ReScriptTokenType("STRING")
+
     @JvmField val WHITE_SPACE = TokenType.WHITE_SPACE
     @JvmField val BAD_CHARACTER = TokenType.BAD_CHARACTER
 }

@@ -1,0 +1,5 @@
+INT ('42')
+WHITE_SPACE ('\n')
+FLOAT ('3.14')
+WHITE_SPACE ('\n')
+STRING ('"hello"')

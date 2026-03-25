@@ -16,6 +16,9 @@ import com.github.benjamin_thomas.intellij_rescript.lang.ReScriptTokenTypes;
 WHITE_SPACE = [ \t\n\r]+
 LOWER_IDENT = [a-z_][a-zA-Z0-9_]*
 UPPER_IDENT = [A-Z][a-zA-Z0-9_]*
+INT = [0-9]+
+FLOAT = [0-9]+ "." [0-9]+
+STRING = \" ([^\"\\\n] | \\.)* \"
 
 %%
 
@@ -28,6 +31,10 @@ UPPER_IDENT = [A-Z][a-zA-Z0-9_]*
     "switch"            { return ReScriptTokenTypes.SWITCH; }
     "if"                { return ReScriptTokenTypes.IF; }
     "else"              { return ReScriptTokenTypes.ELSE; }
+
+    {FLOAT}             { return ReScriptTokenTypes.FLOAT; }
+    {INT}               { return ReScriptTokenTypes.INT; }
+    {STRING}            { return ReScriptTokenTypes.STRING; }
 
     {LOWER_IDENT}       { return ReScriptTokenTypes.LIDENT; }
     {UPPER_IDENT}       { return ReScriptTokenTypes.UIDENT; }
