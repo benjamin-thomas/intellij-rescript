@@ -3,3 +3,8 @@
 
 # Gradle
 rw:~/.gradle
+
+# Reference projects (read-only)
+ro:~/code/github.com/rockofox/intellij-haskell-lsp
+ro:~/code/github.com/elm-tooling/intellij-elm
+ro:~/code/github.com/intellij-rust/intellij-rust

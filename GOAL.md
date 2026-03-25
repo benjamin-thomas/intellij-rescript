@@ -47,9 +47,14 @@ to understand fully. We advance in deliberate steps, not in a blur.
   ~140 rules, ~1,100 lines. Our reference for building the GrammarKit BNF.
 - [ReScript compiler parser (res_core.ml)](https://github.com/rescript-lang/rescript/blob/master/compiler/syntax/src/res_core.ml) —
   Grammar rules embedded as comments (search for `::=`).
-- [intellij-elm](https://github.com/intellij-elm/intellij-elm) —
-  Gold-standard IntelliJ language plugin. Study for architecture patterns, test
-  structure (432 test files), and how to build a complete PSI.
+- [intellij-elm](https://github.com/elm-tooling/intellij-elm) —
+  Gold-standard IntelliJ language plugin. Local copy at
+  `/home/benjamin/code/github.com/elm-tooling/intellij-elm`.
+  Study for architecture patterns, test structure, and how to build a complete PSI.
+- [intellij-rust](https://github.com/intellij-rust/intellij-rust) —
+  Archived but excellent reference. Local copy at
+  `/home/benjamin/code/github.com/intellij-rust/intellij-rust`.
+  Thorough test suite, well-structured lexer/parser.
 - [JetBrains plugin template](https://github.com/JetBrains/intellij-platform-plugin-template) —
   Modern project scaffold. Local copy at
   `/home/benjamin/code/github.com/benjamin-thomas/intellij-plugin-example`.
