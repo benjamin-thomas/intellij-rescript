@@ -7,8 +7,8 @@ class ReScriptLexerTest {
         runSnapshotTest(ReScriptLexerAdapter(), inputFile, expectedOutputFile)
 
     @Test
-    fun testKeywords() = runLexerTest("Keywords.res", "Keywords.txt")
+    fun testKeywords() = runLexerTest("Keywords.res", "Keywords.out")
 
     @Test
-    fun testIdentifiers() = runLexerTest("Identifiers.res", "Identifiers.txt")
+    fun testIdentifiers() = runLexerTest("Identifiers.res", "Identifiers.out")
 }
