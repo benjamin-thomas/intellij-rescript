@@ -59,12 +59,21 @@ to understand fully. We advance in deliberate steps, not in a blur.
   Modern project scaffold. Local copy at
   `/home/benjamin/code/github.com/benjamin-thomas/intellij-plugin-example`.
 - [Custom Language Support Tutorial](https://plugins.jetbrains.com/docs/intellij/custom-language-support-tutorial.html) —
-  Official step-by-step guide for custom language plugins.
+  Official step-by-step guide for custom language plugins. Start here.
+- [Custom Language Support Reference](https://plugins.jetbrains.com/docs/intellij/custom-language-support.html) —
+  Comprehensive reference for every extension point (lexer, parser, formatter,
+  commenter, brace matching, structure view, find usages, refactoring, etc.).
+- [PSI (Program Structure Interface)](https://plugins.jetbrains.com/docs/intellij/psi.html) —
+  The typed AST that powers everything. Understanding PSI is key.
+- [Testing Plugins](https://plugins.jetbrains.com/docs/intellij/testing-plugins.html) —
+  Test infrastructure, base classes, test data conventions.
 - [GrammarKit](https://github.com/JetBrains/Grammar-Kit) —
   BNF syntax reference and parser generation docs.
 - [LSP4IJ](https://github.com/redhat-developer/lsp4ij) —
   The LSP client framework we use. Check its `plugin.xml` for available
   extension points (call hierarchy, type hierarchy, folding, etc.).
+- [LSP4IJ Developer Guide](https://github.com/redhat-developer/lsp4ij/blob/main/docs/DeveloperGuide.md) —
+  How to wire up LSP servers, extension points, client features.
 
 ## Project setup
 
