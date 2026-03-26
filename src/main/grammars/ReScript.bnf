@@ -80,9 +80,10 @@
 
 File ::= item*
 
-private item ::= LetDeclaration
+private item ::= LetDeclaration | TypeDeclaration
 
 LetDeclaration ::= LET LIDENT EQ expression { pin = 1 }
+TypeDeclaration ::= TYPE LIDENT EQ expression { pin = 1 }
 
-// Private — no composite node; tokens stay as direct children of LetDeclaration
+// Private — no composite node; tokens stay as direct children of the parent
 private expression ::= INT | FLOAT | STRING | LIDENT | UIDENT

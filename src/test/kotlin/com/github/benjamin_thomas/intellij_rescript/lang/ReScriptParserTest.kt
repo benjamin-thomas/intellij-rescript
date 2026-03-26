@@ -22,4 +22,5 @@ class ReScriptParserTest : ParsingTestCase(
         )(inputFile, expectedOutputFile)
 
     fun testLetBinding() = runParserTest("LetBinding.res", "LetBinding.out")
+    fun testMultipleDeclarations() = runParserTest("MultipleDeclarations.res", "MultipleDeclarations.out")
 }
