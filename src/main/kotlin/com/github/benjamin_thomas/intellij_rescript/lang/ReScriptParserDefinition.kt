@@ -19,28 +19,18 @@ class ReScriptParserDefinition : ParserDefinition {
 
     override fun createLexer(project: Project): Lexer = ReScriptLexerAdapter()
 
-    // Dummy parser: consumes all tokens into a flat tree.
-    // Will be replaced by a GrammarKit-generated parser in Phase 2.
-    override fun createParser(project: Project): PsiParser =
-        PsiParser { root, builder ->
-            val marker = builder.mark()
-            while (!builder.eof()) {
-                builder.advanceLexer()
-            }
-            marker.done(root)
-            builder.treeBuilt
-        }
+    override fun createParser(project: Project): PsiParser = ReScriptParser()
 
     override fun getFileNodeType(): IFileElementType = FILE
 
     override fun getCommentTokens(): TokenSet =
-        TokenSet.create(ReScriptTokenTypes.LINE_COMMENT, ReScriptTokenTypes.BLOCK_COMMENT)
+        TokenSet.create(ReScriptTypes.LINE_COMMENT, ReScriptTypes.BLOCK_COMMENT)
 
     override fun getStringLiteralElements(): TokenSet =
-        TokenSet.create(ReScriptTokenTypes.STRING)
+        TokenSet.create(ReScriptTypes.STRING)
 
     override fun createElement(node: ASTNode): PsiElement =
-        throw UnsupportedOperationException("Not yet implemented")
+        ReScriptTypes.Factory.createElement(node)
 
     override fun createFile(viewProvider: FileViewProvider): PsiFile =
         ReScriptFile(viewProvider)

@@ -4,7 +4,7 @@ plugins {
     id("java")
     id("org.jetbrains.kotlin.jvm") version "2.3.20"
     id("org.jetbrains.intellij.platform") version "2.11.0"
-    id("org.jetbrains.grammarkit") version "2022.3.2.2"
+    id("org.jetbrains.grammarkit") version "2023.3.0.3"
 }
 
 group = "com.github.benjamin_thomas"
@@ -29,9 +29,19 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
 }
 
-val generateReScriptLexer by tasks.registering(org.jetbrains.grammarkit.tasks.GenerateLexerTask::class) {
-    sourceFile.set(file("src/main/kotlin/com/github/benjamin_thomas/intellij_rescript/lang/ReScript.flex"))
-    targetOutputDir.set(file("src/main/gen/com/github/benjamin_thomas/intellij_rescript/lang"))
+grammarKit {
+    tasks {
+        generateLexer {
+            sourceFile.set(file("src/main/kotlin/com/github/benjamin_thomas/intellij_rescript/lang/ReScript.flex"))
+            targetOutputDir.set(file("src/main/gen/com/github/benjamin_thomas/intellij_rescript/lang"))
+        }
+        generateParser {
+            sourceFile.set(file("src/main/grammars/ReScript.bnf"))
+            targetRootOutputDir.set(file("src/main/gen"))
+            pathToParser.set("com/github/benjamin_thomas/intellij_rescript/lang/ReScriptParser.java")
+            pathToPsiRoot.set("com/github/benjamin_thomas/intellij_rescript/lang/psi")
+        }
+    }
 }
 
 sourceSets["main"].java.srcDirs("src/main/gen")
@@ -40,14 +50,14 @@ tasks {
     withType<JavaCompile> {
         sourceCompatibility = "21"
         targetCompatibility = "21"
-        dependsOn(generateReScriptLexer)
+        dependsOn("generateLexer", "generateParser")
     }
 
     withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
         compilerOptions {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
         }
-        dependsOn(generateReScriptLexer)
+        dependsOn("generateLexer", "generateParser")
     }
 
     buildSearchableOptions {

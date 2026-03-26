@@ -1,0 +1,88 @@
+{
+    parserClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptParser"
+
+    psiClassPrefix="ReScript"
+    psiImplClassSuffix="Impl"
+    psiPackage="com.github.benjamin_thomas.intellij_rescript.lang.psi"
+    psiImplPackage="com.github.benjamin_thomas.intellij_rescript.lang.psi.impl"
+
+    elementTypeHolderClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptTypes"
+    elementTypeClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptElementType"
+    tokenTypeClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptTokenType"
+
+    tokens = [
+        // Keywords
+        LET        = 'LET'
+        TYPE       = 'TYPE'
+        MODULE     = 'MODULE'
+        SWITCH     = 'SWITCH'
+        IF         = 'IF'
+        ELSE       = 'ELSE'
+
+        // Identifiers
+        LIDENT     = 'LIDENT'
+        UIDENT     = 'UIDENT'
+
+        // Literals
+        INT        = 'INT'
+        FLOAT      = 'FLOAT'
+        STRING     = 'STRING'
+
+        // Comments
+        LINE_COMMENT  = 'LINE_COMMENT'
+        BLOCK_COMMENT = 'BLOCK_COMMENT'
+
+        // Multi-char operators
+        EQEQ         = 'EQEQ'
+        BANGEQ        = 'BANGEQ'
+        LTEQ          = 'LTEQ'
+        GTEQ          = 'GTEQ'
+        ARROW         = 'ARROW'
+        FAT_ARROW     = 'FAT_ARROW'
+        PIPE_FORWARD  = 'PIPE_FORWARD'
+        PLUS_DOT      = 'PLUS_DOT'
+        MINUS_DOT     = 'MINUS_DOT'
+        STAR_DOT      = 'STAR_DOT'
+        SLASH_DOT     = 'SLASH_DOT'
+
+        // Single-char operators
+        EQ         = 'EQ'
+        PLUS       = 'PLUS'
+        MINUS      = 'MINUS'
+        STAR       = 'STAR'
+        SLASH      = 'SLASH'
+        LT         = 'LT'
+        GT         = 'GT'
+
+        // Delimiters
+        LPAREN     = 'LPAREN'
+        RPAREN     = 'RPAREN'
+        LBRACE     = 'LBRACE'
+        RBRACE     = 'RBRACE'
+        LBRACKET   = 'LBRACKET'
+        RBRACKET   = 'RBRACKET'
+
+        // Punctuation
+        COMMA      = 'COMMA'
+        SEMICOLON  = 'SEMICOLON'
+        COLON      = 'COLON'
+        DOTDOTDOT  = 'DOTDOTDOT'
+        DOT        = 'DOT'
+        AT         = 'AT'
+        TILDE      = 'TILDE'
+        PIPE       = 'PIPE'
+        UNDERSCORE = 'UNDERSCORE'
+        BANG       = 'BANG'
+        QUESTION   = 'QUESTION'
+        HASH       = 'HASH'
+    ]
+}
+
+File ::= item*
+
+private item ::= LetDeclaration
+
+LetDeclaration ::= LET LIDENT EQ expression { pin = 1 }
+
+// Private — no composite node; tokens stay as direct children of LetDeclaration
+private expression ::= INT | FLOAT | STRING | LIDENT | UIDENT

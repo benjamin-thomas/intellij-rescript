@@ -29,42 +29,42 @@ class ReScriptSyntaxHighlighter : SyntaxHighlighterBase() {
 
     override fun getTokenHighlights(tokenType: IElementType): Array<TextAttributesKey> {
         val key = when (tokenType) {
-            ReScriptTokenTypes.LET, ReScriptTokenTypes.TYPE, ReScriptTokenTypes.MODULE,
-            ReScriptTokenTypes.SWITCH, ReScriptTokenTypes.IF, ReScriptTokenTypes.ELSE -> KEYWORD
+            ReScriptTypes.LET, ReScriptTypes.TYPE, ReScriptTypes.MODULE,
+            ReScriptTypes.SWITCH, ReScriptTypes.IF, ReScriptTypes.ELSE -> KEYWORD
 
-            ReScriptTokenTypes.LIDENT -> IDENTIFIER
-            ReScriptTokenTypes.UIDENT -> TYPE_NAME
+            ReScriptTypes.LIDENT -> IDENTIFIER
+            ReScriptTypes.UIDENT -> TYPE_NAME
 
-            ReScriptTokenTypes.INT, ReScriptTokenTypes.FLOAT -> NUMBER
-            ReScriptTokenTypes.STRING -> STRING
+            ReScriptTypes.INT, ReScriptTypes.FLOAT -> NUMBER
+            ReScriptTypes.STRING -> STRING
 
-            ReScriptTokenTypes.LINE_COMMENT -> LINE_COMMENT
-            ReScriptTokenTypes.BLOCK_COMMENT -> BLOCK_COMMENT
+            ReScriptTypes.LINE_COMMENT -> LINE_COMMENT
+            ReScriptTypes.BLOCK_COMMENT -> BLOCK_COMMENT
 
-            ReScriptTokenTypes.EQ, ReScriptTokenTypes.PLUS, ReScriptTokenTypes.MINUS,
-            ReScriptTokenTypes.STAR, ReScriptTokenTypes.SLASH,
-            ReScriptTokenTypes.EQEQ, ReScriptTokenTypes.BANGEQ,
-            ReScriptTokenTypes.LT, ReScriptTokenTypes.GT,
-            ReScriptTokenTypes.LTEQ, ReScriptTokenTypes.GTEQ,
-            ReScriptTokenTypes.ARROW, ReScriptTokenTypes.FAT_ARROW,
-            ReScriptTokenTypes.PIPE_FORWARD, ReScriptTokenTypes.PIPE,
-            ReScriptTokenTypes.PLUS_DOT, ReScriptTokenTypes.MINUS_DOT,
-            ReScriptTokenTypes.STAR_DOT, ReScriptTokenTypes.SLASH_DOT,
-            ReScriptTokenTypes.BANG, ReScriptTokenTypes.QUESTION,
-            ReScriptTokenTypes.HASH, ReScriptTokenTypes.TILDE,
-            ReScriptTokenTypes.DOTDOTDOT -> OPERATOR
+            ReScriptTypes.EQ, ReScriptTypes.PLUS, ReScriptTypes.MINUS,
+            ReScriptTypes.STAR, ReScriptTypes.SLASH,
+            ReScriptTypes.EQEQ, ReScriptTypes.BANGEQ,
+            ReScriptTypes.LT, ReScriptTypes.GT,
+            ReScriptTypes.LTEQ, ReScriptTypes.GTEQ,
+            ReScriptTypes.ARROW, ReScriptTypes.FAT_ARROW,
+            ReScriptTypes.PIPE_FORWARD, ReScriptTypes.PIPE,
+            ReScriptTypes.PLUS_DOT, ReScriptTypes.MINUS_DOT,
+            ReScriptTypes.STAR_DOT, ReScriptTypes.SLASH_DOT,
+            ReScriptTypes.BANG, ReScriptTypes.QUESTION,
+            ReScriptTypes.HASH, ReScriptTypes.TILDE,
+            ReScriptTypes.DOTDOTDOT -> OPERATOR
 
-            ReScriptTokenTypes.LPAREN, ReScriptTokenTypes.RPAREN,
-            ReScriptTokenTypes.LBRACE, ReScriptTokenTypes.RBRACE,
-            ReScriptTokenTypes.LBRACKET, ReScriptTokenTypes.RBRACKET -> DELIMITER
+            ReScriptTypes.LPAREN, ReScriptTypes.RPAREN,
+            ReScriptTypes.LBRACE, ReScriptTypes.RBRACE,
+            ReScriptTypes.LBRACKET, ReScriptTypes.RBRACKET -> DELIMITER
 
-            ReScriptTokenTypes.COMMA -> COMMA
-            ReScriptTokenTypes.SEMICOLON -> SEMICOLON
-            ReScriptTokenTypes.DOT -> DOT
-            ReScriptTokenTypes.COLON -> OPERATOR
+            ReScriptTypes.COMMA -> COMMA
+            ReScriptTypes.SEMICOLON -> SEMICOLON
+            ReScriptTypes.DOT -> DOT
+            ReScriptTypes.COLON -> OPERATOR
 
-            ReScriptTokenTypes.AT -> DECORATOR
-            ReScriptTokenTypes.UNDERSCORE -> KEYWORD
+            ReScriptTypes.AT -> DECORATOR
+            ReScriptTypes.UNDERSCORE -> KEYWORD
 
             else -> return emptyArray()
         }
