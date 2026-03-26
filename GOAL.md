@@ -2,16 +2,17 @@
 
 ## What this is
 
-A high-quality, open-source ReScript plugin for JetBrains IDEs (IntelliJ,
-WebStorm, etc.) using the same architecture as
-[intellij-haskell-lsp](https://github.com/rockofox/intellij-haskell-lsp):
+A ReScript plugin for JetBrains IDEs (IntelliJ, WebStorm, etc.). Architecture
+inspired by [intellij-haskell-lsp](https://github.com/rockofox/intellij-haskell-lsp),
+[intellij-elm](https://github.com/elm-tooling/intellij-elm), and
+[intellij-rust](https://github.com/intellij-rust/intellij-rust):
 
 - **GrammarKit** for parsing/PSI (syntax highlighting, structure, inspections)
 - **LSP4IJ** for all semantic intelligence (completion, navigation, diagnostics)
 - **Thin glue code** connecting the two
 
-The ReScript LSP (`@rescript/language-server`) is fast and well-maintained
-(OCaml-based compiler underneath). We delegate all heavy semantic work to it.
+The ReScript LSP (`@rescript/language-server`) handles semantic work
+(OCaml-based compiler underneath).
 
 ## How we work
 
@@ -41,30 +42,30 @@ to understand fully. We advance in deliberate steps, not in a blur.
 
 - [intellij-haskell-lsp](https://github.com/rockofox/intellij-haskell-lsp) —
   Architecture template. Local copy at
-  `/home/benjamin/code/github.com/rockofox/intellij-haskell-lsp`.
+  `~/code/github.com/rockofox/intellij-haskell-lsp`.
   Study its `build.gradle.kts`, `plugin.xml`, lexer, parser, and test setup.
 - [tree-sitter-rescript grammar.js](https://github.com/rescript-lang/tree-sitter-rescript/blob/main/grammar.js) —
   ~140 rules, ~1,100 lines. Our reference for building the GrammarKit BNF.
 - [ReScript compiler parser (res_core.ml)](https://github.com/rescript-lang/rescript/blob/master/compiler/syntax/src/res_core.ml) —
   Grammar rules embedded as comments (search for `::=`).
 - [intellij-elm](https://github.com/elm-tooling/intellij-elm) —
-  Gold-standard IntelliJ language plugin. Local copy at
-  `/home/benjamin/code/github.com/elm-tooling/intellij-elm`.
+  Mature IntelliJ language plugin, good reference. Local copy at
+  `~/code/github.com/elm-tooling/intellij-elm`.
   Study for architecture patterns, test structure, and how to build a complete PSI.
 - [intellij-rust](https://github.com/intellij-rust/intellij-rust) —
-  Archived but excellent reference. Local copy at
-  `/home/benjamin/code/github.com/intellij-rust/intellij-rust`.
+  Archived, good reference. Local copy at
+  `~/code/github.com/intellij-rust/intellij-rust`.
   Thorough test suite, well-structured lexer/parser.
 - [JetBrains plugin template](https://github.com/JetBrains/intellij-platform-plugin-template) —
   Modern project scaffold. Local copy at
-  `/home/benjamin/code/github.com/benjamin-thomas/intellij-plugin-example`.
+  `~/code/github.com/benjamin-thomas/intellij-plugin-example`.
 - [Custom Language Support Tutorial](https://plugins.jetbrains.com/docs/intellij/custom-language-support-tutorial.html) —
   Official step-by-step guide for custom language plugins. Start here.
 - [Custom Language Support Reference](https://plugins.jetbrains.com/docs/intellij/custom-language-support.html) —
   Comprehensive reference for every extension point (lexer, parser, formatter,
   commenter, brace matching, structure view, find usages, refactoring, etc.).
 - [PSI (Program Structure Interface)](https://plugins.jetbrains.com/docs/intellij/psi.html) —
-  The typed AST that powers everything. Understanding PSI is key.
+  The typed AST used by most IntelliJ plugin features.
 - [Testing Plugins](https://plugins.jetbrains.com/docs/intellij/testing-plugins.html) —
   Test infrastructure, base classes, test data conventions.
 - [GrammarKit](https://github.com/JetBrains/Grammar-Kit) —
@@ -75,55 +76,17 @@ to understand fully. We advance in deliberate steps, not in a blur.
 - [LSP4IJ Developer Guide](https://github.com/redhat-developer/lsp4ij/blob/main/docs/DeveloperGuide.md) —
   How to wire up LSP servers, extension points, client features.
 
+## Documentation
+
+- **`ARCHITECTURE.md`** — project structure, build setup, design decisions, testing philosophy
+- **`LEXER.md`** — how JFlex works, token types, syntax highlighting, lexer testing
+- **`PARSER.md`** — how GrammarKit works, error recovery (pin/recoverWhile),
+  PSI generation, parser testing, reference implementations (Elm, Rust, tree-sitter-rescript)
+
 ## Project setup
 
-### Starting point
-
-Copy the scaffold from the JetBrains plugin template at
-`/home/benjamin/code/github.com/benjamin-thomas/intellij-plugin-example`.
-
-Key files to bring over:
-```
-build.gradle.kts
-gradle.properties
-settings.gradle.kts
-gradle/                  # wrapper + version catalog (libs.versions.toml)
-gradlew / gradlew.bat
-.gitignore
-```
-
-Then adapt:
-
-**`gradle.properties`** — change plugin identity, target a modern IDE:
-```properties
-pluginGroup = com.github.benjaminthomas.intellijrescript
-pluginName = intellij-rescript
-pluginRepositoryUrl = https://github.com/benjamin-thomas/intellij-rescript
-pluginVersion = 0.1.0
-pluginSinceBuild = 243
-pluginUntilBuild = 252.*
-platformType = IC
-platformVersion = 2024.3
-platformPlugins = com.redhat.devtools.lsp4ij:0.13.0
-```
-
-**`settings.gradle.kts`** — rename the project:
-```kotlin
-rootProject.name = "intellij-rescript"
-```
-
-**`build.gradle.kts`** — add GrammarKit plugin and `runIde` args. See
-intellij-haskell-lsp's `build.gradle.kts` for the `grammarKit` block pattern.
-Add:
-```kotlin
-tasks {
-    runIde {
-        jvmArgs("-Dsun.java2d.uiScale.enabled=false")
-    }
-}
-```
-
-Targeting `platformVersion = 2024.3` gives you the new UI in `runIde`.
+See `ARCHITECTURE.md` for current build setup, project structure, and design
+decisions. See `build.gradle.kts` for exact versions.
 
 ## Implementation phases
 
@@ -133,7 +96,7 @@ understand what we've built.
 
 ---
 
-### Phase 0 — Skeleton
+### Phase 0 — Skeleton (DONE)
 
 **Goal**: Plugin loads, `.res`/`.resi` files are recognized, tests run.
 
@@ -166,7 +129,7 @@ incrementally expand to cover the full ReScript syntax. The lexer design must no
 paint us into a corner — keep token types general enough to accommodate future
 syntax without breaking changes.
 
-#### Phase 1a — Basic lexer (get to `runIde` with colors)
+#### Phase 1a — Basic lexer (DONE — get to `runIde` with colors)
 
 TDD cycles (one per token category):
 1. **Test**: keywords — `let` → `LET`, `type` → `TYPE`, `module` → `MODULE`, etc.
@@ -250,36 +213,18 @@ is the reference, but we only need ~60-80 rules (not all 140).
 
 ---
 
-### Phase 3 — LSP integration
+### Phase 3 — LSP integration (DONE — basic wiring)
 
 **Goal**: Full IDE experience via the ReScript language server.
 
-This phase is less TDD-friendly (LSP integration is mostly wiring), but we can
-still test:
-1. **Test**: `ReScriptLanguageServerFactory` creates a valid connection provider
-2. **Test**: LSP path resolution (project-local `node_modules` → PATH fallback)
-3. **Manual test**: `./gradlew runIde`, open a ReScript project, verify:
-   - Completion works
-   - Go-to-definition works
-   - Diagnostics appear
-   - Formatting works (Ctrl+Alt+L)
+**Completed**: LSP4IJ wiring with `@rescript/language-server` (globally installed
+via `npm install -g`). Hover, completion, go-to-definition, diagnostics, and
+formatting all work. Error notification with install instructions when server
+not found.
 
-Files created:
-```
-src/main/kotlin/.../ReScriptLanguageServerFactory.kt   (~40 lines)
-src/main/kotlin/.../settings/ReScriptSettings.kt       (~30 lines)
-src/main/kotlin/.../settings/ReScriptSettingsConfigurable.kt  (~60 lines)
-src/test/kotlin/.../ReScriptLanguageServerFactoryTest.kt
-```
-
-The LSP server factory locates `rescript-language-server`:
-1. User-configured path in settings
-2. `node_modules/.bin/rescript-language-server` relative to project root
-3. PATH fallback
-
-Launch with `--stdio`.
-
-Register LSP4IJ extension points in `plugin.xml` (one line each):
+**Not yet done**: LSP4IJ extension points for call hierarchy, type hierarchy,
+folding, parameter info, structure view. These are one-line XML registrations
+in `plugin.xml` that delegate to LSP4IJ's built-in providers:
 ```xml
 <callHierarchyProvider language="ReScript"
     implementationClass="com.redhat.devtools.lsp4ij.features.callHierarchy.LSPCallHierarchyProvider"/>
@@ -293,6 +238,9 @@ Register LSP4IJ extension points in `plugin.xml` (one line each):
 <lang.psiStructureViewFactory language="ReScript"
     implementationClass="com.redhat.devtools.lsp4ij.features.documentSymbol.LSPDocumentSymbolStructureViewFactory"/>
 ```
+
+**Note**: The ReScript language server does NOT support inlay hints / inline
+type annotations (unlike OCaml's merlin). Types are available via hover only.
 
 ---
 
@@ -340,7 +288,6 @@ Each is a self-contained TDD cycle:
 | PSI-powered features | ~500 |
 | **Total hand-written** | **~2,500** |
 
-Small. Maintainable. Well-tested.
 
 ## File type details
 
@@ -352,11 +299,16 @@ Small. Maintainable. Well-tested.
 ## LSP details
 
 - **npm package**: [`@rescript/language-server`](https://www.npmjs.com/package/@rescript/language-server)
-- **Binary**: typically at `node_modules/.bin/rescript-language-server`
+- **Install**: `npm install -g @rescript/language-server`
+- **Our plugin finds it**: via PATH lookup
 - **Launch args**: `--stdio`
-- **Latest version**: 1.72.0 (Jan 2026)
 - **Capabilities**: completion, hover, definition, references, rename,
   diagnostics, formatting, code actions, semantic tokens
+- **Not supported**: inlay hints / inline type annotations (unlike OCaml/F#)
+- **Relationship to `rescript-editor-analysis.exe`**: The LSP server (Node.js)
+  internally calls `rescript-editor-analysis.exe` (native OCaml binary bundled
+  with the `rescript` npm package) for analysis. The LSP server is a thin
+  wrapper around the analysis binary.
 
 ## What NOT to build (for now)
 

@@ -1,0 +1,3 @@
+#!/bin/bash
+
+IDEA_JVM_ARGS="-Dsun.java2d.uiScale.enabled=false" IDEA_PROJECT=~/code/github.com/benjamin-thomas/7guis/rescript-7guis exec ./gradlew runIde

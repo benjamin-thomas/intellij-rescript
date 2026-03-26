@@ -1,0 +1,219 @@
+# Lexer — How syntax highlighting works
+
+## Overview
+
+The lexer turns source text into a stream of **tokens**. Each token has a type
+(`LET`, `LIDENT`, `INT`, `STRING`, etc.) and carries its raw text. The lexer
+doesn't understand structure — it just chops text into labeled pieces.
+
+```
+Source:  let x = 42
+Tokens:  LET('let')  WHITE_SPACE(' ')  LIDENT('x')  WHITE_SPACE(' ')  EQ('=')  WHITE_SPACE(' ')  INT('42')
+```
+
+## Technology: JFlex
+
+We use [JFlex](https://jflex.de/), a lexer generator for Java. You write regex
+rules in a `.flex` file, JFlex generates a Java class that implements the lexer.
+
+**Our `.flex` file:** `src/main/kotlin/.../lang/ReScript.flex`
+
+**Generated output:** `src/main/gen/.../lang/_ReScriptLexer.java` (gitignored)
+
+**Generation:** Automatic on every build via the `generateReScriptLexer` Gradle
+task (GrammarKit plugin).
+
+### JFlex basics
+
+A `.flex` file has three sections separated by `%%`:
+
+```
+[header — package, imports, class declaration]
+%%
+[directives — class name, interface, macros]
+%%
+[rules — regex patterns mapped to token types]
+```
+
+### Macros
+
+Macros define reusable character classes:
+
+```
+WHITE_SPACE = [ \t\n\r]+
+LOWER_IDENT = [a-z_][a-zA-Z0-9_]*
+INT = [0-9]+
+```
+
+JFlex does NOT support `\s`, `\d`, `\w` shortcuts — use explicit character
+classes.
+
+### States
+
+`<YYINITIAL>` is the default state. All our rules currently live here because
+we have no multi-line constructs that need state tracking.
+
+When we add nested block comments (`/* /* */ */`), we'll need a `COMMENT` state
+with a depth counter — the lexer enters the state on `/*`, increments depth on
+nested `/*`, decrements on `*/`, and exits the state when depth reaches zero.
+A regex alone cannot handle nesting.
+
+### Rule priority
+
+JFlex uses two rules for disambiguation:
+
+1. **Longest match wins** — `letter` matches `LOWER_IDENT` (7 chars), not
+   `LET` (3 chars), because it's longer.
+2. **First rule wins on ties** — bare `_` (1 char) could match either
+   `LOWER_IDENT` or the literal `"_"` rule. We put `"_"` before
+   `{LOWER_IDENT}` so it wins.
+
+Multi-character operators must also be listed before single-character ones:
+`==` before `=`, `->` before `-`, `...` before `.`.
+
+## The Adapter pattern
+
+JFlex generates a class implementing `FlexLexer`. IntelliJ expects a `Lexer`.
+These are different interfaces for the same job — tokenizing text.
+
+`FlexAdapter` bridges them. Our `ReScriptLexerAdapter` is one line:
+
+```kotlin
+class ReScriptLexerAdapter : FlexAdapter(_ReScriptLexer(null))
+```
+
+This is the [Adapter pattern](https://en.wikipedia.org/wiki/Adapter_pattern) —
+a thin wrapper that translates one API to another, like a power adapter between
+an EU plug and a US socket.
+
+## Token types
+
+Each token type is an instance of `IElementType` registered with our language:
+
+```kotlin
+class ReScriptTokenType(debugName: String) : IElementType(debugName, ReScriptLanguage)
+```
+
+All token constants live in `ReScriptTokenTypes`:
+
+```kotlin
+object ReScriptTokenTypes {
+    @JvmField val LET = ReScriptTokenType("LET")
+    @JvmField val LIDENT = ReScriptTokenType("LIDENT")
+    // ...
+}
+```
+
+`@JvmField` is needed because the generated `_ReScriptLexer.java` (Java code)
+references these fields directly — without it, Kotlin would generate getter
+methods instead of plain fields.
+
+`WHITE_SPACE` and `BAD_CHARACTER` come from IntelliJ's built-in `TokenType`
+class, not from our custom types.
+
+## Syntax highlighting
+
+`ReScriptSyntaxHighlighter` maps token types to colors:
+
+```kotlin
+override fun getTokenHighlights(tokenType: IElementType): Array<TextAttributesKey> {
+    val key = when (tokenType) {
+        ReScriptTokenTypes.LET, ReScriptTokenTypes.TYPE, ... -> KEYWORD
+        ReScriptTokenTypes.LIDENT -> IDENTIFIER
+        ReScriptTokenTypes.STRING -> STRING
+        // ...
+    }
+    return arrayOf(key)
+}
+```
+
+The highlighter uses `DefaultLanguageHighlighterColors` as fallbacks (e.g.,
+`KEYWORD` falls back to whatever the user's theme defines for keywords).
+
+`ReScriptSyntaxHighlighterFactory` creates the highlighter and is registered
+in `plugin.xml` via `<lang.syntaxHighlighterFactory>`.
+
+**Key property**: syntax highlighting is instant and offline. It runs the JFlex
+lexer in-process — no LSP server needed, no network round-trip. This is why we
+have both a lexer (for fast coloring) and an LSP (for semantic features).
+
+## Testing strategy
+
+### Snapshot tests (gold file comparison)
+
+Each test has two fixture files:
+- `Keywords.res` — source input
+- `Keywords.out` — expected token stream
+
+The test function `runSnapshotTest` in `LexerTestUtils.kt`:
+1. Loads the `.res` file
+2. Runs the lexer via `LexerTestCase.printTokens()` (IntelliJ's static method)
+3. Compares the output against the `.out` file via
+   `UsefulTestCase.assertSameLinesWithFile()` (IntelliJ's static method)
+
+If the `.out` file doesn't exist, `assertSameLinesWithFile` **auto-creates it**
+with the actual output and fails the test. This is snapshot testing — run once
+to generate, review the output, run again to pass. Same concept as
+[Jest snapshots](https://jestjs.io/docs/snapshot-testing).
+
+### Why standalone functions instead of LexerTestCase inheritance
+
+IntelliJ's `LexerTestCase` provides `printTokens()` as a `public static`
+method, so we call it directly without inheriting from the class. This avoids
+unnecessary inheritance and keeps our test class clean:
+
+```kotlin
+class ReScriptLexerTest {
+    private fun checkLexer(inputFile: String, expectedOutputFile: String) =
+        runSnapshotTest(ReScriptLexerAdapter(), inputFile, expectedOutputFile)
+
+    @Test
+    fun testKeywords() = checkLexer("Keywords.res", "Keywords.out")
+}
+```
+
+### Incremental lexing correctness
+
+Two additional tests verify the lexer works correctly for IntelliJ's incremental
+re-lexing (when the user edits a file, IntelliJ re-lexes from a saved position
+rather than from the beginning):
+
+- **`checkZeroState`** — verifies that keywords and identifiers always leave the
+  lexer in state zero. Non-zero state on these tokens would break incremental
+  re-lexing.
+
+- **`checkCorrectRestart`** — lexes the full text, then restarts the lexer from
+  every token boundary and verifies the remaining tokens match. Catches bugs in
+  state save/restore.
+
+### Observing tokens in runIde
+
+Run `./gradlew runIde`, open a `.res` file, then use
+**Tools > View PSI Structure** (PSI Viewer). With our `ParserDefinition`
+registered, it shows individual tokens as `PsiElement(TOKEN_TYPE)` nodes.
+
+## Current limitations (TODOs)
+
+- **Nested block comments**: `/* /* */ */` — our regex-based rule doesn't handle
+  nesting. Needs a JFlex state with depth counter.
+- **Template strings**: `` `hello ${name}` `` — needs a JFlex state for
+  interpolation.
+- **Full numeric literals**: hex, octal, binary, underscore separators, BigInt
+  suffix, etc. See GOAL.md Phase 1b.
+- **v12 operators**: `&&&`, `|||`, `<<<`, `>>>`, regex literals, etc. See
+  GOAL.md Phase 1d.
+- **Missing keywords**: `open`, `external`, `try`, `catch`, `while`, `for`,
+  `true`, `false`, `rec`, `include`, `and`, `as`, `exception`, `async`,
+  `await`, etc.
+
+## Reference implementations
+
+- **Haskell plugin** (`tmp/intellij-haskell-lsp/`): Uses JFlex states for nested
+  block comments (`NCOMMENT` with `commentDepth`), Haddock docs, quasi-quotes,
+  and GHC pragmas. Good reference for stateful lexing.
+- **Elm plugin** (`tmp/intellij-elm/`): Has a layout lexer (`ElmLayoutLexer`)
+  that injects virtual tokens for Elm's offside rule. Not needed for ReScript
+  (uses braces), but interesting architecture.
+- **Rust plugin** (`tmp/intellij-rust/`): Comprehensive lexer tests including
+  a fuzzy test that feeds 10,000 random strings to verify no crashes. Good
+  model for test coverage.
