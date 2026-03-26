@@ -80,7 +80,11 @@
 
 File ::= item*
 
-private item ::= LetDeclaration | TypeDeclaration
+private item ::= LetDeclaration | TypeDeclaration {
+    recoverWhile = item_recover
+}
+
+private item_recover ::= !(LET | TYPE | <<eof>>)
 
 LetDeclaration ::= LET LIDENT EQ expression { pin = 1 }
 TypeDeclaration ::= TYPE LIDENT EQ expression { pin = 1 }
