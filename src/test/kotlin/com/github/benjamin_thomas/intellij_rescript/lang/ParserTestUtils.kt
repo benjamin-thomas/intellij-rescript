@@ -11,12 +11,11 @@ fun createParserTest(
     createAndSetPsiFile: (String) -> PsiFile,
     ensureNoErrorElements: () -> Unit,
     toParseTreeText: (PsiFile) -> String,
-    testDataPath: String,
     fullDataPath: String,
 ): (String, String) -> Unit = { inputFile, expectedOutputFile ->
     val psiFile = createAndSetPsiFile(inputFile)
     ensureNoErrorElements()
     val actual = toParseTreeText(psiFile)
-    val goldPath = File(testDataPath, "$fullDataPath/$expectedOutputFile").canonicalPath
+    val goldPath = File(fullDataPath, expectedOutputFile).canonicalPath
     assertSameLinesWithFile(goldPath, actual)
 }

@@ -10,7 +10,7 @@ import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.fail
 
-private const val FIXTURES_DIR = "src/test/resources/com/github/benjamin_thomas/intellij_rescript/lexer/fixtures"
+private val FIXTURES_DIR = System.getProperty("user.dir") + "/src/test/resources/com/github/benjamin_thomas/intellij_rescript/lexer/fixtures"
 
 fun runSnapshotTest(lexer: Lexer, inputFile: String, expectedOutputFile: String) {
     val source = File(FIXTURES_DIR, inputFile)

@@ -8,7 +8,7 @@ class ReScriptParserTest : ParsingTestCase(
     false,
     ReScriptParserDefinition()
 ) {
-    override fun getTestDataPath() = "src/test/resources"
+    override fun getTestDataPath() = System.getProperty("user.dir") + "/src/test/resources"
 
     private fun runParserTest(inputFile: String, expectedOutputFile: String) =
         createParserTest(
@@ -18,7 +18,6 @@ class ReScriptParserTest : ParsingTestCase(
             },
             ensureNoErrorElements = ::ensureNoErrorElements,
             toParseTreeText = { toParseTreeText(it, false, false) },
-            testDataPath = testDataPath,
             fullDataPath = myFullDataPath,
         )(inputFile, expectedOutputFile)
 
