@@ -79,6 +79,7 @@ STRING = \" ([^\"\\\n] | \\.)* \"
     "!"                 { return ReScriptTypes.BANG; }
     "?"                 { return ReScriptTypes.QUESTION; }
     "#"                 { return ReScriptTypes.HASH; }
+    "'"                 { return ReScriptTypes.TICK; }
 }
 
 [^]                     { return TokenType.BAD_CHARACTER; }

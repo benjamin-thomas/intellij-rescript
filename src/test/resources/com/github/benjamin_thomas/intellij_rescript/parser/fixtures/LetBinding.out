@@ -1,9 +1,6 @@
 ReScript File
-  ReScriptLetDeclarationImpl(LET_DECLARATION)
+  ReScriptLetBindingImpl(LET_BINDING)
     PsiElement(LET)('let')
-    PsiWhiteSpace(' ')
     PsiElement(LIDENT)('x')
-    PsiWhiteSpace(' ')
     PsiElement(EQ)('=')
-    PsiWhiteSpace(' ')
     PsiElement(INT)('1')

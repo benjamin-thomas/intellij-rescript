@@ -76,6 +76,22 @@ to understand fully. We advance in deliberate steps, not in a blur.
 - [LSP4IJ Developer Guide](https://github.com/redhat-developer/lsp4ij/blob/main/docs/DeveloperGuide.md) —
   How to wire up LSP servers, extension points, client features.
 
+## Developer tools
+
+### Inspecting the PSI tree
+
+Two ways to view the PSI tree structure while developing:
+
+1. **PsiViewer plugin** (recommended) — install from the JetBrains marketplace:
+   https://plugins.jetbrains.com/plugin/227-psiviewer
+   Gives you a persistent tool window. Works in any IntelliJ instance. This is
+   what the [Elm plugin recommends](https://github.com/elm-tooling/intellij-elm/blob/main/docs/contributing.md).
+
+2. **Built-in PSI Viewer** — requires enabling IntelliJ's internal mode:
+   - Help > Edit Custom Properties, add `idea.is.internal=true`, restart
+   - Then: Tools > View PSI Structure
+   - Also unlocks Internal Actions menu, UI Inspector, and other debug tools
+
 ## Documentation
 
 - **`ARCHITECTURE.md`** — project structure, build setup, design decisions, testing philosophy
@@ -318,27 +334,68 @@ Each is a self-contained TDD cycle:
 - **Package manager UI** — npm/yarn/pnpm work fine
 - **Debugger / REPL** — out of scope for now
 
-## Long-term goal — Replace LSP features with native PSI implementations
+## Plugin evolution strategy — LSP first, then native
 
-Inspiration: [intellij-elm](https://github.com/intellij-elm/intellij-elm), which
-implements everything natively (type inference, rename, extract variable, find
-usages) with no LSP at all. The result is extremely responsive.
+### The idea
 
-**Strategy**: Start with LSP for all semantic features, then progressively replace
-them with PSI-based implementations where it matters. Each replacement is a
-self-contained project. IntelliJ's priority system makes this seamless — when you
-register a language-specific handler, it takes priority over LSP4IJ's generic one.
-No "disable LSP for this feature" code needed.
+The plugin evolves in two phases for each IDE feature:
 
-**First target: Extract to Variable (Introduce Variable)**
+1. **LSP first**: Enable the feature via LSP4IJ (usually a one-line XML
+   registration). This works immediately with no PSI work. Observe the behavior
+   — what works well, what's limited, what's missing.
 
-Register a `RefactoringSupportProvider` with `language="ReScript"` in plugin.xml.
-IntelliJ will pick the native handler over LSP4IJ's generic code action. The
-handler reads the PSI tree to find the selected expression, creates new PSI nodes
-(a `let` declaration + a reference), and modifies the tree atomically. This runs
-in-process — no IPC round-trip, instant response.
+2. **Native replacement**: Build a PSI-based implementation that provides
+   capabilities beyond what LSP can offer. Register it in `plugin.xml` —
+   IntelliJ's priority system automatically prefers the native handler over
+   LSP4IJ's generic one. No "disable LSP" code needed.
 
-**Later targets** (in rough order of difficulty):
-- Rename (PSI-based find-and-replace across files)
-- Find usages / go-to-definition (PSI reference resolution)
-- Type inference (major project, requires deep understanding of ReScript's type system)
+### Why replace LSP features at all?
+
+Not for speed (though native is faster). The real reason is that native PSI
+implementations can do things LSP cannot:
+
+- **Deep IDE integration**: IntelliJ features like breadcrumbs, structure view
+  with custom icons, smart code folding, and live templates work best with PSI.
+- **Cross-file refactoring**: A native rename can walk the PSI trees of all
+  project files, resolving references and updating them atomically. LSP rename
+  is limited to what the language server supports — for example, some language
+  servers cannot rename across module boundaries.
+- **Custom inspections**: "Unused open", "missing type annotation", or
+  project-specific lint rules that the LSP server doesn't provide.
+- **Offline operation**: PSI features work without a running language server.
+
+### How to apply this (for each feature)
+
+```
+1. Enable via LSP       →  one-line XML in plugin.xml
+2. Use it, evaluate     →  what works? what's missing?
+3. Build native version →  uses our PSI tree (from the BNF grammar)
+4. Register native      →  IntelliJ prefers it automatically
+5. Tighten the grammar  →  refine PSI tree rules as needed for the feature
+```
+
+Step 5 is key: the permissive parser lets us start with LSP immediately, then
+we tighten specific grammar rules only when a native feature demands it.
+Each rule refinement is a small, testable TDD cycle.
+
+### Example: code folding
+
+1. **LSP**: Register `LSPFoldingRangeBuilder` in plugin.xml → folding works
+2. **Evaluate**: works, but folds are based on LSP ranges (may not match IDE
+   conventions, requires server to be running)
+3. **Native**: Write a `FoldingBuilder` that walks `LetBinding`,
+   `ModuleBinding`, `TypeDeclaration` PSI nodes → fold regions from keyword
+   to closing brace. Works offline, instant, follows IntelliJ conventions.
+4. **Register**: IntelliJ prefers our native builder over the LSP one.
+
+### Progression of features
+
+| Feature | Start with LSP | Then native (when needed) |
+|---|---|---|
+| Code folding | LSPFoldingRangeBuilder | PSI-based FoldingBuilder |
+| Structure view | LSPDocumentSymbolStructureViewFactory | PSI-based StructureViewFactory |
+| Breadcrumbs | LSP (if supported) | PSI-based BreadcrumbsProvider |
+| Find usages | LSP references | PSI reference resolution across files |
+| Rename | LSP rename | PSI-based rename (cross-module support) |
+| Extract variable | LSP code actions | PSI-based RefactoringSupportProvider |
+| Custom inspections | (not available via LSP) | PSI-based LocalInspectionTool |

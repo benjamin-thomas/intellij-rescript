@@ -1,0 +1,12 @@
+ReScript File
+  ReScriptModuleBindingImpl(MODULE_BINDING)
+    PsiElement(MODULE)('module')
+    PsiElement(UIDENT)('Foo')
+    PsiElement(EQ)('=')
+    PsiElement(LBRACE)('{')
+    ReScriptLetBindingImpl(LET_BINDING)
+      PsiElement(LET)('let')
+      PsiElement(LIDENT)('x')
+      PsiElement(EQ)('=')
+      PsiElement(INT)('1')
+    PsiElement(RBRACE)('}')

@@ -1,0 +1,6 @@
+ReScript File
+  ReScriptModuleBindingImpl(MODULE_BINDING)
+    PsiElement(MODULE)('module')
+    PsiElement(UIDENT)('Foo')
+    PsiElement(EQ)('=')
+    PsiElement(UIDENT)('Bar')

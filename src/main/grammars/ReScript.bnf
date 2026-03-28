@@ -75,19 +75,82 @@
         BANG       = 'BANG'
         QUESTION   = 'QUESTION'
         HASH       = 'HASH'
+        TICK       = 'TICK'
     ]
 }
 
-File ::= item*
+// =============================================================================
+// Top-level structure
+//
+// ADDING A NEW DECLARATION TYPE:
+//   1. Add the rule to `block_declaration` and define the concrete rule below
+//   2. Add its keyword to `decl_keyword`
+// That's it. Top-level recovery, brace nesting, and paren/bracket handling
+// all derive from these two rules automatically.
+// =============================================================================
 
-private item ::= LetDeclaration | TypeDeclaration {
-    recoverWhile = item_recover
-}
+File ::= declaration*
 
-private item_recover ::= !(LET | TYPE | <<eof>>)
+// All declaration types (change 1 of 2)
+private block_declaration ::= LetBinding | ModuleBinding | TypeDeclaration
 
-LetDeclaration ::= LET LIDENT EQ expression { pin = 1 }
-TypeDeclaration ::= TYPE LIDENT EQ expression { pin = 1 }
+// All declaration-starting keywords (change 2 of 2)
+private decl_keyword ::= LET | MODULE | TYPE
 
-// Private — no composite node; tokens stay as direct children of the parent
-private expression ::= INT | FLOAT | STRING | LIDENT | UIDENT
+// Top-level wrapper: adds error recovery between declarations
+private declaration ::= block_declaration { recoverWhile = decl_recover }
+private decl_recover ::= !(decl_keyword | <<eof>>)
+
+// Bindings (bind a name to a value)
+LetBinding      ::= LET    body_token* { pin = 1 }
+ModuleBinding   ::= MODULE body_token* { pin = 1 }
+
+// Declarations
+TypeDeclaration ::= TYPE   body_token* { pin = 1 }
+
+// =============================================================================
+// Permissive body
+//
+// Consumes any token, tracking delimiter depth so that nested declarations
+// inside { } are recognized as proper PSI nodes rather than raw tokens.
+// Inside ( ) and [ ], keywords are consumed as raw tokens — no declarations
+// start inside parens/brackets in ReScript.
+//
+// Known limitation: body_token* is greedy — a nested let binding consumes
+// everything until the next let/type/module or closing brace. This means
+// trailing expressions in a block (e.g. `2 + b` after `let b = 1`) get
+// attached to the inner binding rather than the enclosing block.
+// Fixing this requires full expression parsing (knowing where one expression
+// ends and the next begins). See NestedLetBindings test fixture.
+//
+// ADDING A NEW TOKEN:
+//   Add it to exactly one category below (keyword, identifier, literal,
+//   operator, punctuation, or comment). If forgotten, the token will silently
+//   cause parse errors inside declaration bodies.
+// =============================================================================
+
+private body_token ::= delimited_block | non_decl_token
+
+private delimited_block ::= braced_block | paren_block | bracket_block
+private braced_block    ::= LBRACE block_content* RBRACE { pin = 1 }
+private paren_block     ::= LPAREN paren_content* RPAREN { pin = 1 }
+private bracket_block   ::= LBRACKET paren_content* RBRACKET { pin = 1 }
+
+// Inside braces: nested declarations are valid.
+// References block_declaration (not declaration) to avoid recoverWhile eating past `}`.
+private block_content ::= block_declaration | paren_content
+
+// Inside parens/brackets: keywords are raw tokens, no declarations
+private paren_content ::= delimited_block | decl_keyword | non_decl_token
+
+// All non-declaration-keyword, non-delimiter tokens
+private non_decl_token ::= keyword | identifier | literal | operator | punctuation | comment
+private keyword     ::= SWITCH | IF | ELSE
+private identifier  ::= LIDENT | UIDENT
+private literal     ::= INT | FLOAT | STRING
+private operator    ::= EQ | EQEQ | BANGEQ | PLUS | MINUS | STAR | SLASH
+                      | LT | GT | LTEQ | GTEQ | ARROW | FAT_ARROW | PIPE_FORWARD
+                      | PLUS_DOT | MINUS_DOT | STAR_DOT | SLASH_DOT
+private punctuation ::= COMMA | SEMICOLON | COLON | DOT | DOTDOTDOT
+                      | AT | TILDE | PIPE | UNDERSCORE | BANG | QUESTION | HASH | TICK
+private comment     ::= LINE_COMMENT | BLOCK_COMMENT

@@ -12,18 +12,36 @@ class ReScriptParserTest : ParsingTestCase(
 ) {
     override fun getTestDataPath() = System.getProperty("user.dir") + "/src/test/resources"
 
-    private fun runParserTest(inputFile: String, expectedOutputFile: String, hasParseErrors: Boolean = false) =
+    /**
+     * @param hasParseErrors skip the "no PsiErrorElement" assertion (for intentionally broken input)
+     * @param skipSpaces hide PsiWhiteSpace nodes from the gold file (default: true for readability)
+     * @param printRanges show character offset ranges on each node, e.g. `PsiElement(LET)('let')[0,3]`
+     */
+    private fun runParserTest(
+        inputFile: String,
+        expectedOutputFile: String,
+        hasParseErrors: Boolean = false,
+        skipSpaces: Boolean = true,
+        printRanges: Boolean = false,
+    ) =
         createParserTest(
             createAndSetPsiFile = { file ->
                 val name = file.removeSuffix(".res")
                 createPsiFile(name, loadFile(file)).also { myFile = it }
             },
             ensureNoErrorElements = if (hasParseErrors) noop else ::ensureNoErrorElements,
-            toParseTreeText = { toParseTreeText(it, false, false) },
+            toParseTreeText = { toParseTreeText(it, skipSpaces, printRanges) },
             fullDataPath = myFullDataPath,
         )(inputFile, expectedOutputFile)
 
     fun testLetBinding() = runParserTest("LetBinding.res", "LetBinding.out")
+    fun testModuleBinding() = runParserTest("ModuleBinding.res", "ModuleBinding.out")
+    fun testModuleAlias() = runParserTest("ModuleAlias.res", "ModuleAlias.out")
     fun testMultipleDeclarations() = runParserTest("MultipleDeclarations.res", "MultipleDeclarations.out")
+    fun testArrowFunction() = runParserTest("ArrowFunction.res", "ArrowFunction.out")
+    fun testTypeWithParams() = runParserTest("TypeWithParams.res", "TypeWithParams.out")
+    fun testNestedLetBindings() = runParserTest("NestedLetBindings.res", "NestedLetBindings.out")
+    fun testNestedDelimiters() = runParserTest("NestedDelimiters.res", "NestedDelimiters.out")
     fun testErrorRecovery() = runParserTest("ErrorRecovery.res", "ErrorRecovery.out", hasParseErrors = true)
+    fun testErrorRecoveryInBlock() = runParserTest("ErrorRecoveryInBlock.res", "ErrorRecoveryInBlock.out", hasParseErrors = true)
 }
