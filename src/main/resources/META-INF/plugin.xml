@@ -40,6 +40,11 @@
         <codeInsight.parameterInfo
                 language="ReScript"
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.lsp.ReScriptParameterInfoHandler"/>
+        <!-- ReScript LSP server does not support callHierarchyProvider
+        <callHierarchyProvider
+                language="ReScript"
+                implementationClass="com.redhat.devtools.lsp4ij.features.callHierarchy.LSPCallHierarchyProvider"/>
+        -->
         
         <!--suppress PluginXmlI18n -->
         <notificationGroup id="ReScript"

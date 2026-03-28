@@ -1,0 +1,17 @@
+#!/bin/bash
+
+set -e
+
+./gradlew buildPlugin
+
+ZIP="build/distributions/intellij-rescript-0.1.0.zip"
+
+echo ""
+echo "Plugin built: $(realpath "$ZIP")"
+echo ""
+echo "To install in your IDE:"
+echo "  1. Settings > Plugins > gear icon > Install Plugin from Disk..."
+echo "  2. Select the ZIP file above"
+echo "  3. Restart the IDE"
+echo ""
+echo "Prerequisite: LSP4IJ must be installed from the JetBrains marketplace."

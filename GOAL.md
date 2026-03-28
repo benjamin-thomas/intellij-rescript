@@ -127,6 +127,73 @@ and syntax-highlighted code blocks. Currently shown as plain text because
 `setupUIComponentPresentation` only supports single-style text. Rich rendering
 would require a custom `JComponent` popup (~200-300 lines).
 
+### Installing the plugin locally
+
+To install the plugin in your real IDE (not the sandboxed `runIde`):
+
+```bash
+./gradlew buildPlugin
+```
+
+This produces `build/distributions/intellij-rescript-0.1.0.zip`. Then in your IDE:
+
+1. **Settings > Plugins > gear icon > Install Plugin from Disk...**
+2. Select the ZIP file
+3. Restart the IDE
+
+The plugin requires LSP4IJ to be installed as well (it's a dependency). Install
+it from the JetBrains marketplace first if you don't have it.
+
+To update after code changes, rebuild and repeat. No need to uninstall first —
+installing from disk replaces the existing version.
+
+## Next steps
+
+### Short term (next 1-2 sessions)
+
+1. **Native code folding** — first PSI-powered feature. Small Kotlin class,
+   no LSP equivalent available. Fold regions from declaration keyword to
+   closing brace.
+
+2. **Add missing top-level declaration types** — `open`, `external`, `include`,
+   `exception` as permissive stubs in the BNF. Two-line change each (add to
+   `block_declaration` + `decl_keyword`). Eliminates red squiggles on real
+   files that use these.
+
+3. **Handle decorators and raw expressions** — `@react.component` before a
+   `let` currently gets consumed as body tokens of the previous declaration.
+   Need a grammar rule to attach decorators to the following declaration.
+   Also handle `%%raw(...)` (FFI escape hatch) as a top-level item.
+
+4. **Add missing lexer tokens** — `open`, `external`, `include`, `exception`,
+   `rec`, `async`, `await` keywords, `%%` for raw expressions. Needed for
+   #2 and #3.
+
+5. **Verify `.resi` file support** — interface files use the same syntax as
+   `.res`. File type is already registered. Verify parser, syntax highlighting,
+   and LSP features work on `.resi` files. Add a parser test with a `.resi`
+   fixture.
+
+### Medium term (next few weeks)
+
+4. **Tighten LetBinding to extract the name** — change `LET body_token*` to
+   `LET LIDENT body_token*`. Enables native structure view with declaration
+   names.
+
+5. **Native structure view** — once names are extractable, build a
+   `PsiStructureViewFactory` with custom icons. Replaces the LSP one.
+
+6. **Rich parameter info rendering** — render markdown documentation as HTML
+   in the popup instead of plain text (~200-300 lines).
+
+### Longer term
+
+7. **Expression parsing** — start tightening `body_token*` into real expression
+   rules. Fixes the greedy binding problem and enables refactoring features.
+
+8. **More LSP features to evaluate** — semantic tokens (richer syntax
+   highlighting), code lens, inlay hints.
+
 ## Documentation
 
 - **`ARCHITECTURE.md`** — project structure, build setup, design decisions, testing philosophy
@@ -353,9 +420,10 @@ Each is a self-contained TDD cycle:
 - **Install**: `npm install -g @rescript/language-server`
 - **Our plugin finds it**: via PATH lookup
 - **Launch args**: `--stdio`
-- **Capabilities**: completion, hover, definition, references, rename,
-  diagnostics, formatting, code actions, semantic tokens
-- **Not supported**: inlay hints / inline type annotations (unlike OCaml/F#)
+- **Capabilities**: completion, hover, definition, typeDefinition, references,
+  rename, diagnostics, formatting, code actions, semantic tokens, signature help,
+  document symbols, inlay hints, code lens
+- **Not supported**: folding ranges, call hierarchy, type hierarchy
 - **Relationship to `rescript-editor-analysis.exe`**: The LSP server (Node.js)
   internally calls `rescript-editor-analysis.exe` (native OCaml binary bundled
   with the `rescript` npm package) for analysis. The LSP server is a thin
