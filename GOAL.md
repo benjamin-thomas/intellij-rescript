@@ -378,15 +378,22 @@ Step 5 is key: the permissive parser lets us start with LSP immediately, then
 we tighten specific grammar rules only when a native feature demands it.
 Each rule refinement is a small, testable TDD cycle.
 
-### Example: code folding
+### Example: structure view
 
-1. **LSP**: Register `LSPFoldingRangeBuilder` in plugin.xml → folding works
-2. **Evaluate**: works, but folds are based on LSP ranges (may not match IDE
-   conventions, requires server to be running)
-3. **Native**: Write a `FoldingBuilder` that walks `LetBinding`,
-   `ModuleBinding`, `TypeDeclaration` PSI nodes → fold regions from keyword
-   to closing brace. Works offline, instant, follows IntelliJ conventions.
-4. **Register**: IntelliJ prefers our native builder over the LSP one.
+1. **LSP**: Register `LSPDocumentSymbolStructureViewFactory` in plugin.xml →
+   structure view works immediately, showing all symbols with types.
+2. **Evaluate**: works well — shows functions, types, modules with correct
+   names. But uses generic icons, no custom sorting or filtering.
+3. **Native** (future): Write a `PsiStructureViewFactory` that walks
+   `LetBinding`, `ModuleBinding`, `TypeDeclaration` PSI nodes. Requires
+   tightening the grammar to parse declaration names (e.g.,
+   `LetBinding ::= LET LIDENT body_token*` instead of `LET body_token*`).
+   Would enable custom icons, sorting, and filtering.
+4. **Register**: IntelliJ prefers the native factory over the LSP one.
+
+Note: some features like **code folding** are not supported by the ReScript
+LSP server (`foldingRangeProvider` is absent). For those, skip straight to
+a native PSI-based implementation.
 
 ### Progression of features
 

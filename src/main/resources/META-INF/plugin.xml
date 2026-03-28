@@ -28,6 +28,9 @@
         <lang.parserDefinition
                 language="ReScript"
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptParserDefinition"/>
+        <lang.psiStructureViewFactory
+                language="ReScript"
+                implementationClass="com.redhat.devtools.lsp4ij.features.documentSymbol.LSPDocumentSymbolStructureViewFactory"/>
         
         <!--suppress PluginXmlI18n -->
         <notificationGroup id="ReScript"
