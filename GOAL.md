@@ -92,6 +92,41 @@ Two ways to view the PSI tree structure while developing:
    - Then: Tools > View PSI Structure
    - Also unlocks Internal Actions menu, UI Inspector, and other debug tools
 
+### Debugging the plugin
+
+- **IDE log**: `tail -f build/idea-sandbox/IU-2025.3/log/idea.log` — shows
+  errors, warnings, and any `Logger.getInstance("ReScript").warn(...)` output
+  in real-time while the sandboxed IDE is running.
+- **LSP traces**: In `runIde`, go to Settings > Languages & Frameworks >
+  Language Servers > select ReScript > Debug tab > set trace to verbose.
+  Then View > Tool Windows > Language Servers > LSP Consoles > Traces tab
+  shows full JSON request/response between IDE and LSP server.
+- **Debugger**: In your development IDE, find `runIde` in the Gradle tool
+  window (Tasks > intellij platform > runIde), right-click > Debug. This
+  launches the sandboxed IDE with the debugger attached — set breakpoints
+  in your plugin code as normal. Note: the development IDE must be started
+  from a shell that has `rescript-language-server` on its PATH.
+
+### Custom parameter info handler
+
+LSP4IJ's built-in `LSPParameterInfoHandler` does not render the `documentation`
+field from the LSP `signatureHelp` response. The ReScript LSP server sends rich
+documentation (markdown with examples, MDN links), but LSP4IJ's `updateUI`
+method only reads the `label` and `parameters` fields.
+
+We wrote `ReScriptParameterInfoHandler` to fix this. It reuses LSP4IJ's
+infrastructure for fetching (`LSPFileSupport`, `LSPSignatureHelpSupport`,
+`LSPSignatureHelperPsiElement`) and only customizes the rendering in `updateUI`.
+
+Key issue found during development: the `documentation` field is wrapped in an
+`Either<String, MarkupContent>` object. Casting it directly to `MarkupContent`
+or `String` returns null — you must unwrap the `Either` first.
+
+**Future improvement**: render the documentation as HTML with markdown formatting
+and syntax-highlighted code blocks. Currently shown as plain text because
+`setupUIComponentPresentation` only supports single-style text. Rich rendering
+would require a custom `JComponent` popup (~200-300 lines).
+
 ## Documentation
 
 - **`ARCHITECTURE.md`** — project structure, build setup, design decisions, testing philosophy
