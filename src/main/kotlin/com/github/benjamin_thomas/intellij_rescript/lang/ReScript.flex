@@ -92,6 +92,8 @@ STRING = \" ([^\"\\\n] | \\.)* \"
     "external"          { return track(ReScriptTypes.EXTERNAL); }
     "exception"         { return track(ReScriptTypes.EXCEPTION); }
     "rec"               { return track(ReScriptTypes.REC); }
+    "true"              { return track(ReScriptTypes.TRUE); }
+    "false"             { return track(ReScriptTypes.FALSE); }
     "switch"            { return track(ReScriptTypes.SWITCH); }
     "if"                { return track(ReScriptTypes.IF); }
     "else"              { return track(ReScriptTypes.ELSE); }

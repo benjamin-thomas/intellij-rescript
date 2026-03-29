@@ -32,7 +32,7 @@ class ReScriptSyntaxHighlighter : SyntaxHighlighterBase() {
         val key = when (tokenType) {
             ReScriptTypes.LET, ReScriptTypes.TYPE, ReScriptTypes.MODULE,
             ReScriptTypes.OPEN, ReScriptTypes.INCLUDE, ReScriptTypes.EXTERNAL,
-            ReScriptTypes.EXCEPTION, ReScriptTypes.REC,
+            ReScriptTypes.EXCEPTION, ReScriptTypes.REC, ReScriptTypes.TRUE, ReScriptTypes.FALSE,
             ReScriptTypes.SWITCH, ReScriptTypes.IF, ReScriptTypes.ELSE -> KEYWORD
 
             ReScriptTypes.LIDENT -> IDENTIFIER
