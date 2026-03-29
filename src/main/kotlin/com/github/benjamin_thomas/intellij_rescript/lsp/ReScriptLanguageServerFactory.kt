@@ -19,6 +19,25 @@ class ReScriptLanguageServerFactory : LanguageServerFactory {
 
     override fun createLanguageClient(project: Project): LanguageClientImpl =
         ReScriptLanguageClient(project)
+
+    override fun createClientFeatures(): com.redhat.devtools.lsp4ij.client.features.LSPClientFeatures =
+        com.redhat.devtools.lsp4ij.client.features.LSPClientFeatures()
+            .setSemanticTokensFeature(ReScriptSemanticTokensFeature())
+}
+
+/**
+ * Disables LSP semantic tokens for ReScript.
+ *
+ * LSP4IJ's default semantic token styling inherits from IntelliJ's "Language
+ * Defaults" which underlines reassigned variables. This makes most ReScript
+ * variables appear underlined — very distracting. Since our lexer-based syntax
+ * highlighting is already good enough, we disable semantic tokens entirely.
+ *
+ * Can be re-enabled in the future with custom color mappings that don't inherit
+ * the underline effect.
+ */
+class ReScriptSemanticTokensFeature : com.redhat.devtools.lsp4ij.client.features.LSPSemanticTokensFeature() {
+    override fun isSupported(file: com.intellij.psi.PsiFile): Boolean = false
 }
 
 /**
