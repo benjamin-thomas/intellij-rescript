@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""
+Demonstrates talking to the ReScript LSP server over stdio.
+
+The LSP protocol is stateful and bidirectional:
+  1. Client sends initialize, waits for response
+  2. Client sends initialized notification
+  3. Client sends the actual query, waits for response
+
+Usage:
+  ./manage/dev/test-lsp [file] [line] [character]
+  ./manage/dev/test-lsp src/App.res 77 15
+
+For comparison, the analysis binary gives the same result without protocol overhead:
+  cd ~/code/github.com/benjamin-thomas/7guis/rescript-7guis
+  ./node_modules/@rescript/linux-x64/bin/rescript-editor-analysis.exe definition src/App.res 77 15
+"""
+
+import json
+import subprocess
+import sys
+import os
+import time
+
+PROJECT_DIR = os.path.expanduser("~/code/github.com/benjamin-thomas/7guis/rescript-7guis")
+
+file = sys.argv[1] if len(sys.argv) > 1 else "src/App.res"
+line = int(sys.argv[2]) if len(sys.argv) > 2 else 77
+char = int(sys.argv[3]) if len(sys.argv) > 3 else 15
+
+
+def make_message(body: dict) -> bytes:
+    """Wrap a JSON object in the LSP Content-Length header."""
+    encoded = json.dumps(body).encode("utf-8")
+    header = f"Content-Length: {len(encoded)}\r\n\r\n".encode("ascii")
+    return header + encoded
+
+
+def read_message(stdout) -> dict:
+    """Read one LSP message: parse Content-Length header, then read the JSON body."""
+    content_length = 0
+    while True:
+        header_line = stdout.readline().decode("ascii").strip()
+        if not header_line:
+            break
+        if header_line.startswith("Content-Length:"):
+            content_length = int(header_line.split(":")[1].strip())
+
+    body = stdout.read(content_length)
+    return json.loads(body)
+
+
+def read_response(stdout, expected_id: int) -> dict:
+    """Read messages until we get the response matching our request id.
+    Skips server-initiated notifications (they have no 'id' field)."""
+    while True:
+        msg = read_message(stdout)
+        if msg.get("id") == expected_id:
+            return msg
+        # Otherwise it's a notification — skip it
+
+
+def send(proc, body: dict):
+    proc.stdin.write(make_message(body))
+    proc.stdin.flush()
+
+
+# Start the LSP server
+proc = subprocess.Popen(
+    ["rescript-language-server", "--stdio"],
+    stdin=subprocess.PIPE,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    cwd=PROJECT_DIR,
+)
+
+# Step 1: Initialize
+send(proc, {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+        "capabilities": {},
+        "rootUri": f"file://{PROJECT_DIR}",
+        "workspaceFolders": [{"uri": f"file://{PROJECT_DIR}", "name": "rescript-7guis"}],
+    },
+})
+init_response = read_response(proc.stdout, expected_id=1)
+capabilities = list(init_response.get("result", {}).get("capabilities", {}).keys())
+print(f"=== initialize ({len(capabilities)} capabilities) ===")
+print(f"  {', '.join(capabilities[:10])}...")
+print()
+
+# Step 2: Initialized (notification — no response expected)
+send(proc, {
+    "jsonrpc": "2.0",
+    "method": "initialized",
+    "params": {},
+})
+
+# Step 3: Open the file (the server needs to know about it before queries)
+full_path = os.path.join(PROJECT_DIR, file)
+with open(full_path) as f:
+    file_content = f.read()
+
+full_uri = f"file://{PROJECT_DIR}/{file}"
+send(proc, {
+    "jsonrpc": "2.0",
+    "method": "textDocument/didOpen",
+    "params": {
+        "textDocument": {
+            "uri": full_uri,
+            "languageId": "rescript",
+            "version": 1,
+            "text": file_content,
+        },
+    },
+})
+
+# Give the server a moment to process the file
+time.sleep(1)
+
+# Step 4: Go to definition
+send(proc, {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "textDocument/definition",
+    "params": {
+        "textDocument": {"uri": full_uri},
+        "position": {"line": line, "character": char},
+    },
+})
+def_response = read_response(proc.stdout, expected_id=2)
+
+print(f"=== definition {file}:{line}:{char} ===")
+print(json.dumps(def_response.get("result"), indent=2))
+
+# Step 5: Shutdown + exit (clean LSP teardown)
+send(proc, {"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": None})
+read_response(proc.stdout, expected_id=3)
+send(proc, {"jsonrpc": "2.0", "method": "exit", "params": None})
+proc.wait(timeout=5)
+
+stderr_output = proc.stderr.read().decode("utf-8", errors="replace").strip()
+if stderr_output:
+    print()
+    print(f"=== stderr ===")
+    print(stderr_output[:500])
+
+print()
+print(f"Equivalent analysis command (no LSP overhead):")
+print(f"  cd {PROJECT_DIR}")
+print(f"  ./node_modules/@rescript/linux-x64/bin/rescript-editor-analysis.exe definition {file} {line} {char}")

@@ -11,3 +11,7 @@ ro:~/code/github.com/intellij-rust/intellij-rust
 
 # ReScript test project (to find rescript-language-server binary)
 ro:~/code/github.com/benjamin-thomas/7guis/rescript-7guis
+
+# LSP server code
+ro:~/code/github.com/rescript-lang/rescript-vscode
+
