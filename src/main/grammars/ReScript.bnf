@@ -35,6 +35,7 @@
         FLOAT      = 'FLOAT'
         STRING     = 'STRING'
         REGEX      = 'REGEX'
+        BACKTICK_STRING = 'BACKTICK_STRING'
 
         // Comments
         LINE_COMMENT  = 'LINE_COMMENT'
@@ -175,7 +176,7 @@ private paren_content ::= delimited_block | decl_keyword | non_decl_token
 private non_decl_token ::= keyword | identifier | literal | operator | punctuation | comment
 private keyword     ::= REC | TRUE | FALSE | SWITCH | IF | ELSE
 private identifier  ::= LIDENT | UIDENT
-private literal     ::= INT | FLOAT | STRING | REGEX
+private literal     ::= INT | FLOAT | STRING | BACKTICK_STRING | REGEX
 private operator    ::= EQ | EQEQ | BANGEQ | AMPAMP | PIPEPIPE | PLUS | MINUS | STAR | SLASH
                       | LT | GT | LTEQ | GTEQ | ARROW | FAT_ARROW | PIPE_FORWARD
                       | PLUS_DOT | MINUS_DOT | STAR_DOT | SLASH_DOT

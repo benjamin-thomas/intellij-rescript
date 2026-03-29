@@ -39,7 +39,7 @@ class ReScriptSyntaxHighlighter : SyntaxHighlighterBase() {
             ReScriptTypes.UIDENT -> TYPE_NAME
 
             ReScriptTypes.INT, ReScriptTypes.FLOAT -> NUMBER
-            ReScriptTypes.STRING -> STRING
+            ReScriptTypes.STRING, ReScriptTypes.BACKTICK_STRING -> STRING
             ReScriptTypes.REGEX -> REGEX
 
             ReScriptTypes.LINE_COMMENT -> LINE_COMMENT

@@ -55,14 +55,12 @@ import com.intellij.psi.TokenType;
      *   start of file  — null → regex
      */
     private boolean isStartRegexSlash() {
-        return lastSignificantToken != ReScriptTypes.LIDENT &&    // x / y
-               lastSignificantToken != ReScriptTypes.UIDENT &&    // Foo / bar
-               lastSignificantToken != ReScriptTypes.INT &&       // 10 / 2
-               lastSignificantToken != ReScriptTypes.FLOAT &&     // 3.0 / 2.0
-               lastSignificantToken != ReScriptTypes.STRING &&    // "a" / "b"
-               lastSignificantToken != ReScriptTypes.RPAREN &&    // foo() / bar
-               lastSignificantToken != ReScriptTypes.RBRACKET &&  // arr[0] / 2
-               lastSignificantToken != ReScriptTypes.RBRACE;      // {x: 1} / 2
+        return lastSignificantToken != ReScriptTypes.LIDENT    &&   // x / y
+               lastSignificantToken != ReScriptTypes.UIDENT    &&   // Foo / bar
+               lastSignificantToken != ReScriptTypes.INT       &&   // 10 / 2
+               lastSignificantToken != ReScriptTypes.FLOAT     &&   // 3.0 / 2.0
+               lastSignificantToken != ReScriptTypes.RPAREN    &&   // foo() / bar
+               lastSignificantToken != ReScriptTypes.RBRACKET;      // arr[0] / 2
     }
 %}
 
@@ -76,6 +74,7 @@ UPPER_IDENT = [A-Z][a-zA-Z0-9_]*
 INT = [0-9]+
 FLOAT = [0-9]+ "." [0-9]+
 STRING = \" ([^\"\\\n] | \\.)* \"
+BACKTICK_STRING = ` [^`]* `
 
 %%
 
@@ -101,6 +100,7 @@ STRING = \" ([^\"\\\n] | \\.)* \"
     {FLOAT}             { return track(ReScriptTypes.FLOAT); }
     {INT}               { return track(ReScriptTypes.INT); }
     {STRING}            { return track(ReScriptTypes.STRING); }
+    {BACKTICK_STRING}   { return track(ReScriptTypes.BACKTICK_STRING); }
 
     "_"                 { return track(ReScriptTypes.UNDERSCORE); }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }
