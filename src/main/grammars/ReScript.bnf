@@ -76,6 +76,7 @@
         QUESTION   = 'QUESTION'
         HASH       = 'HASH'
         TICK       = 'TICK'
+        PCT_PCT = 'PCT_PCT'
     ]
 }
 
@@ -92,10 +93,10 @@
 File ::= declaration*
 
 // All declaration types (change 1 of 2)
-private block_declaration ::= LetBinding | ModuleBinding | TypeDeclaration
+private block_declaration ::= LetBinding | ModuleBinding | TypeDeclaration | ExtensionPoint | Decorator
 
 // All declaration-starting keywords (change 2 of 2)
-private decl_keyword ::= LET | MODULE | TYPE
+private decl_keyword ::= LET | MODULE | TYPE | PCT_PCT | AT
 
 // Top-level wrapper: adds error recovery between declarations
 private declaration ::= block_declaration { recoverWhile = decl_recover }
@@ -107,6 +108,12 @@ ModuleBinding   ::= MODULE body_token* { pin = 1 }
 
 // Declarations
 TypeDeclaration ::= TYPE   body_token* { pin = 1 }
+
+// Extension points (%%raw, %%private, etc.)
+ExtensionPoint  ::= PCT_PCT body_token* { pin = 1 }
+
+// Decorators (@react.component, @module, @val, etc.)
+Decorator       ::= AT body_token* { pin = 1 }
 
 // =============================================================================
 // Permissive body
@@ -152,5 +159,5 @@ private operator    ::= EQ | EQEQ | BANGEQ | PLUS | MINUS | STAR | SLASH
                       | LT | GT | LTEQ | GTEQ | ARROW | FAT_ARROW | PIPE_FORWARD
                       | PLUS_DOT | MINUS_DOT | STAR_DOT | SLASH_DOT
 private punctuation ::= COMMA | SEMICOLON | COLON | DOT | DOTDOTDOT
-                      | AT | TILDE | PIPE | UNDERSCORE | BANG | QUESTION | HASH | TICK
+                      | TILDE | PIPE | UNDERSCORE | BANG | QUESTION | HASH | TICK
 private comment     ::= LINE_COMMENT | BLOCK_COMMENT

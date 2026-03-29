@@ -1,0 +1,12 @@
+ReScript File
+  ReScriptExtensionPointImpl(EXTENSION_POINT)
+    PsiElement(PCT_PCT)('%%')
+    PsiElement(LIDENT)('raw')
+    PsiElement(LPAREN)('(')
+    PsiElement(STRING)('"import './counter.css'"')
+    PsiElement(RPAREN)(')')
+  ReScriptLetBindingImpl(LET_BINDING)
+    PsiElement(LET)('let')
+    PsiElement(LIDENT)('x')
+    PsiElement(EQ)('=')
+    PsiElement(INT)('1')

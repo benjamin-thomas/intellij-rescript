@@ -42,6 +42,9 @@ class ReScriptParserTest : ParsingTestCase(
     fun testTypeWithParams() = runParserTest("TypeWithParams.res", "TypeWithParams.out")
     fun testNestedLetBindings() = runParserTest("NestedLetBindings.res", "NestedLetBindings.out")
     fun testNestedDelimiters() = runParserTest("NestedDelimiters.res", "NestedDelimiters.out")
+    fun testExtensionPoint() = runParserTest("ExtensionPoint.res", "ExtensionPoint.out")
+    fun testDecorator() = runParserTest("Decorator.res", "Decorator.out")
+    fun testDecoratorAfterLet() = runParserTest("DecoratorAfterLet.res", "DecoratorAfterLet.out")
     fun testErrorRecovery() = runParserTest("ErrorRecovery.res", "ErrorRecovery.out", hasParseErrors = true)
     fun testErrorRecoveryInBlock() = runParserTest("ErrorRecoveryInBlock.res", "ErrorRecoveryInBlock.out", hasParseErrors = true)
 }

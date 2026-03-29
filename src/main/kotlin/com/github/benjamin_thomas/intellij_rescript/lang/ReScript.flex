@@ -80,6 +80,7 @@ STRING = \" ([^\"\\\n] | \\.)* \"
     "?"                 { return ReScriptTypes.QUESTION; }
     "#"                 { return ReScriptTypes.HASH; }
     "'"                 { return ReScriptTypes.TICK; }
+    "%%"                { return ReScriptTypes.PCT_PCT; }
 }
 
 [^]                     { return TokenType.BAD_CHARACTER; }
