@@ -199,6 +199,18 @@ and syntax-highlighted code blocks. Currently shown as plain text because
 `setupUIComponentPresentation` only supports single-style text. Rich rendering
 would require a custom `JComponent` popup (~200-300 lines).
 
+### Decorator-declaration association
+
+Currently `@react.component` and the following `let make` are **sibling** nodes
+in the PSI tree, not parent-child. This means you can't walk from a `LetBinding`
+to its decorators without scanning siblings.
+
+If we ever need this (e.g., for "go to decorated function", code folding that
+includes the decorator, or inspections like "missing @react.component"), we'd
+wrap them: `DecoratedDeclaration ::= Decorator+ block_declaration`. This is a
+grammar change, not an architectural one — the permissive body approach stays
+the same.
+
 ### Installing the plugin locally
 
 To install the plugin in your real IDE (not the sandboxed `runIde`):
