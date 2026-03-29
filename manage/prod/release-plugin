@@ -1,0 +1,34 @@
+#!/bin/bash
+set -e
+
+# Publishes the plugin to the JetBrains Marketplace.
+#
+# Prerequisites:
+#   - Store your token: pass insert jetbrains/marketplace-token
+#   - Bump the version in build.gradle.kts before releasing
+#
+# First release was done manually at https://plugins.jetbrains.com/plugin/add
+
+TOKEN=$(pass show jetbrains/marketplace-token)
+
+if [ -z "$TOKEN" ]; then
+    echo "Error: could not read token from pass"
+    exit 1
+fi
+
+VERSION=$(grep '^version' build.gradle.kts | head -1 | sed 's/.*"\(.*\)".*/\1/')
+echo "Publishing version: $VERSION"
+echo ""
+
+./gradlew buildPlugin
+echo ""
+
+read -p "Publish v$VERSION to JetBrains Marketplace? (y/N) " confirm
+if [ "$confirm" != "y" ]; then
+    echo "Aborted."
+    exit 0
+fi
+
+./gradlew publishPlugin -Dorg.gradle.project.intellijPublishToken="$TOKEN"
+echo ""
+echo "Done! Check https://plugins.jetbrains.com/plugin/30982-rescript-ide for status."
