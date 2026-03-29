@@ -81,6 +81,7 @@
         HASH       = 'HASH'
         TICK       = 'TICK'
         PCT_PCT = 'PCT_PCT'
+        PCT     = 'PCT'
     ]
 }
 
@@ -173,5 +174,5 @@ private operator    ::= EQ | EQEQ | BANGEQ | PLUS | MINUS | STAR | SLASH
                       | LT | GT | LTEQ | GTEQ | ARROW | FAT_ARROW | PIPE_FORWARD
                       | PLUS_DOT | MINUS_DOT | STAR_DOT | SLASH_DOT
 private punctuation ::= COMMA | SEMICOLON | COLON | DOT | DOTDOTDOT
-                      | TILDE | PIPE | UNDERSCORE | BANG | QUESTION | HASH | TICK
+                      | TILDE | PIPE | UNDERSCORE | BANG | QUESTION | HASH | TICK | PCT
 private comment     ::= LINE_COMMENT | BLOCK_COMMENT

@@ -85,6 +85,7 @@ STRING = \" ([^\"\\\n] | \\.)* \"
     "#"                 { return ReScriptTypes.HASH; }
     "'"                 { return ReScriptTypes.TICK; }
     "%%"                { return ReScriptTypes.PCT_PCT; }
+    "%"                 { return ReScriptTypes.PCT; }
 }
 
 [^]                     { return TokenType.BAD_CHARACTER; }

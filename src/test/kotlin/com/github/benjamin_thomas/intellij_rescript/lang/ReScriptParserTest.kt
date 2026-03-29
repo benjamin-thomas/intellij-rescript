@@ -49,6 +49,7 @@ class ReScriptParserTest : ParsingTestCase(
     fun testEmptyFile() = runParserTest("EmptyFile.res", "EmptyFile.out")
     fun testStackedDecorators() = runParserTest("StackedDecorators.res", "StackedDecorators.out")
 fun testCommentsBetweenDeclarations() = runParserTest("CommentsBetweenDeclarations.res", "CommentsBetweenDeclarations.out")
+    fun testExpressionExtensionPoint() = runParserTest("ExpressionExtensionPoint.res", "ExpressionExtensionPoint.out")
     fun testErrorRecovery() = runParserTest("ErrorRecovery.res", "ErrorRecovery.out", hasParseErrors = true)
     fun testErrorRecoveryInBlock() = runParserTest("ErrorRecoveryInBlock.res", "ErrorRecoveryInBlock.out", hasParseErrors = true)
 }
