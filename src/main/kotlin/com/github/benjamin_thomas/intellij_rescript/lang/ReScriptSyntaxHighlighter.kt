@@ -30,6 +30,8 @@ class ReScriptSyntaxHighlighter : SyntaxHighlighterBase() {
     override fun getTokenHighlights(tokenType: IElementType): Array<TextAttributesKey> {
         val key = when (tokenType) {
             ReScriptTypes.LET, ReScriptTypes.TYPE, ReScriptTypes.MODULE,
+            ReScriptTypes.OPEN, ReScriptTypes.INCLUDE, ReScriptTypes.EXTERNAL,
+            ReScriptTypes.EXCEPTION, ReScriptTypes.REC,
             ReScriptTypes.SWITCH, ReScriptTypes.IF, ReScriptTypes.ELSE -> KEYWORD
 
             ReScriptTypes.LIDENT -> IDENTIFIER
@@ -43,7 +45,7 @@ class ReScriptSyntaxHighlighter : SyntaxHighlighterBase() {
 
             ReScriptTypes.EQ, ReScriptTypes.PLUS, ReScriptTypes.MINUS,
             ReScriptTypes.STAR, ReScriptTypes.SLASH,
-            ReScriptTypes.EQEQ, ReScriptTypes.BANGEQ,
+            ReScriptTypes.EQEQ, ReScriptTypes.BANGEQ, ReScriptTypes.AMPAMP, ReScriptTypes.PIPEPIPE,
             ReScriptTypes.LT, ReScriptTypes.GT,
             ReScriptTypes.LTEQ, ReScriptTypes.GTEQ,
             ReScriptTypes.ARROW, ReScriptTypes.FAT_ARROW,
