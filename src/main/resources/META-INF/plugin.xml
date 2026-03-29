@@ -6,7 +6,21 @@
     <depends>com.redhat.devtools.lsp4ij</depends>
 
     <description><![CDATA[
-        ReScript language support for JetBrains IDEs.
+        <p>ReScript language support for JetBrains IDEs via LSP.</p>
+        <p>Provides syntax highlighting, code folding, and full IDE intelligence
+        (completion, hover, go-to-definition, references, rename, diagnostics,
+        formatting) by integrating with the ReScript language server.</p>
+        <h3>Requirements</h3>
+        <ul>
+            <li>Install <code>@rescript/language-server</code> globally:
+                <code>npm install -g @rescript/language-server</code></li>
+            <li>Run the ReScript compiler in watch mode in your project terminal:
+                <code>npx rescript watch</code> (v12+) or
+                <code>npx rescript build -w</code> (older versions)</li>
+            <li>LSP4IJ plugin must be installed (required dependency)</li>
+        </ul>
+        <p><strong>Early release.</strong> Some constructs (template strings, regex literals)
+        may not highlight correctly yet.</p>
     ]]></description>
 
     <extensions defaultExtensionNs="com.intellij">
