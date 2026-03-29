@@ -394,79 +394,52 @@ Backtick template strings with interpolation: `` `hello ${name}` ``
 New tokens introduced in ReScript v12:
 - Bitwise (F# style): `&&&`, `|||`, `^^^`, `~~~`
 - Shift: `<<`, `>>`, `>>>`
-- Regex literals: `/pattern/flags` (context-sensitive, like JS)
+- Regex literals: `/pattern/flags` — DONE (previous-token disambiguation)
 - `dict{` syntax (contextual keyword)
 - `let?` binding (experimental)
 - Deprecated but still valid: `+.`, `-.`, `*.`, `/.`, `++`
 
 ---
 
-### Phase 2 — Parser + PSI
+### Phase 2 — Parser + PSI (DONE — permissive)
 
 **Goal**: GrammarKit parser produces typed PSI nodes for declarations.
 
-TDD approach: for each grammar rule, create a `.res` test fixture and a `.txt`
-file with the expected PSI tree (snapshot testing via `ParsingTestCase`).
+**Approach**: permissive parser that structures top-level declarations and
+tracks delimiter depth (braces, parens, brackets) but leaves expression bodies
+flat. This eliminates red squiggles on valid code while LSP handles semantics.
 
-TDD cycles:
-1. **Test**: `let x = 1` → PSI tree with `LetDeclaration` node
-2. **Test**: `let add = (x, y) => x + y` → `LetDeclaration` with params
-3. **Test**: `type t = int` → `TypeDeclaration` node
-4. **Test**: `type color = Red | Blue | Green` → `TypeDeclaration` with variants
-5. **Test**: `type user = {name: string, age: int}` → record type
-6. **Test**: `module Foo = { ... }` → `ModuleDeclaration` node
-7. **Test**: `open Belt` → `OpenStatement` node
-8. **Test**: `external log: string => unit = "console.log"` → `ExternalDeclaration`
-9. **Test**: `@react.component let make = ...` → decorator + declaration
-10. **Test**: `import "qualified" as X` → `ImportDeclaration`
-11. **Test**: full file with multiple declarations → correct tree structure
-12. **Test**: expressions stay as flat token sequences (intentional)
+Implemented: `LetBinding`, `ModuleBinding`, `TypeDeclaration`, `OpenStatement`,
+`IncludeStatement`, `ExternalDeclaration`, `ExceptionDeclaration`,
+`ExtensionPoint`, `Decorator`. Recursive nesting inside braces.
 
-Files created:
-```
-src/main/kotlin/.../language/rescript.bnf          (~200 lines)
-src/main/kotlin/.../language/ReScriptParserDefinition.kt  (~30 lines)
-src/main/kotlin/.../language/ReScriptParserUtil.kt  (if needed)
-src/test/kotlin/.../language/ReScriptParserTest.kt
-src/test/testData/parser/*.res                      (test fixtures)
-src/test/testData/parser/*.txt                      (expected PSI trees)
-```
-
-The BNF doesn't need to cover the full language. Focus on declarations and
-top-level structure. Expressions can be flat. The
-[tree-sitter-rescript grammar](https://github.com/rescript-lang/tree-sitter-rescript/blob/main/grammar.js)
-is the reference, but we only need ~60-80 rules (not all 140).
+See `ReScript.bnf` for the full grammar.
 
 ---
 
-### Phase 3 — LSP integration (DONE — basic wiring)
+### Phase 3 — LSP integration (DONE)
 
 **Goal**: Full IDE experience via the ReScript language server.
 
-**Completed**: LSP4IJ wiring with `@rescript/language-server` (globally installed
-via `npm install -g`). Hover, completion, go-to-definition, diagnostics, and
-formatting all work. Error notification with install instructions when server
-not found.
+**Completed**:
+- LSP4IJ wiring with `@rescript/language-server` (globally installed via `npm install -g`)
+- Hover, completion, go-to-definition, references, rename, diagnostics, formatting
+- Structure view via `LSPDocumentSymbolStructureViewFactory`
+- Code lens (type signatures above declarations)
+- Custom `ReScriptParameterInfoHandler` (fixes LSP4IJ's missing documentation)
+- Server configuration via `initializationOptions` + `workspace/configuration`
+- Error notification with install instructions when server not found
 
-**Not yet done**: LSP4IJ extension points for call hierarchy, type hierarchy,
-folding, parameter info, structure view. These are one-line XML registrations
-in `plugin.xml` that delegate to LSP4IJ's built-in providers:
-```xml
-<callHierarchyProvider language="ReScript"
-    implementationClass="com.redhat.devtools.lsp4ij.features.callHierarchy.LSPCallHierarchyProvider"/>
-<typeHierarchyProvider language="ReScript"
-    implementationClass="com.redhat.devtools.lsp4ij.features.typeHierarchy.LSPTypeHierarchyProvider"/>
-<lang.foldingBuilder language="ReScript"
-    implementationClass="com.redhat.devtools.lsp4ij.features.foldingRange.LSPFoldingRangeBuilder"
-    order="first"/>
-<codeInsight.parameterInfo language="ReScript"
-    implementationClass="com.redhat.devtools.lsp4ij.features.signatureHelp.LSPParameterInfoHandler"/>
-<lang.psiStructureViewFactory language="ReScript"
-    implementationClass="com.redhat.devtools.lsp4ij.features.documentSymbol.LSPDocumentSymbolStructureViewFactory"/>
-```
+**Not supported by the ReScript LSP server**: folding ranges (native implementation
+done), call hierarchy, type hierarchy.
 
-**Note**: The ReScript language server does NOT support inlay hints / inline
-type annotations (unlike OCaml's merlin). Types are available via hover only.
+**Disabled**: LSP semantic tokens (LSP4IJ's default styling underlines variables
+due to inheriting from "Reassigned local variable" in Language Defaults). Our
+lexer-based highlighting is sufficient. Can be re-enabled with custom color
+mappings in the future.
+
+**Disabled**: Inlay hints (inline type annotations) — noisy on trivially typed
+bindings. Controlled via server config `inlayHints.enable`.
 
 ---
 
@@ -663,7 +636,7 @@ a native PSI-based implementation.
 
 | Feature | Start with LSP | Then native (when needed) |
 |---|---|---|
-| Code folding | LSPFoldingRangeBuilder | PSI-based FoldingBuilder |
+| Code folding | (not available via LSP) | PSI-based FoldingBuilder (DONE) |
 | Structure view | LSPDocumentSymbolStructureViewFactory | PSI-based StructureViewFactory |
 | Breadcrumbs | LSP (if supported) | PSI-based BreadcrumbsProvider |
 | Find usages | LSP references | PSI reference resolution across files |
