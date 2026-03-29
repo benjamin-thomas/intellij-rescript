@@ -35,6 +35,7 @@ STRING = \" ([^\"\\\n] | \\.)* \"
     "include"           { return ReScriptTypes.INCLUDE; }
     "external"          { return ReScriptTypes.EXTERNAL; }
     "exception"         { return ReScriptTypes.EXCEPTION; }
+    "rec"               { return ReScriptTypes.REC; }
     "switch"            { return ReScriptTypes.SWITCH; }
     "if"                { return ReScriptTypes.IF; }
     "else"              { return ReScriptTypes.ELSE; }
@@ -47,6 +48,8 @@ STRING = \" ([^\"\\\n] | \\.)* \"
     {LOWER_IDENT}       { return ReScriptTypes.LIDENT; }
     {UPPER_IDENT}       { return ReScriptTypes.UIDENT; }
 
+    "&&"                { return ReScriptTypes.AMPAMP; }
+    "||"                { return ReScriptTypes.PIPEPIPE; }
     "=="                { return ReScriptTypes.EQEQ; }
     "!="                { return ReScriptTypes.BANGEQ; }
     "<="                { return ReScriptTypes.LTEQ; }

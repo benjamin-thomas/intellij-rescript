@@ -5,6 +5,7 @@ open
 include
 external
 exception
+rec
 switch
 if
 else

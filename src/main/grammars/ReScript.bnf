@@ -19,6 +19,7 @@
         INCLUDE    = 'INCLUDE'
         EXTERNAL   = 'EXTERNAL'
         EXCEPTION  = 'EXCEPTION'
+        REC        = 'REC'
         SWITCH     = 'SWITCH'
         IF         = 'IF'
         ELSE       = 'ELSE'
@@ -37,6 +38,8 @@
         BLOCK_COMMENT = 'BLOCK_COMMENT'
 
         // Multi-char operators
+        AMPAMP       = 'AMPAMP'
+        PIPEPIPE     = 'PIPEPIPE'
         EQEQ         = 'EQEQ'
         BANGEQ        = 'BANGEQ'
         LTEQ          = 'LTEQ'
@@ -167,10 +170,10 @@ private paren_content ::= delimited_block | decl_keyword | non_decl_token
 
 // All non-declaration-keyword, non-delimiter tokens
 private non_decl_token ::= keyword | identifier | literal | operator | punctuation | comment
-private keyword     ::= SWITCH | IF | ELSE
+private keyword     ::= REC | SWITCH | IF | ELSE
 private identifier  ::= LIDENT | UIDENT
 private literal     ::= INT | FLOAT | STRING
-private operator    ::= EQ | EQEQ | BANGEQ | PLUS | MINUS | STAR | SLASH
+private operator    ::= EQ | EQEQ | BANGEQ | AMPAMP | PIPEPIPE | PLUS | MINUS | STAR | SLASH
                       | LT | GT | LTEQ | GTEQ | ARROW | FAT_ARROW | PIPE_FORWARD
                       | PLUS_DOT | MINUS_DOT | STAR_DOT | SLASH_DOT
 private punctuation ::= COMMA | SEMICOLON | COLON | DOT | DOTDOTDOT
