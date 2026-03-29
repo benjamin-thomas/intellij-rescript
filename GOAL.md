@@ -199,6 +199,20 @@ and syntax-highlighted code blocks. Currently shown as plain text because
 `setupUIComponentPresentation` only supports single-style text. Rich rendering
 would require a custom `JComponent` popup (~200-300 lines).
 
+### Code folding (native, PSI-based)
+
+The ReScript LSP server does not support `foldingRangeProvider`, so code folding
+is implemented natively via `ReScriptFoldingBuilder`. It walks the PSI tree,
+finds matching `LBRACE`/`RBRACE` pairs, and creates fold regions for blocks that
+span multiple lines.
+
+Folding tests use IntelliJ's `testFolding()` API with fixture files that contain
+`<fold text='...'>` markers. These markers are NOT ReScript syntax — they're
+IntelliJ test annotations that specify where folds should appear and what
+placeholder text to show when collapsed. The files must keep the `.res` extension
+so IntelliJ knows which parser to use. They live in a separate
+`folding/fixtures/` directory to avoid confusion with real ReScript files.
+
 ### Decorator-declaration association
 
 Currently `@react.component` and the following `let make` are **sibling** nodes
