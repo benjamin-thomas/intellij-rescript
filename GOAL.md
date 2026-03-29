@@ -501,6 +501,59 @@ Each is a self-contained TDD cycle:
   with the `rescript` npm package) for analysis. The LSP server is a thin
   wrapper around the analysis binary.
 
+### Build watcher (required)
+
+LSP features like code lens, hover, go-to-definition, and references depend
+on `.cmt` files (compiled type info). These must be kept up to date by running
+the ReScript compiler in watch mode **in a separate terminal**:
+
+```bash
+# ReScript >= 12
+npx rescript watch
+
+# ReScript < 12
+npx rescript build -w
+```
+
+This compiles the project once, then watches for file changes and recompiles
+automatically. Without it, LSP features work on stale data.
+
+We intentionally disabled the LSP server's built-in "Start a build?" prompt
+(`askToStartBuild: false`) so the user runs the watcher themselves and sees
+compiler output directly in their terminal.
+
+How the built-in prompt works internally (for reference): the server spawns
+`rescript watch` (or `rescript build -w`) as a background child process via
+`utils.runBuildWatcherUsingValidBuildPath()` in `server/src/utils.ts` line ~616.
+We may offer this as an integrated terminal action in the future.
+
+### Server configuration
+
+The ReScript LSP server pulls configuration from the client via
+`workspace/configuration`. Several features are **disabled by default** and
+require the client to send settings to enable them:
+
+| Setting | Default | Our value | Effect |
+|---|---|---|---|
+| `askToStartBuild` | `true` | `false` | Disabled — user runs watcher in terminal |
+| `inlayHints.enable` | `false` | `false` | Inline type annotations (noisy — disabled) |
+| `inlayHints.maxLength` | `25` | `25` | Max chars for inlay hint labels |
+| `codeLens` | `false` | `true` | Type signatures above declarations |
+| `signatureHelp.enabled` | `true` | `true` | Parameter info on function calls |
+| `signatureHelp.forConstructorPayloads` | `true` | `true` | Parameter info for variant constructors |
+| `incrementalTypechecking.enable` | `true` | (not set) | Only relevant when server runs the watcher |
+| `incrementalTypechecking.acrossFiles` | `false` | (not set) | Only relevant when server runs the watcher |
+
+Our plugin sends these settings in two places:
+1. **`initializationOptions.extensionConfiguration`** during the `initialize`
+   request — the server reads this before any files are opened (critical for
+   `askToStartBuild`).
+2. **`workspace/configuration` response** when the server pulls config later —
+   handled by `ReScriptLanguageClient.createSettings()`.
+
+Source: `rescript-vscode/server/src/config.ts` for all options.
+See `ReScriptLanguageServerFactory.kt` for our implementation.
+
 ## What NOT to build (for now)
 
 - **Type checker** — the ReScript compiler + LSP handles this

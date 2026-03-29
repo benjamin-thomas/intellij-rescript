@@ -5,7 +5,8 @@ Demonstrates talking to the ReScript LSP server over stdio.
 The LSP protocol is stateful and bidirectional:
   1. Client sends initialize, waits for response
   2. Client sends initialized notification
-  3. Client sends the actual query, waits for response
+  3. Server asks for configuration — client responds with settings
+  4. Client sends the actual query, waits for response
 
 Usage:
   ./manage/dev/test-lsp [file] [line] [character]
@@ -27,6 +28,21 @@ PROJECT_DIR = os.path.expanduser("~/code/github.com/benjamin-thomas/7guis/rescri
 file = sys.argv[1] if len(sys.argv) > 1 else "src/App.res"
 line = int(sys.argv[2]) if len(sys.argv) > 2 else 77
 char = int(sys.argv[3]) if len(sys.argv) > 3 else 15
+
+# Configuration we send to the server when it asks (via workspace/configuration).
+# This mirrors what the VSCode extension sends from user settings.
+RESCRIPT_SETTINGS = {
+    "askToStartBuild": False,
+    "inlayHints": {
+        "enable": True,
+        "maxLength": 25,
+    },
+    "codeLens": True,
+    "signatureHelp": {
+        "enabled": True,
+        "forConstructorPayloads": True,
+    },
+}
 
 
 def make_message(body: dict) -> bytes:
@@ -52,12 +68,33 @@ def read_message(stdout) -> dict:
 
 def read_response(stdout, expected_id: int) -> dict:
     """Read messages until we get the response matching our request id.
-    Skips server-initiated notifications (they have no 'id' field)."""
+    Handles server-initiated requests (like workspace/configuration) along the way."""
     while True:
         msg = read_message(stdout)
+
+        # Server asking us for configuration — respond with our settings
+        if msg.get("method") == "workspace/configuration":
+            send(proc, {
+                "jsonrpc": "2.0",
+                "id": msg["id"],
+                "result": [RESCRIPT_SETTINGS],
+            })
+            continue
+
+        # Server asking us something else (e.g. window/showMessage) — respond with null
+        if "method" in msg and "id" in msg:
+            send(proc, {
+                "jsonrpc": "2.0",
+                "id": msg["id"],
+                "result": None,
+            })
+            continue
+
+        # Got the response we were waiting for
         if msg.get("id") == expected_id:
             return msg
-        # Otherwise it's a notification — skip it
+
+        # Notification (no id) — skip it
 
 
 def send(proc, body: dict):
@@ -131,23 +168,40 @@ send(proc, {
     },
 })
 def_response = read_response(proc.stdout, expected_id=2)
-
 print(f"=== definition {file}:{line}:{char} ===")
 print(json.dumps(def_response.get("result"), indent=2))
+print()
 
-# Step 5: Shutdown + exit (clean LSP teardown)
-send(proc, {"jsonrpc": "2.0", "id": 3, "method": "shutdown", "params": None})
-read_response(proc.stdout, expected_id=3)
+# Step 5: Inlay hints (first 20 lines)
+line_count = file_content.count("\n")
+send(proc, {
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "textDocument/inlayHint",
+    "params": {
+        "textDocument": {"uri": full_uri},
+        "range": {
+            "start": {"line": 0, "character": 0},
+            "end": {"line": min(20, line_count), "character": 0},
+        },
+    },
+})
+hint_response = read_response(proc.stdout, expected_id=3)
+hints = hint_response.get("result")
+print(f"=== inlayHints (first 20 lines) ===")
+if hints:
+    for h in hints[:10]:
+        print(f"  line {h['position']['line']}: {h.get('label', '?')}")
+else:
+    print("  (none)")
+print()
+
+# Step 6: Shutdown + exit (clean LSP teardown)
+send(proc, {"jsonrpc": "2.0", "id": 4, "method": "shutdown", "params": None})
+read_response(proc.stdout, expected_id=4)
 send(proc, {"jsonrpc": "2.0", "method": "exit", "params": None})
 proc.wait(timeout=5)
 
-stderr_output = proc.stderr.read().decode("utf-8", errors="replace").strip()
-if stderr_output:
-    print()
-    print(f"=== stderr ===")
-    print(stderr_output[:500])
-
-print()
 print(f"Equivalent analysis command (no LSP overhead):")
 print(f"  cd {PROJECT_DIR}")
 print(f"  ./node_modules/@rescript/linux-x64/bin/rescript-editor-analysis.exe definition {file} {line} {char}")

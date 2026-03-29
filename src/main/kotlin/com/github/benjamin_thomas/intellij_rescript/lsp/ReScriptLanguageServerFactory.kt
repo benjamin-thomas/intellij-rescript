@@ -1,10 +1,13 @@
 package com.github.benjamin_thomas.intellij_rescript.lsp
 
+import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
 import com.redhat.devtools.lsp4ij.LanguageServerFactory
 import com.redhat.devtools.lsp4ij.LanguageServerManager
+import com.redhat.devtools.lsp4ij.client.LanguageClientImpl
 import com.redhat.devtools.lsp4ij.server.ProcessStreamConnectionProvider
 import com.redhat.devtools.lsp4ij.server.StreamConnectionProvider
 import java.io.File
@@ -13,6 +16,61 @@ import java.util.concurrent.atomic.AtomicBoolean
 class ReScriptLanguageServerFactory : LanguageServerFactory {
     override fun createConnectionProvider(project: Project): StreamConnectionProvider =
         ReScriptLanguageServer(project)
+
+    override fun createLanguageClient(project: Project): LanguageClientImpl =
+        ReScriptLanguageClient(project)
+}
+
+/**
+ * Custom language client that sends ReScript-specific configuration to the
+ * LSP server when it asks via workspace/configuration.
+ *
+ * The ReScript LSP server disables several features by default (inlay hints,
+ * code lens) and shows a "start build?" notification unless configured not to.
+ * This client responds with our preferred settings.
+ *
+ * See rescript-vscode/server/src/config.ts for all available options.
+ */
+class ReScriptLanguageClient(project: Project) : LanguageClientImpl(project) {
+    override fun createSettings(): Any = rescriptSettings()
+
+    companion object {
+        /**
+         * ReScript LSP server configuration.
+         * Used both in initializationOptions (during initialize) and in
+         * workspace/configuration responses (when server pulls config later).
+         *
+         * See rescript-vscode/server/src/config.ts for all available options.
+         */
+        fun rescriptSettings(): JsonObject = JsonObject().apply {
+            // Don't prompt — we expect the user to run `rescript build -w` (or
+            // `rescript watch` for v12+) in a terminal themselves. This way they
+            // see compiler output directly. Without a running watcher, LSP features
+            // like code lens, hover, and go-to-def work on stale .cmt files.
+            add("askToStartBuild", JsonPrimitive(false))
+
+            // Inlay hints disabled — too noisy (shows `: int` on trivially typed bindings,
+            // even when the user already added a type annotation manually).
+            // Code lens provides the same type info less intrusively.
+            add("inlayHints", JsonObject().apply {
+                add("enable", JsonPrimitive(false))
+                add("maxLength", JsonPrimitive(25))
+            })
+
+            // Enable code lens
+            add("codeLens", JsonPrimitive(true))
+
+            // Enable signature help (parameter info)
+            add("signatureHelp", JsonObject().apply {
+                add("enabled", JsonPrimitive(true))
+                add("forConstructorPayloads", JsonPrimitive(true))
+            })
+
+            // incrementalTypechecking is only relevant when the server spawns its
+            // own build watcher (askToStartBuild=true). Since we expect the user
+            // to run the watcher themselves, this setting has no effect.
+        }
+    }
 }
 
 // LSP4IJ retries the connection multiple times, so we guard the notification
@@ -46,6 +104,20 @@ class ReScriptLanguageServer(project: Project) : ProcessStreamConnectionProvider
         }
         commands = listOf(serverPath, "--stdio")
         workingDirectory = project.basePath
+    }
+
+    /**
+     * Sent to the server as initializationOptions during the initialize request.
+     * The ReScript server reads this before any files are opened — critical for
+     * settings like askToStartBuild that fire on first didOpen.
+     *
+     * See rescript-vscode/server/src/server.ts line ~1650:
+     *   let initialConfiguration = initParams.initializationOptions?.extensionConfiguration
+     */
+    override fun getInitializationOptions(rootUri: com.intellij.openapi.vfs.VirtualFile?): Any {
+        return JsonObject().apply {
+            add("extensionConfiguration", ReScriptLanguageClient.rescriptSettings())
+        }
     }
 }
 
