@@ -52,7 +52,9 @@ class ReScriptParameterInfoHandler : ParameterInfoHandler<LSPSignatureHelperPsiE
                             context.showHint(element, context.offset, this)
                             return@thenAccept
                         }
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        com.intellij.openapi.diagnostic.Logger.getInstance("ReScript")
+                            .warn("signatureHelp request failed", e)
                     }
                 }
             }
