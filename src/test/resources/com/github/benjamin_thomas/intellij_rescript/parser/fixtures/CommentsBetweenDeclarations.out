@@ -1,0 +1,13 @@
+ReScript File
+  ReScriptLetBindingImpl(LET_BINDING)
+    PsiElement(LET)('let')
+    PsiElement(LIDENT)('x')
+    PsiElement(EQ)('=')
+    PsiElement(INT)('1')
+  PsiComment(LINE_COMMENT)('// A line comment')
+  PsiComment(BLOCK_COMMENT)('/* A block comment */')
+  ReScriptLetBindingImpl(LET_BINDING)
+    PsiElement(LET)('let')
+    PsiElement(LIDENT)('y')
+    PsiElement(EQ)('=')
+    PsiElement(INT)('2')
