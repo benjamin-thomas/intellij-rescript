@@ -179,25 +179,21 @@ before queries) and needs time to process files after didOpen.
 | `analysis/src/SignatureHelp.ml` | Signature help implementation |
 | `analysis/src/DocumentSymbol.ml` | Document symbols (used by structure view) |
 
-### Custom parameter info handler
+### Custom parameter info handler (Ctrl+P)
 
-LSP4IJ's built-in `LSPParameterInfoHandler` does not render the `documentation`
-field from the LSP `signatureHelp` response. The ReScript LSP server sends rich
-documentation (markdown with examples, MDN links), but LSP4IJ's `updateUI`
-method only reads the `label` and `parameters` fields.
+LSP4IJ's built-in `LSPParameterInfoHandler` truncates the signature label —
+it drops the closing parenthesis and return type. Our custom
+`ReScriptParameterInfoHandler` renders the complete label from the LSP
+`signatureHelp` response.
 
-We wrote `ReScriptParameterInfoHandler` to fix this. It reuses LSP4IJ's
-infrastructure for fetching (`LSPFileSupport`, `LSPSignatureHelpSupport`,
-`LSPSignatureHelperPsiElement`) and only customizes the rendering in `updateUI`.
+We intentionally don't show the `documentation` field in the Ctrl+P popup
+(it would render as plain text since `setupUIComponentPresentation` doesn't
+support markdown). Users get full docs via Ctrl+Q (Quick Documentation)
+which LSP4IJ renders with rich markdown.
 
-Key issue found during development: the `documentation` field is wrapped in an
-`Either<String, MarkupContent>` object. Casting it directly to `MarkupContent`
-or `String` returns null — you must unwrap the `Either` first.
-
-**Future improvement**: render the documentation as HTML with markdown formatting
-and syntax-highlighted code blocks. Currently shown as plain text because
-`setupUIComponentPresentation` only supports single-style text. Rich rendering
-would require a custom `JComponent` popup (~200-300 lines).
+Key learning: the LSP `signatureHelp` response wraps `documentation` in an
+`Either<String, MarkupContent>` object — you must unwrap the `Either` before
+reading.
 
 ### Code folding (native, PSI-based)
 
@@ -256,31 +252,52 @@ installing from disk replaces the existing version.
 - Recursive nesting inside braces
 - Regex literal support (`/pattern/flags`) with previous-token disambiguation
 - Native code folding (PSI-based, since LSP doesn't support it)
-- LSP features: structure view, code lens, parameter info with documentation
-- Custom parameter info handler (fixes LSP4IJ's missing documentation rendering)
+- LSP features: structure view, code lens, parameter info, quick documentation
 - LSP server configuration (code lens, build prompt, signature help)
 - 33 tests (lexer snapshots, parser snapshots, folding)
 
 ### For 0.2.0
 
-1. **Template strings** — backtick strings with `${interpolation}`. Needs a
-   JFlex state for the interpolation context.
+**Quick wins (trivial, ~20 lines each):**
 
-2. **Missing keywords** — `async`, `await`, `and`, `as`, `try`, `catch`,
-   `while`, `for`, `true`, `false`.
+1. **Commenter** — `//` and `/* */` toggle via Ctrl+/ and Ctrl+Shift+/.
+   Implement `Commenter` interface, return comment strings. ~20 lines.
 
-3. **Brace matcher** — auto-insert `}` when typing `{`, same for `()`, `[]`.
+2. **Brace matcher** — highlight matching `{}`, `[]`, `()` and auto-insert
+   closing delimiter. Implement `PairedBraceMatcher`. ~37 lines.
 
-4. **Commenter** — `//` and `/* */` toggle via Ctrl+/.
+3. **Quote handler** — type `"` and get `""` with cursor between. Extend
+   `SimpleTokenSetQuoteHandler`. ~18 lines.
 
-5. **Nested block comments** — `/* /* */ */` requires a JFlex state with depth
-   counter.
+4. **Switch .res/.resi** — Alt+O to toggle between source and interface file.
+   ~29 lines + utility function.
 
-6. **Regex internals highlighting** — break `/pattern/flags` into multiple
-   tokens (delimiters, character classes, negation, flags) for richer
-   syntax coloring, like WebStorm's JavaScript regex highlighting. Requires
-   expanding the REGEX JFlex state from one rule to ~30-40 lines with 5-6
-   new token types.
+5. **File nesting in project view** — hide compiled `.res.js` under `.res`.
+   Implement `ProjectViewNestingRulesProvider`. ~18 lines.
+
+**Small features:**
+
+6. **Create file action** — "New > ReScript File" with Module/Interface/Component
+   templates in the context menu. ~65 lines.
+
+7. **Spell checking** — enable spell check in comments and strings, with a
+   bundled dictionary for ReScript terms (genType, Belt, functor, etc.). ~50 lines.
+
+8. **Missing keywords** — `async`, `await`, `and`, `as`, `try`, `catch`,
+   `while`, `for`.
+
+**Larger features:**
+
+9. **Template string interpolation** — backtick strings with `${expr}`. Needs
+   a JFlex state for the interpolation context. Currently we lex the whole
+   backtick string as one token; interpolation requires breaking it up.
+
+10. **Nested block comments** — `/* /* */ */` requires a JFlex state with depth
+    counter.
+
+11. **Regex internals highlighting** — break `/pattern/flags` into multiple
+    tokens (delimiters, character classes, negation, flags) for richer
+    syntax coloring, like WebStorm's JavaScript regex highlighting.
 
 ### Medium term
 
@@ -302,17 +319,9 @@ installing from disk replaces the existing version.
 11. **Decorator-declaration association** — wrap `Decorator+ declaration` into
     a parent node for refactoring and inspection support.
 
-## Documentation
-
-- **`ARCHITECTURE.md`** — project structure, build setup, design decisions, testing philosophy
-- **`LEXER.md`** — how JFlex works, token types, syntax highlighting, lexer testing
-- **`PARSER.md`** — how GrammarKit works, error recovery (pin/recoverWhile),
-  PSI generation, parser testing, reference implementations (Elm, Rust, tree-sitter-rescript)
-
 ## Project setup
 
-See `ARCHITECTURE.md` for current build setup, project structure, and design
-decisions. See `build.gradle.kts` for exact versions.
+See `build.gradle.kts` for exact versions and build configuration.
 
 ## Implementation phases
 

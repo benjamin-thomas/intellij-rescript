@@ -8,18 +8,12 @@ import com.redhat.devtools.lsp4ij.features.signatureHelp.LSPSignatureHelperPsiEl
 import org.eclipse.lsp4j.*
 
 /**
- * Custom parameter info handler that renders the full signatureHelp response
- * from the LSP server, including the documentation field.
+ * Custom parameter info handler that shows the full signature from the LSP
+ * signatureHelp response.
  *
- * LSP4IJ's built-in LSPParameterInfoHandler ignores the `documentation` field
- * from SignatureInformation, showing only the bare type signature. The LSP server
- * does send rich documentation (markdown with examples, MDN links, etc.) but
- * LSP4IJ's updateUI method never reads it.
- *
- * This handler fixes that by extracting the documentation and appending it to
- * the popup text. Currently rendered as plain text — a future improvement would
- * be to render it as HTML with markdown formatting and syntax-highlighted code
- * blocks (requires a custom JComponent popup, not just setupUIComponentPresentation).
+ * LSP4IJ's built-in LSPParameterInfoHandler truncates the signature label
+ * (e.g., drops the closing paren and return type). This handler renders the
+ * complete label as returned by the server.
  */
 class ReScriptParameterInfoHandler : ParameterInfoHandler<LSPSignatureHelperPsiElement, SignatureInformation> {
 
@@ -77,8 +71,6 @@ class ReScriptParameterInfoHandler : ParameterInfoHandler<LSPSignatureHelperPsiE
         }
 
         val label = signatureInfo.label ?: ""
-        val doc = extractDocText(signatureInfo.documentation)
-        val text = if (doc.isNotBlank()) "$label\n\n$doc" else label
 
         // Highlight the active parameter
         val activeParam = context.currentParameterIndex
@@ -103,7 +95,7 @@ class ReScriptParameterInfoHandler : ParameterInfoHandler<LSPSignatureHelperPsiE
         }
 
         context.setupUIComponentPresentation(
-            text,
+            label,
             highlightStart,
             highlightEnd,
             false,
@@ -117,16 +109,5 @@ class ReScriptParameterInfoHandler : ParameterInfoHandler<LSPSignatureHelperPsiE
         val offset = context.offset
         if (offset < 0) return null
         return TextRange(offset, offset)
-    }
-
-    private fun extractDocText(documentation: Any?): String = when (documentation) {
-        is MarkupContent -> documentation.value ?: ""
-        is String -> documentation
-        is org.eclipse.lsp4j.jsonrpc.messages.Either<*, *> -> {
-            if (documentation.isRight) extractDocText(documentation.right)
-            else if (documentation.isLeft) extractDocText(documentation.left)
-            else ""
-        }
-        else -> ""
     }
 }

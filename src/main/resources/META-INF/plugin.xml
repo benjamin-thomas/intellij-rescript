@@ -48,12 +48,8 @@
         <lang.psiStructureViewFactory
                 language="ReScript"
                 implementationClass="com.redhat.devtools.lsp4ij.features.documentSymbol.LSPDocumentSymbolStructureViewFactory"/>
-        <!-- LSP4IJ's built-in handler ignores the documentation field from signatureHelp.
-             Our handler renders the full response including docs/examples.
-        <codeInsight.parameterInfo
-                language="ReScript"
-                implementationClass="com.redhat.devtools.lsp4ij.features.signatureHelp.LSPParameterInfoHandler"/>
-        -->
+        <!-- LSP4IJ's built-in handler truncates the signature (drops closing paren + return type).
+             Our handler renders the complete label from the LSP signatureHelp response. -->
         <codeInsight.parameterInfo
                 language="ReScript"
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.lsp.ReScriptParameterInfoHandler"/>
