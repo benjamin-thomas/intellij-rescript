@@ -247,50 +247,60 @@ installing from disk replaces the existing version.
 
 ## Next steps
 
-### Short term (next 1-2 sessions)
+### Done in 0.1.0
 
-1. **Native code folding** — first PSI-powered feature. Small Kotlin class,
-   no LSP equivalent available. Fold regions from declaration keyword to
-   closing brace.
+- Syntax highlighting for all core tokens (keywords, identifiers, literals,
+  operators, comments, decorators)
+- Permissive parser with all major declaration types (let, type, module, open,
+  include, external, exception, decorators, extension points)
+- Recursive nesting inside braces
+- Regex literal support (`/pattern/flags`) with previous-token disambiguation
+- Native code folding (PSI-based, since LSP doesn't support it)
+- LSP features: structure view, code lens, parameter info with documentation
+- Custom parameter info handler (fixes LSP4IJ's missing documentation rendering)
+- LSP server configuration (code lens, build prompt, signature help)
+- 33 tests (lexer snapshots, parser snapshots, folding)
 
-2. **Add missing top-level declaration types** — `open`, `external`, `include`,
-   `exception` as permissive stubs in the BNF. Two-line change each (add to
-   `block_declaration` + `decl_keyword`). Eliminates red squiggles on real
-   files that use these.
+### For 0.2.0
 
-3. **Handle decorators and raw expressions** — `@react.component` before a
-   `let` currently gets consumed as body tokens of the previous declaration.
-   Need a grammar rule to attach decorators to the following declaration.
-   Also handle `%%raw(...)` (FFI escape hatch) as a top-level item.
+1. **Template strings** — backtick strings with `${interpolation}`. Needs a
+   JFlex state for the interpolation context.
 
-4. **Add missing lexer tokens** — `open`, `external`, `include`, `exception`,
-   `rec`, `async`, `await` keywords, `%%` for raw expressions. Needed for
-   #2 and #3.
+2. **Missing keywords** — `async`, `await`, `and`, `as`, `try`, `catch`,
+   `while`, `for`, `true`, `false`.
 
-5. **Verify `.resi` file support** — interface files use the same syntax as
-   `.res`. File type is already registered. Verify parser, syntax highlighting,
-   and LSP features work on `.resi` files. Add a parser test with a `.resi`
-   fixture.
+3. **Brace matcher** — auto-insert `}` when typing `{`, same for `()`, `[]`.
 
-### Medium term (next few weeks)
+4. **Commenter** — `//` and `/* */` toggle via Ctrl+/.
 
-4. **Tighten LetBinding to extract the name** — change `LET body_token*` to
+5. **Nested block comments** — `/* /* */ */` requires a JFlex state with depth
+   counter.
+
+6. **Regex internals highlighting** — break `/pattern/flags` into multiple
+   tokens (delimiters, character classes, negation, flags) for richer
+   syntax coloring, like WebStorm's JavaScript regex highlighting. Requires
+   expanding the REGEX JFlex state from one rule to ~30-40 lines with 5-6
+   new token types.
+
+### Medium term
+
+7. **Tighten LetBinding to extract the name** — change `LET body_token*` to
    `LET LIDENT body_token*`. Enables native structure view with declaration
    names.
 
-5. **Native structure view** — once names are extractable, build a
+8. **Native structure view** — once names are extractable, build a
    `PsiStructureViewFactory` with custom icons. Replaces the LSP one.
 
-6. **Rich parameter info rendering** — render markdown documentation as HTML
+9. **Rich parameter info rendering** — render markdown documentation as HTML
    in the popup instead of plain text (~200-300 lines).
 
 ### Longer term
 
-7. **Expression parsing** — start tightening `body_token*` into real expression
-   rules. Fixes the greedy binding problem and enables refactoring features.
+10. **Expression parsing** — start tightening `body_token*` into real
+    expression rules. Fixes the greedy binding problem and enables refactoring.
 
-8. **More LSP features to evaluate** — semantic tokens (richer syntax
-   highlighting), code lens, inlay hints.
+11. **Decorator-declaration association** — wrap `Decorator+ declaration` into
+    a parent node for refactoring and inspection support.
 
 ## Documentation
 

@@ -23,6 +23,7 @@ class ReScriptSyntaxHighlighter : SyntaxHighlighterBase() {
         val SEMICOLON = createTextAttributesKey("RESCRIPT_SEMICOLON", DefaultLanguageHighlighterColors.SEMICOLON)
         val DOT = createTextAttributesKey("RESCRIPT_DOT", DefaultLanguageHighlighterColors.DOT)
         val DECORATOR = createTextAttributesKey("RESCRIPT_DECORATOR", DefaultLanguageHighlighterColors.METADATA)
+        val REGEX = createTextAttributesKey("RESCRIPT_REGEX", DefaultLanguageHighlighterColors.VALID_STRING_ESCAPE)
     }
 
     override fun getHighlightingLexer(): Lexer = ReScriptLexerAdapter()
@@ -39,6 +40,7 @@ class ReScriptSyntaxHighlighter : SyntaxHighlighterBase() {
 
             ReScriptTypes.INT, ReScriptTypes.FLOAT -> NUMBER
             ReScriptTypes.STRING -> STRING
+            ReScriptTypes.REGEX -> REGEX
 
             ReScriptTypes.LINE_COMMENT -> LINE_COMMENT
             ReScriptTypes.BLOCK_COMMENT -> BLOCK_COMMENT

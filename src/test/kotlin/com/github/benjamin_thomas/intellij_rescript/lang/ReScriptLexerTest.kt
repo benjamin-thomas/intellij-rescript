@@ -32,6 +32,9 @@ class ReScriptLexerTest {
     fun testSpecial() = runLexerTest("Special.res", "Special.out")
 
     @Test
+    fun testRegex() = runLexerTest("Regex.res", "Regex.out")
+
+    @Test
     fun testZeroStateForKeywordsAndIdentifiers() {
         val tokens = TokenSet.create(
             ReScriptTypes.LET, ReScriptTypes.TYPE,
