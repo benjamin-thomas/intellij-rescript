@@ -1,6 +1,6 @@
 <idea-plugin>
     <id>com.github.benjamin_thomas.intellij_rescript</id>
-    <name>ReScript</name>
+    <name>ReScript IDE</name>
     <vendor url="https://github.com/benjamin-thomas/intellij-rescript">benjamin-thomas</vendor>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.redhat.devtools.lsp4ij</depends>
