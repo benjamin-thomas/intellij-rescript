@@ -45,6 +45,7 @@ class ReScriptParserTest : ParsingTestCase(
     fun testExtensionPoint() = runParserTest("ExtensionPoint.res", "ExtensionPoint.out")
     fun testDecorator() = runParserTest("Decorator.res", "Decorator.out")
     fun testDecoratorAfterLet() = runParserTest("DecoratorAfterLet.res", "DecoratorAfterLet.out")
+    fun testAllDeclarationTypes() = runParserTest("AllDeclarationTypes.res", "AllDeclarationTypes.out")
     fun testErrorRecovery() = runParserTest("ErrorRecovery.res", "ErrorRecovery.out", hasParseErrors = true)
     fun testErrorRecoveryInBlock() = runParserTest("ErrorRecoveryInBlock.res", "ErrorRecoveryInBlock.out", hasParseErrors = true)
 }

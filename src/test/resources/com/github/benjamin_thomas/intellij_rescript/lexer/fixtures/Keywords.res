@@ -1,6 +1,10 @@
 let
 type
 module
+open
+include
+external
+exception
 switch
 if
 else

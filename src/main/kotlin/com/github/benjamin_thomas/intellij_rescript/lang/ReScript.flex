@@ -31,6 +31,10 @@ STRING = \" ([^\"\\\n] | \\.)* \"
     "let"               { return ReScriptTypes.LET; }
     "type"              { return ReScriptTypes.TYPE; }
     "module"            { return ReScriptTypes.MODULE; }
+    "open"              { return ReScriptTypes.OPEN; }
+    "include"           { return ReScriptTypes.INCLUDE; }
+    "external"          { return ReScriptTypes.EXTERNAL; }
+    "exception"         { return ReScriptTypes.EXCEPTION; }
     "switch"            { return ReScriptTypes.SWITCH; }
     "if"                { return ReScriptTypes.IF; }
     "else"              { return ReScriptTypes.ELSE; }

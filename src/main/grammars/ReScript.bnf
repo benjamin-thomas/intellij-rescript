@@ -15,6 +15,10 @@
         LET        = 'LET'
         TYPE       = 'TYPE'
         MODULE     = 'MODULE'
+        OPEN       = 'OPEN'
+        INCLUDE    = 'INCLUDE'
+        EXTERNAL   = 'EXTERNAL'
+        EXCEPTION  = 'EXCEPTION'
         SWITCH     = 'SWITCH'
         IF         = 'IF'
         ELSE       = 'ELSE'
@@ -93,10 +97,12 @@
 File ::= declaration*
 
 // All declaration types (change 1 of 2)
-private block_declaration ::= LetBinding | ModuleBinding | TypeDeclaration | ExtensionPoint | Decorator
+private block_declaration ::= LetBinding | ModuleBinding | TypeDeclaration
+                            | OpenStatement | IncludeStatement | ExternalDeclaration | ExceptionDeclaration
+                            | ExtensionPoint | Decorator
 
 // All declaration-starting keywords (change 2 of 2)
-private decl_keyword ::= LET | MODULE | TYPE | PCT_PCT | AT
+private decl_keyword ::= LET | MODULE | TYPE | OPEN | INCLUDE | EXTERNAL | EXCEPTION | PCT_PCT | AT
 
 // Top-level wrapper: adds error recovery between declarations
 private declaration ::= block_declaration { recoverWhile = decl_recover }
@@ -108,6 +114,14 @@ ModuleBinding   ::= MODULE body_token* { pin = 1 }
 
 // Declarations
 TypeDeclaration ::= TYPE   body_token* { pin = 1 }
+
+// Statements
+OpenStatement   ::= OPEN body_token* { pin = 1 }
+IncludeStatement ::= INCLUDE body_token* { pin = 1 }
+
+// Declarations
+ExternalDeclaration  ::= EXTERNAL body_token* { pin = 1 }
+ExceptionDeclaration ::= EXCEPTION body_token* { pin = 1 }
 
 // Extension points (%%raw, %%private, etc.)
 ExtensionPoint  ::= PCT_PCT body_token* { pin = 1 }
