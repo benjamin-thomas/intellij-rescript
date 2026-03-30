@@ -42,6 +42,9 @@
         <lang.parserDefinition
                 language="ReScript"
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptParserDefinition"/>
+        <lang.quoteHandler
+                language="ReScript"
+                implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptQuoteHandler"/>
         <lang.braceMatcher
                 language="ReScript"
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptBraceMatcher"/>

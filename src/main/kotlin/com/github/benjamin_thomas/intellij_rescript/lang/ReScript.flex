@@ -41,10 +41,8 @@ import com.intellij.psi.TokenType;
      *   Foo / bar      — UIDENT `/` → division
      *   10 / 2         — INT `/` → division
      *   3.0 / 2.0      — FLOAT `/` → division
-     *   "a" / "b"      — STRING `/` → (nonsensical but) division
-     *   foo() / bar    — RPAREN `/` → division
      *   arr[0] / 2     — RBRACKET `/` → division
-     *   {x: 1} / 2     — RBRACE `/` → division
+     *   foo() / bar    — RPAREN `/` → division
      *
      * Regex examples (previous token is NOT expression-end):
      *   let re = /p/   — EQ `/` → regex
@@ -55,16 +53,18 @@ import com.intellij.psi.TokenType;
      *   start of file  — null → regex
      */
     private boolean isStartRegexSlash() {
-        return lastSignificantToken != ReScriptTypes.LIDENT    &&   // x / y
-               lastSignificantToken != ReScriptTypes.UIDENT    &&   // Foo / bar
-               lastSignificantToken != ReScriptTypes.INT       &&   // 10 / 2
-               lastSignificantToken != ReScriptTypes.FLOAT     &&   // 3.0 / 2.0
-               lastSignificantToken != ReScriptTypes.RPAREN    &&   // foo() / bar
-               lastSignificantToken != ReScriptTypes.RBRACKET;      // arr[0] / 2
+        return lastSignificantToken != ReScriptTypes.LIDENT       &&   // x / y
+               lastSignificantToken != ReScriptTypes.UIDENT       &&   // Foo / bar
+               lastSignificantToken != ReScriptTypes.INT          &&   // 10 / 2
+               lastSignificantToken != ReScriptTypes.FLOAT        &&   // 3.0 / 2.0
+               lastSignificantToken != ReScriptTypes.RPAREN       &&   // foo() / bar
+               lastSignificantToken != ReScriptTypes.RBRACKET;         // arr[0] / 2
     }
 %}
 
 %state REGEX
+%state IN_STRING
+%state IN_TEMPLATE
 
 WHITE_SPACE = [ \t\n\r]+
 LINE_COMMENT = "//" [^\n]*
@@ -73,8 +73,6 @@ LOWER_IDENT = [a-z_][a-zA-Z0-9_]*
 UPPER_IDENT = [A-Z][a-zA-Z0-9_]*
 INT = [0-9]+
 FLOAT = [0-9]+ "." [0-9]+
-STRING = \" ([^\"\\\n] | \\.)* \"
-BACKTICK_STRING = ` [^`]* `
 
 %%
 
@@ -99,8 +97,8 @@ BACKTICK_STRING = ` [^`]* `
 
     {FLOAT}             { return track(ReScriptTypes.FLOAT); }
     {INT}               { return track(ReScriptTypes.INT); }
-    {STRING}            { return track(ReScriptTypes.STRING); }
-    {BACKTICK_STRING}   { return track(ReScriptTypes.BACKTICK_STRING); }
+    \"                  { yybegin(IN_STRING); return track(ReScriptTypes.STRING_START); }
+    `                   { yybegin(IN_TEMPLATE); return track(ReScriptTypes.TEMPLATE_START); }
 
     "_"                 { return track(ReScriptTypes.UNDERSCORE); }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }
@@ -169,6 +167,22 @@ BACKTICK_STRING = ` [^`]* `
         yybegin(YYINITIAL);
         return track(ReScriptTypes.SLASH);
     }
+}
+
+// Double-quoted string state
+<IN_STRING> {
+    \"                  { yybegin(YYINITIAL); return track(ReScriptTypes.STRING_END); }
+    \\[\\\"ntbr0]       { return track(ReScriptTypes.STRING_ESCAPE); }
+    \\x[0-9a-fA-F]{2}  { return track(ReScriptTypes.STRING_ESCAPE); }
+    \\.                 { return track(ReScriptTypes.STRING_ESCAPE); }
+    \n                  { yybegin(YYINITIAL); return TokenType.WHITE_SPACE; }
+    [^\"\\\n]+          { return track(ReScriptTypes.STRING_CONTENT); }
+}
+
+// Backtick template string state
+<IN_TEMPLATE> {
+    `                   { yybegin(YYINITIAL); return track(ReScriptTypes.TEMPLATE_END); }
+    [^`]+               { return track(ReScriptTypes.TEMPLATE_CONTENT); }
 }
 
 [^]                     { return TokenType.BAD_CHARACTER; }

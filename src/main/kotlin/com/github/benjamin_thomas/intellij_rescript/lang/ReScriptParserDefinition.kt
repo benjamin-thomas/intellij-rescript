@@ -26,8 +26,15 @@ class ReScriptParserDefinition : ParserDefinition {
     override fun getCommentTokens(): TokenSet =
         TokenSet.create(ReScriptTypes.LINE_COMMENT, ReScriptTypes.BLOCK_COMMENT)
 
+    // Tells the platform which tokens are string literals. Used by spell checking
+    // (check spelling inside strings), "Find in String Literals", and language injection.
     override fun getStringLiteralElements(): TokenSet =
-        TokenSet.create(ReScriptTypes.STRING)
+        TokenSet.create(
+            ReScriptTypes.STRING_START, ReScriptTypes.STRING_END,
+            ReScriptTypes.STRING_CONTENT, ReScriptTypes.STRING_ESCAPE,
+            ReScriptTypes.TEMPLATE_START, ReScriptTypes.TEMPLATE_END,
+            ReScriptTypes.TEMPLATE_CONTENT,
+        )
 
     override fun createElement(node: ASTNode): PsiElement =
         ReScriptTypes.Factory.createElement(node)

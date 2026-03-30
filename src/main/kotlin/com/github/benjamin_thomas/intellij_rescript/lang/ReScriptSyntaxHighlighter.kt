@@ -15,6 +15,7 @@ class ReScriptSyntaxHighlighter : SyntaxHighlighterBase() {
         val TYPE_NAME = createTextAttributesKey("RESCRIPT_TYPE_NAME", DefaultLanguageHighlighterColors.CLASS_NAME)
         val NUMBER = createTextAttributesKey("RESCRIPT_NUMBER", DefaultLanguageHighlighterColors.NUMBER)
         val STRING = createTextAttributesKey("RESCRIPT_STRING", DefaultLanguageHighlighterColors.STRING)
+        val STRING_ESCAPE = createTextAttributesKey("RESCRIPT_STRING_ESCAPE", DefaultLanguageHighlighterColors.VALID_STRING_ESCAPE)
         val LINE_COMMENT = createTextAttributesKey("RESCRIPT_LINE_COMMENT", DefaultLanguageHighlighterColors.LINE_COMMENT)
         val BLOCK_COMMENT = createTextAttributesKey("RESCRIPT_BLOCK_COMMENT", DefaultLanguageHighlighterColors.BLOCK_COMMENT)
         val OPERATOR = createTextAttributesKey("RESCRIPT_OPERATOR", DefaultLanguageHighlighterColors.OPERATION_SIGN)
@@ -39,7 +40,11 @@ class ReScriptSyntaxHighlighter : SyntaxHighlighterBase() {
             ReScriptTypes.UIDENT -> TYPE_NAME
 
             ReScriptTypes.INT, ReScriptTypes.FLOAT -> NUMBER
-            ReScriptTypes.STRING, ReScriptTypes.BACKTICK_STRING -> STRING
+            ReScriptTypes.STRING_START, ReScriptTypes.STRING_END,
+            ReScriptTypes.STRING_CONTENT,
+            ReScriptTypes.TEMPLATE_START, ReScriptTypes.TEMPLATE_END,
+            ReScriptTypes.TEMPLATE_CONTENT -> STRING
+            ReScriptTypes.STRING_ESCAPE -> STRING_ESCAPE
             ReScriptTypes.REGEX -> REGEX
 
             ReScriptTypes.LINE_COMMENT -> LINE_COMMENT

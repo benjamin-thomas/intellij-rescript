@@ -238,8 +238,14 @@ grammar rules only when a native feature demands it.
 
 12. **Tighten LetBinding** — `LET LIDENT body_token*` to extract names.
 13. **Native structure view** — custom icons, sorting, filtering.
+14. **StringLiteral PSI node** — wrap `STRING_START STRING_CONTENT* STRING_END` in a
+    composite node (`StringLiteral ::= STRING_START STRING_CONTENT? STRING_ESCAPE? STRING_END`).
+    Required for language injection (Alt+Enter → "Inject Language or Reference" for SQL, etc.)
+    and other features that need a single PSI element for a complete string.
+15. **Template string interpolation** — `${expr}` inside backtick strings. Lexer state
+    switches back to `YYINITIAL` inside `${}` with brace depth tracking.
 
 ### Longer term
 
-14. **Expression parsing** — tighten `body_token*` into real expression rules.
-15. **Decorator-declaration wrapping** — parent-child instead of siblings.
+16. **Expression parsing** — tighten `body_token*` into real expression rules.
+17. **Decorator-declaration wrapping** — parent-child instead of siblings.
