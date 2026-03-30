@@ -8,5 +8,7 @@ ReScript File
     PsiElement(PCT)('%')
     PsiElement(LIDENT)('raw')
     PsiElement(LPAREN)('(')
-    PsiElement(STRING)('"import.meta.env.VITE_DEBUG === '1'"')
+    PsiElement(STRING_START)('"')
+    PsiElement(STRING_CONTENT)('import.meta.env.VITE_DEBUG === '1'')
+    PsiElement(STRING_END)('"')
     PsiElement(RPAREN)(')')
