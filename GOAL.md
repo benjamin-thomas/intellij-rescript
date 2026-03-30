@@ -245,7 +245,15 @@ grammar rules only when a native feature demands it.
 15. **Template string interpolation** — `${expr}` inside backtick strings. Lexer state
     switches back to `YYINITIAL` inside `${}` with brace depth tracking.
 
+16. **Go to Test / Implementation** (Ctrl+Shift+T) — switch between `src/Foo.res` and
+    `test/Foo_test.res` (or similar naming convention). Uses `GotoTestOrCodeHandler`.
+    Phase 1: file-level navigation based on naming convention.
+    Phase 2: function-level focus — when switching, jump to the test/implementation of
+    the function under the cursor (à la Cursive for Clojure). Requires extracting function
+    names from the PSI tree (depends on tightened LetBinding, item 12) and a test naming
+    convention (e.g. `let myFunc` ↔ `test "myFunc ..."` or `let test_myFunc`).
+
 ### Longer term
 
-16. **Expression parsing** — tighten `body_token*` into real expression rules.
-17. **Decorator-declaration wrapping** — parent-child instead of siblings.
+17. **Expression parsing** — tighten `body_token*` into real expression rules.
+18. **Decorator-declaration wrapping** — parent-child instead of siblings.
