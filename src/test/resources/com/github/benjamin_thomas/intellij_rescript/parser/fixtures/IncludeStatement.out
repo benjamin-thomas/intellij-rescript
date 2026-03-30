@@ -1,0 +1,4 @@
+ReScript File
+  ReScriptIncludeStatementImpl(INCLUDE_STATEMENT)
+    PsiElement(INCLUDE)('include')
+    PsiElement(UIDENT)('MyModule')

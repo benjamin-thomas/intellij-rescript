@@ -1,0 +1,5 @@
+STRING_START ('"')
+STRING_CONTENT ('hello')
+STRING_ESCAPE ('\n')
+STRING_CONTENT ('world')
+STRING_END ('"')

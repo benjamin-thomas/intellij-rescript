@@ -1,0 +1,5 @@
+STRING_START ('"')
+STRING_CONTENT ('tab')
+STRING_ESCAPE ('\t')
+STRING_CONTENT ('here')
+STRING_END ('"')

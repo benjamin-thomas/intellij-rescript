@@ -1,0 +1,7 @@
+ReScript File
+  ReScriptExceptionDeclarationImpl(EXCEPTION_DECLARATION)
+    PsiElement(EXCEPTION)('exception')
+    PsiElement(UIDENT)('MyError')
+    PsiElement(LPAREN)('(')
+    PsiElement(LIDENT)('string')
+    PsiElement(RPAREN)(')')

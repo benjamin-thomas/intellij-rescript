@@ -1,0 +1,4 @@
+ReScript File
+  ReScriptOpenStatementImpl(OPEN_STATEMENT)
+    PsiElement(OPEN)('open')
+    PsiElement(UIDENT)('Belt')

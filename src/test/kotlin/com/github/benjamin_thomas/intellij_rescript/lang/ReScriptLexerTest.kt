@@ -35,6 +35,24 @@ class ReScriptLexerTest {
     fun testRegex() = runLexerTest("Regex.res", "Regex.out")
 
     @Test
+    fun testStringSimple() = runLexerTest("StringSimple.res", "StringSimple.out")
+
+    @Test
+    fun testStringWithEscape() = runLexerTest("StringWithEscape.res", "StringWithEscape.out")
+
+    @Test
+    fun testStringWithEscapedQuote() = runLexerTest("StringWithEscapedQuote.res", "StringWithEscapedQuote.out")
+
+    @Test
+    fun testStringWithTab() = runLexerTest("StringWithTab.res", "StringWithTab.out")
+
+    @Test
+    fun testStringEmpty() = runLexerTest("StringEmpty.res", "StringEmpty.out")
+
+    @Test
+    fun testStringUnclosed() = runLexerTest("StringUnclosed.res", "StringUnclosed.out")
+
+    @Test
     fun testZeroStateForKeywordsAndIdentifiers() {
         val tokens = TokenSet.create(
             ReScriptTypes.LET, ReScriptTypes.TYPE,
