@@ -1,0 +1,3 @@
+TEMPLATE_START ('`')
+TEMPLATE_CONTENT ('hello world')
+TEMPLATE_END ('`')

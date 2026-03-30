@@ -53,6 +53,18 @@ class ReScriptLexerTest {
     fun testStringUnclosed() = runLexerTest("StringUnclosed.res", "StringUnclosed.out")
 
     @Test
+    fun testTemplateSimple() = runLexerTest("TemplateSimple.res", "TemplateSimple.out")
+
+    @Test
+    fun testTemplateWithSpaces() = runLexerTest("TemplateWithSpaces.res", "TemplateWithSpaces.out")
+
+    @Test
+    fun testTemplateEmpty() = runLexerTest("TemplateEmpty.res", "TemplateEmpty.out")
+
+    @Test
+    fun testTemplateUnclosed() = runLexerTest("TemplateUnclosed.res", "TemplateUnclosed.out")
+
+    @Test
     fun testZeroStateForKeywordsAndIdentifiers() {
         val tokens = TokenSet.create(
             ReScriptTypes.LET, ReScriptTypes.TYPE,
