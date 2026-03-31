@@ -90,4 +90,13 @@
                          serverId="rescriptLanguageServer"
                          languageId="rescript"/>
     </extensions>
+
+    <actions>
+        <action id="ReScript.NewFile"
+                class="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptCreateFileAction"
+                text="ReScript File"
+                description="Create a new ReScript file">
+            <add-to-group group-id="NewGroup" anchor="before" relative-to-action="NewFile"/>
+        </action>
+    </actions>
 </idea-plugin>
