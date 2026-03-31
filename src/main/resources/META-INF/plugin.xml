@@ -70,6 +70,10 @@
                 implementationClass="com.redhat.devtools.lsp4ij.features.callHierarchy.LSPCallHierarchyProvider"/>
         -->
         
+        <spellchecker.support
+                language="ReScript"
+                implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptSpellcheckingStrategy"/>
+
         <projectViewNestingRulesProvider
                 implementation="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptFileNestingProvider"/>
 

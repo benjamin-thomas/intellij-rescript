@@ -20,6 +20,7 @@ repositories {
 dependencies {
     intellijPlatform {
         intellijIdea("2025.3")
+        bundledModule("intellij.spellchecker")
         plugin("com.redhat.devtools.lsp4ij:0.19.2")
         pluginVerifier()
         zipSigner()
