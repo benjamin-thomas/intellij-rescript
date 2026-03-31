@@ -212,24 +212,29 @@ grammar rules only when a native feature demands it.
 
 ## Next steps
 
-### Next up
+### Next up (ordered by effort, smallest first)
 
-1. **Nested block comments** — `/* /* */ */` with depth counter.
-2. **Regex internals highlighting** — break `/pattern/flags` into sub-tokens.
+1. **Full numeric literals** — hex (`0xFF`), octal (`0o77`), binary (`0b1010`),
+   underscores (`1_000_000`), hex floats.
+2. **Nested block comments** — `/* /* */ */` with depth counter.
 3. **Tighten LetBinding** — `LET LIDENT body_token*` to extract names.
-4. **Native structure view** — custom icons, sorting, filtering.
-5. **StringLiteral PSI node** — wrap `STRING_START STRING_CONTENT* STRING_END` in a
+4. **StringLiteral PSI node** — wrap `STRING_START STRING_CONTENT* STRING_END` in a
    composite node. Required for language injection (Alt+Enter → "Inject Language or
    Reference" for SQL, etc.)
-6. **Template string interpolation** — `${expr}` inside backtick strings. Lexer state
-   switches back to `YYINITIAL` inside `${}` with brace depth tracking.
+5. **Regex internals highlighting** — break `/pattern/flags` into sub-tokens.
+6. **Native structure view** — custom icons, sorting, filtering. Depends on #3.
 7. **Go to Test / Implementation** (Ctrl+Shift+T) — switch between `src/Foo.res` and
    `test/Foo_test.res` (or similar naming convention). Uses `GotoTestOrCodeHandler`.
    Phase 1: file-level navigation based on naming convention.
    Phase 2: function-level focus — jump to the test/implementation of the function
-   under the cursor (à la Cursive for Clojure). Depends on tightened LetBinding (item 3).
+   under the cursor (à la Cursive for Clojure). Depends on #3.
+8. **Template string interpolation** — `${expr}` inside backtick strings. Lexer state
+   switches back to `YYINITIAL` inside `${}` with brace depth tracking.
+9. **JSX token awareness** — lexer states for `<div>`, `<Component />`. Needs
+   disambiguation: `<` after an identifier is comparison, otherwise JSX (same
+   pattern as regex/division).
 
 ### Longer term
 
-8. **Expression parsing** — tighten `body_token*` into real expression rules.
-9. **Decorator-declaration wrapping** — parent-child instead of siblings.
+10. **Expression parsing** — tighten `body_token*` into real expression rules.
+11. **Decorator-declaration wrapping** — parent-child instead of siblings.
