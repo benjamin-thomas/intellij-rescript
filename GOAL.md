@@ -212,48 +212,24 @@ grammar rules only when a native feature demands it.
 
 ## Next steps
 
-### For 0.2.0
+### Next up
 
-**Quick wins (~20 lines each):**
-
-1. **Commenter** — Ctrl+/ and Ctrl+Shift+/ toggle. ~20 lines.
-2. **Brace matcher** — highlight matching `{}()[]`, auto-insert closing. ~37 lines.
-3. **Quote handler** — type `"` get `""` with cursor between. ~18 lines.
-4. **Switch .res/.resi** — Alt+O toggle. ~29 lines.
-5. **File nesting** — hide `.res.js` under `.res` in project view. ~18 lines.
-
-**Small features:**
-
-6. **Create file action** — "New > ReScript File" templates. ~65 lines.
-7. **Spell checking** + bundled dictionary. ~50 lines.
-8. **Missing keywords** — `async`, `await`, `and`, `as`, `try`, `catch`, `while`, `for`.
-
-**Larger features:**
-
-9. **Template string interpolation** — `${expr}` inside backtick strings.
-10. **Nested block comments** — `/* /* */ */` with depth counter.
-11. **Regex internals highlighting** — break `/pattern/flags` into sub-tokens.
-
-### Medium term
-
-12. **Tighten LetBinding** — `LET LIDENT body_token*` to extract names.
-13. **Native structure view** — custom icons, sorting, filtering.
-14. **StringLiteral PSI node** — wrap `STRING_START STRING_CONTENT* STRING_END` in a
-    composite node (`StringLiteral ::= STRING_START STRING_CONTENT? STRING_ESCAPE? STRING_END`).
-    Required for language injection (Alt+Enter → "Inject Language or Reference" for SQL, etc.)
-    and other features that need a single PSI element for a complete string.
-15. **Template string interpolation** — `${expr}` inside backtick strings. Lexer state
-    switches back to `YYINITIAL` inside `${}` with brace depth tracking.
-
-16. **Go to Test / Implementation** (Ctrl+Shift+T) — switch between `src/Foo.res` and
-    `test/Foo_test.res` (or similar naming convention). Uses `GotoTestOrCodeHandler`.
-    Phase 1: file-level navigation based on naming convention.
-    Phase 2: function-level focus — when switching, jump to the test/implementation of
-    the function under the cursor (à la Cursive for Clojure). Requires extracting function
-    names from the PSI tree (depends on tightened LetBinding, item 12) and a test naming
-    convention (e.g. `let myFunc` ↔ `test "myFunc ..."` or `let test_myFunc`).
+1. **Nested block comments** — `/* /* */ */` with depth counter.
+2. **Regex internals highlighting** — break `/pattern/flags` into sub-tokens.
+3. **Tighten LetBinding** — `LET LIDENT body_token*` to extract names.
+4. **Native structure view** — custom icons, sorting, filtering.
+5. **StringLiteral PSI node** — wrap `STRING_START STRING_CONTENT* STRING_END` in a
+   composite node. Required for language injection (Alt+Enter → "Inject Language or
+   Reference" for SQL, etc.)
+6. **Template string interpolation** — `${expr}` inside backtick strings. Lexer state
+   switches back to `YYINITIAL` inside `${}` with brace depth tracking.
+7. **Go to Test / Implementation** (Ctrl+Shift+T) — switch between `src/Foo.res` and
+   `test/Foo_test.res` (or similar naming convention). Uses `GotoTestOrCodeHandler`.
+   Phase 1: file-level navigation based on naming convention.
+   Phase 2: function-level focus — jump to the test/implementation of the function
+   under the cursor (à la Cursive for Clojure). Depends on tightened LetBinding (item 3).
 
 ### Longer term
 
-17. **Expression parsing** — tighten `body_token*` into real expression rules.
-18. **Decorator-declaration wrapping** — parent-child instead of siblings.
+8. **Expression parsing** — tighten `body_token*` into real expression rules.
+9. **Decorator-declaration wrapping** — parent-child instead of siblings.
