@@ -9,6 +9,9 @@ doesn't understand structure — it just chops text into labeled pieces.
 ```
 Source:  let x = 42
 Tokens:  LET('let')  WHITE_SPACE(' ')  LIDENT('x')  WHITE_SPACE(' ')  EQ('=')  WHITE_SPACE(' ')  INT('42')
+
+Source:  "hello\nworld"
+Tokens:  STRING_START('"')  STRING_CONTENT('hello')  STRING_ESCAPE('\n')  STRING_CONTENT('world')  STRING_END('"')
 ```
 
 ## Technology: JFlex
@@ -20,7 +23,7 @@ rules in a `.flex` file, JFlex generates a Java class that implements the lexer.
 
 **Generated output:** `src/main/gen/.../lang/_ReScriptLexer.java` (gitignored)
 
-**Generation:** Automatic on every build via the `generateReScriptLexer` Gradle
+**Generation:** Automatic on every build via the `generateLexer` Gradle
 task (GrammarKit plugin).
 
 ### JFlex basics
@@ -50,13 +53,35 @@ classes.
 
 ### States
 
-`<YYINITIAL>` is the default state. All our rules currently live here because
-we have no multi-line constructs that need state tracking.
+The lexer has four states:
+
+- **`YYINITIAL`** — default state, handles keywords, operators, delimiters, etc.
+- **`IN_STRING`** — inside a `"double-quoted string"`. Emits `STRING_CONTENT`,
+  `STRING_ESCAPE`, and `STRING_END` tokens. Entered when `"` is seen in
+  `YYINITIAL`. Exits on closing `"` or newline (unclosed string recovery).
+- **`IN_TEMPLATE`** — inside a `` `backtick template` ``. Emits `TEMPLATE_CONTENT`
+  and `TEMPLATE_END`. Entered when `` ` `` is seen in `YYINITIAL`.
+- **`REGEX`** — inside a `/regex/` literal. Uses `yypushback(1)` to re-consume
+  the `/` after the regex-vs-division decision (see "Pushback technique" below).
 
 When we add nested block comments (`/* /* */ */`), we'll need a `COMMENT` state
-with a depth counter — the lexer enters the state on `/*`, increments depth on
-nested `/*`, decrements on `*/`, and exits the state when depth reaches zero.
-A regex alone cannot handle nesting.
+with a depth counter. A regex alone cannot handle nesting.
+
+### Pushback technique (`yypushback`)
+
+JFlex's `yypushback(n)` puts `n` characters back into the input so they can be
+re-consumed in a different state. We use this for **regex vs division**
+disambiguation:
+
+1. In `YYINITIAL`, we see `/` and check the previous token to decide regex vs
+   division.
+2. If regex: call `yypushback(1)` to un-eat the `/`, switch to `REGEX` state.
+   The `REGEX` state then re-matches the `/` as part of the full `/pattern/flags`
+   rule.
+3. If division: just return `SLASH`.
+
+We do NOT use pushback for strings or templates — `"` and `` ` `` are
+unambiguous, so we consume them directly and switch state in one step.
 
 ### Rule priority
 
@@ -117,7 +142,11 @@ override fun getTokenHighlights(tokenType: IElementType): Array<TextAttributesKe
     val key = when (tokenType) {
         ReScriptTypes.LET, ReScriptTypes.TYPE, ... -> KEYWORD
         ReScriptTypes.LIDENT -> IDENTIFIER
-        ReScriptTypes.STRING -> STRING
+        ReScriptTypes.STRING_START, ReScriptTypes.STRING_END,
+        ReScriptTypes.STRING_CONTENT,
+        ReScriptTypes.TEMPLATE_START, ReScriptTypes.TEMPLATE_END,
+        ReScriptTypes.TEMPLATE_CONTENT -> STRING
+        ReScriptTypes.STRING_ESCAPE -> STRING_ESCAPE   // distinct color for \n, \t, etc.
         // ...
     }
     return arrayOf(key)
@@ -193,15 +222,15 @@ registered, it shows individual tokens as `PsiElement(TOKEN_TYPE)` nodes.
 
 - **Nested block comments**: `/* /* */ */` — our regex-based rule doesn't handle
   nesting. Needs a JFlex state with depth counter.
-- **Template strings**: `` `hello ${name}` `` — needs a JFlex state for
-  interpolation.
+- **Template string interpolation**: `` `hello ${name}` `` — the `IN_TEMPLATE`
+  state currently treats everything between backticks as `TEMPLATE_CONTENT`.
+  Interpolation requires the lexer to exit back to `YYINITIAL` inside `${}`,
+  with brace depth tracking to handle nested braces. See GOAL.md.
 - **Full numeric literals**: hex, octal, binary, underscore separators, BigInt
   suffix, etc. See GOAL.md Phase 1b.
-- **v12 operators**: `&&&`, `|||`, `<<<`, `>>>`, regex literals, etc. See
-  GOAL.md Phase 1d.
-- **Missing keywords**: `open`, `external`, `try`, `catch`, `while`, `for`,
-  `true`, `false`, `rec`, `include`, `and`, `as`, `exception`, `async`,
-  `await`, etc.
+- **v12 operators**: `&&&`, `|||`, `<<<`, `>>>`, etc. See GOAL.md Phase 1d.
+- **Missing keywords**: `async`, `await`, `try`, `catch`, `while`, `for`,
+  `and`, `as`.
 
 ## Reference implementations
 

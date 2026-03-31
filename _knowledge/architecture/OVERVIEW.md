@@ -19,6 +19,11 @@ src/
         ReScriptParserDefinition.kt -- Registers lexer, parser, comment/string token sets
         ReScriptSyntaxHighlighter.kt -- Maps token types to colors
         ReScriptSyntaxHighlighterFactory.kt -- Creates highlighter, registered in plugin.xml
+        ReScriptFoldingBuilder.kt    -- Code folding for { } blocks
+        ReScriptCommenter.kt         -- Ctrl+/ and Ctrl+Shift+/ toggle
+        ReScriptBraceMatcher.kt      -- Matching {}()[], auto-insert closing
+        ReScriptQuoteHandler.kt      -- Auto-close " and ` quotes
+        ReScriptGotoRelatedProvider.kt -- Switch .res <-> .resi (Ctrl+Alt+Home)
       lsp/
         ReScriptLanguageServerFactory.kt -- LSP4IJ factory, server path lookup, error notification
     gen/                           -- Generated code (gitignored)
@@ -41,6 +46,11 @@ src/
         LexerTestUtils.kt         -- runSnapshotTest, checkZeroState, checkCorrectRestart
         ReScriptParserTest.kt     -- Parser snapshot tests
         ParserTestUtils.kt        -- createParserTest (curried factory)
+        ReScriptFoldingTest.kt    -- Folding tests with <fold> markers
+        ReScriptCommenterTest.kt  -- Line/block comment round-trip tests
+        ReScriptBraceMatcherTest.kt -- Auto-close {, (, [ tests
+        ReScriptQuoteHandlerTest.kt -- Auto-close " and ` tests
+        ReScriptGotoRelatedTest.kt  -- .res <-> .resi navigation tests
     resources/.../lexer/fixtures/  -- Lexer test fixtures (.res + .out pairs)
     resources/.../parser/fixtures/ -- Parser test fixtures (.res + .out pairs)
 ```
