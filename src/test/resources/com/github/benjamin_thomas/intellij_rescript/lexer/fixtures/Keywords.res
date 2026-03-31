@@ -9,3 +9,11 @@ rec
 switch
 if
 else
+async
+await
+try
+catch
+while
+for
+and
+as

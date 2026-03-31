@@ -94,6 +94,14 @@ FLOAT = [0-9]+ "." [0-9]+
     "switch"            { return track(ReScriptTypes.SWITCH); }
     "if"                { return track(ReScriptTypes.IF); }
     "else"              { return track(ReScriptTypes.ELSE); }
+    "async"             { return track(ReScriptTypes.ASYNC); }
+    "await"             { return track(ReScriptTypes.AWAIT); }
+    "try"               { return track(ReScriptTypes.TRY); }
+    "catch"             { return track(ReScriptTypes.CATCH); }
+    "while"             { return track(ReScriptTypes.WHILE); }
+    "for"               { return track(ReScriptTypes.FOR); }
+    "and"               { return track(ReScriptTypes.AND); }
+    "as"                { return track(ReScriptTypes.AS); }
 
     {FLOAT}             { return track(ReScriptTypes.FLOAT); }
     {INT}               { return track(ReScriptTypes.INT); }

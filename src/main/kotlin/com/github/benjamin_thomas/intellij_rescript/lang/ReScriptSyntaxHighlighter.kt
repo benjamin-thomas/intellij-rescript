@@ -34,7 +34,9 @@ class ReScriptSyntaxHighlighter : SyntaxHighlighterBase() {
             ReScriptTypes.LET, ReScriptTypes.TYPE, ReScriptTypes.MODULE,
             ReScriptTypes.OPEN, ReScriptTypes.INCLUDE, ReScriptTypes.EXTERNAL,
             ReScriptTypes.EXCEPTION, ReScriptTypes.REC, ReScriptTypes.TRUE, ReScriptTypes.FALSE,
-            ReScriptTypes.SWITCH, ReScriptTypes.IF, ReScriptTypes.ELSE -> KEYWORD
+            ReScriptTypes.SWITCH, ReScriptTypes.IF, ReScriptTypes.ELSE,
+            ReScriptTypes.ASYNC, ReScriptTypes.AWAIT, ReScriptTypes.TRY, ReScriptTypes.CATCH,
+            ReScriptTypes.WHILE, ReScriptTypes.FOR, ReScriptTypes.AND, ReScriptTypes.AS -> KEYWORD
 
             ReScriptTypes.LIDENT -> IDENTIFIER
             ReScriptTypes.UIDENT -> TYPE_NAME

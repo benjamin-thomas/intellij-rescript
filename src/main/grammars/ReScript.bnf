@@ -25,6 +25,14 @@
         SWITCH     = 'SWITCH'
         IF         = 'IF'
         ELSE       = 'ELSE'
+        ASYNC      = 'ASYNC'
+        AWAIT      = 'AWAIT'
+        TRY        = 'TRY'
+        CATCH      = 'CATCH'
+        WHILE      = 'WHILE'
+        FOR        = 'FOR'
+        AND        = 'AND'
+        AS         = 'AS'
 
         // Identifiers
         LIDENT     = 'LIDENT'
@@ -180,6 +188,7 @@ private paren_content ::= delimited_block | decl_keyword | non_decl_token
 // All non-declaration-keyword, non-delimiter tokens
 private non_decl_token ::= keyword | identifier | literal | operator | punctuation | comment
 private keyword     ::= REC | TRUE | FALSE | SWITCH | IF | ELSE
+                      | ASYNC | AWAIT | TRY | CATCH | WHILE | FOR | AND | AS
 private identifier  ::= LIDENT | UIDENT
 private literal     ::= INT | FLOAT | STRING_START | STRING_END | STRING_CONTENT | STRING_ESCAPE
                       | TEMPLATE_START | TEMPLATE_END | TEMPLATE_CONTENT | REGEX
