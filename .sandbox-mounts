@@ -1,4 +1,4 @@
-# Extra mounts for sandbox-agent (one per line)
+# Extra mounts for sandbox-agent at: https://github.com/benjamin-thomas/llm-tools/blob/master/sandbox-agent
 # Formats: ro:/path, rw:/path, path:/path/bin
 
 # Gradle
@@ -9,7 +9,7 @@ ro:~/code/github.com/rockofox/intellij-haskell-lsp
 ro:~/code/github.com/elm-tooling/intellij-elm
 ro:~/code/github.com/intellij-rust/intellij-rust
 
-# ReScript test project (to find rescript-language-server binary)
+# ReScript test project
 ro:~/code/github.com/benjamin-thomas/7guis/rescript-7guis
 
 # LSP server code
