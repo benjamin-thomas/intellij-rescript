@@ -21,15 +21,24 @@ class ReScriptFoldingBuilder : FoldingBuilderEx() {
         val descriptors = mutableListOf<FoldingDescriptor>()
 
         PsiTreeUtil.processElements(root) { element ->
-            if (element.node.elementType == ReScriptTypes.LBRACE) {
-                val rbrace = findMatchingRbrace(element)
-                if (rbrace != null) {
+            val type = element.node.elementType
+            when (type) {
+                ReScriptTypes.BLOCK_COMMENT -> {
                     val startLine = document.getLineNumber(element.textRange.startOffset)
-                    val endLine = document.getLineNumber(rbrace.textRange.endOffset)
-                    // Only fold if it spans multiple lines
-                    if (endLine > startLine) {
-                        val range = TextRange(element.textRange.startOffset, rbrace.textRange.endOffset)
-                        descriptors.add(FoldingDescriptor(element.node, range))
+                    val endLine = document.getLineNumber(element.textRange.endOffset)
+                    if (endLine > startLine) { // If span more than one line
+                        descriptors.add(FoldingDescriptor(element.node, element.textRange))
+                    }
+                }
+                ReScriptTypes.LBRACE -> {
+                    val rbrace = findMatchingRbrace(element)
+                    if (rbrace != null) {
+                        val startLine = document.getLineNumber(element.textRange.startOffset)
+                        val endLine = document.getLineNumber(rbrace.textRange.endOffset)
+                        if (endLine > startLine) {
+                            val range = TextRange(element.textRange.startOffset, rbrace.textRange.endOffset)
+                            descriptors.add(FoldingDescriptor(element.node, range))
+                        }
                     }
                 }
             }
@@ -39,7 +48,10 @@ class ReScriptFoldingBuilder : FoldingBuilderEx() {
         return descriptors.toTypedArray()
     }
 
-    override fun getPlaceholderText(node: ASTNode): String = "{...}"
+    override fun getPlaceholderText(node: ASTNode): String = when (node.elementType) {
+        ReScriptTypes.BLOCK_COMMENT -> "/* ... */"
+        else -> "{...}"
+    }
 
     override fun isCollapsedByDefault(node: ASTNode): Boolean = false
 

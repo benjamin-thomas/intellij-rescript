@@ -18,6 +18,7 @@ import com.intellij.psi.TokenType;
     // (identifier, literal, closing delimiter), it's division.
     // Otherwise, it's the start of a regex literal.
     private IElementType lastSignificantToken = null;
+    private int commentDepth = 0;
 
     private boolean isSignificant(IElementType type) {
         return type != TokenType.WHITE_SPACE &&
@@ -60,15 +61,16 @@ import com.intellij.psi.TokenType;
                lastSignificantToken != ReScriptTypes.RPAREN       &&   // foo() / bar
                lastSignificantToken != ReScriptTypes.RBRACKET;         // arr[0] / 2
     }
+
 %}
 
 %state REGEX
 %state IN_STRING
 %state IN_TEMPLATE
+%state IN_BLOCK_COMMENT
 
 WHITE_SPACE = [ \t\n\r]+
 LINE_COMMENT = "//" [^\n]*
-BLOCK_COMMENT = "/*" [^*]* ("*" [^/] [^*]*)* "*/"
 LOWER_IDENT = [a-z_][a-zA-Z0-9_]*
 UPPER_IDENT = [A-Z][a-zA-Z0-9_]*
 HEX_INT = 0[xX][0-9a-fA-F][0-9a-fA-F_]*
@@ -83,7 +85,7 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
 <YYINITIAL> {
     {WHITE_SPACE}       { return TokenType.WHITE_SPACE; }
     {LINE_COMMENT}      { return track(ReScriptTypes.LINE_COMMENT); }
-    {BLOCK_COMMENT}     { return track(ReScriptTypes.BLOCK_COMMENT); }
+    "/*"                { commentDepth = 1; yybegin(IN_BLOCK_COMMENT); }
 
     "let"               { return track(ReScriptTypes.LET); }
     "type"              { return track(ReScriptTypes.TYPE); }
@@ -199,6 +201,13 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
 <IN_TEMPLATE> {
     `                   { yybegin(YYINITIAL); return track(ReScriptTypes.TEMPLATE_END); }
     [^`]+               { return track(ReScriptTypes.TEMPLATE_CONTENT); }
+}
+
+// Nested block comment state: /* /* */ */
+<IN_BLOCK_COMMENT> {
+    "/*"                { commentDepth++; }
+    "*/"                { commentDepth--; if (commentDepth == 0) { yybegin(YYINITIAL); return track(ReScriptTypes.BLOCK_COMMENT); } }
+    [^]                 { /* consume */ }
 }
 
 [^]                     { return TokenType.BAD_CHARACTER; }

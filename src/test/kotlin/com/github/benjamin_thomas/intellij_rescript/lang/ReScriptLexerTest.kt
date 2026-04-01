@@ -20,6 +20,9 @@ class ReScriptLexerTest {
     fun testComments() = runLexerTest("Comments.res", "Comments.out")
 
     @Test
+    fun testCommentsNested() = runLexerTest("CommentsNested.res", "CommentsNested.out")
+
+    @Test
     fun testOperators() = runLexerTest("Operators.res", "Operators.out")
 
     @Test
