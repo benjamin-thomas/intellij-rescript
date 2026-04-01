@@ -4,7 +4,8 @@ set -e
 
 ./gradlew buildPlugin
 
-ZIP="build/distributions/intellij-rescript-0.1.0.zip"
+VERSION=$(grep '^version\s*=' build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
+ZIP="build/distributions/intellij-rescript-${VERSION}.zip"
 
 echo ""
 echo "Plugin built: $(realpath "$ZIP")"

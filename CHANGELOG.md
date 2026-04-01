@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.2.1 — Fixes & Polish
+
+### LSP
+- "Server not found" notification is now scoped per project (previously only the first project was notified in multi-project sessions)
+- Improved notification message with install command and PATH guidance
+- Parameter info handler no longer blocks a shared thread pool; UI updates are now dispatched on the EDT
+
+### Internal
+- Extracted shared string token sets to avoid divergence between parser and highlighter
+- Removed dead test code in brace matcher tests
+- Plugin verifier now runs locally via `./gradlew verifyPlugin`
+- Build script dynamically picks up the version number
+
 ## v0.2.0 — Editor Smarts
 
 ### Editing

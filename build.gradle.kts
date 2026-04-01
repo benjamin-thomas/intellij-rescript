@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "com.github.benjamin_thomas"
-version = "0.2.0"
+version = "0.2.1"
 
 repositories {
     mavenCentral()
@@ -75,5 +75,13 @@ tasks {
 
     patchPluginXml {
         sinceBuild.set("253")
+    }
+}
+
+intellijPlatform {
+    pluginVerification {
+        ides {
+            recommended()
+        }
     }
 }
