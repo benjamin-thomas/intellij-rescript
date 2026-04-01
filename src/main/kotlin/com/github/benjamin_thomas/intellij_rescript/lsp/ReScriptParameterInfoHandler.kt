@@ -1,7 +1,13 @@
 package com.github.benjamin_thomas.intellij_rescript.lsp
 
 import com.intellij.lang.parameterInfo.*
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.TextRange
+import com.redhat.devtools.lsp4ij.LanguageServerItem
 import com.redhat.devtools.lsp4ij.LanguageServiceAccessor
 import com.redhat.devtools.lsp4ij.LSPIJUtils
 import com.redhat.devtools.lsp4ij.features.signatureHelp.LSPSignatureHelperPsiElement
@@ -16,6 +22,7 @@ import org.eclipse.lsp4j.*
  * complete label as returned by the server.
  */
 class ReScriptParameterInfoHandler : ParameterInfoHandler<LSPSignatureHelperPsiElement, SignatureInformation> {
+    private val logger = Logger.getInstance("ReScript")
 
     override fun findElementForParameterInfo(context: CreateParameterInfoContext): LSPSignatureHelperPsiElement? {
         val textRange = getTextRange(context) ?: return null
@@ -37,20 +44,30 @@ class ReScriptParameterInfoHandler : ParameterInfoHandler<LSPSignatureHelperPsiE
         LanguageServiceAccessor.getInstance(file.project)
             .getLanguageServers(file, null, null)
             .thenAccept { servers ->
-                for (server in servers) {
-                    try {
-                        val signatureHelp = server.textDocumentService.signatureHelp(params).get()
-                        if (signatureHelp != null && !signatureHelp.signatures.isNullOrEmpty()) {
-                            element.activeSignatureHelp = signatureHelp
-                            context.itemsToShow = signatureHelp.signatures.toTypedArray()
-                            context.showHint(element, context.offset, this)
-                            return@thenAccept
-                        }
-                    } catch (e: Exception) {
-                        com.intellij.openapi.diagnostic.Logger.getInstance("ReScript")
-                            .warn("signatureHelp request failed", e)
-                    }
+                val server = findReScriptLanguageServer(servers)
+                if (server == null) {
+                    notifyMissingReScriptServer(file.project)
+                    logger.error("ReScript signatureHelp failed: rescriptLanguageServer not found in matching servers")
+                    return@thenAccept
                 }
+
+                // Non-blocking: continue when the LSP reply arrives instead of calling .get().
+                server.textDocumentService.signatureHelp(params)
+                    .thenAccept { signatureHelp ->
+                        if (signatureHelp != null && !signatureHelp.signatures.isNullOrEmpty()) {
+                            // Parameter info UI must be updated on IntelliJ's EDT.
+                            ApplicationManager.getApplication().invokeLater {
+                                element.activeSignatureHelp = signatureHelp
+                                context.itemsToShow = signatureHelp.signatures.toTypedArray()
+                                context.showHint(element, context.offset, this)
+                            }
+                        }
+                    }
+                    .whenComplete { _, throwable ->
+                        if (throwable != null) {
+                            logger.warn("signatureHelp request failed", throwable)
+                        }
+                    }
             }
     }
 
@@ -109,5 +126,19 @@ class ReScriptParameterInfoHandler : ParameterInfoHandler<LSPSignatureHelperPsiE
         val offset = context.offset
         if (offset < 0) return null
         return TextRange(offset, offset)
+    }
+
+    private fun findReScriptLanguageServer(servers: List<LanguageServerItem>): LanguageServerItem? =
+        servers.firstOrNull { it.serverDefinition.id == "rescriptLanguageServer" }
+
+    private fun notifyMissingReScriptServer(project: Project) {
+        NotificationGroupManager.getInstance()
+            .getNotificationGroup("ReScript")
+            .createNotification(
+                "ReScript signature help unavailable",
+                "ReScript language server not found for this file.",
+                NotificationType.ERROR
+            )
+            .notify(project)
     }
 }
