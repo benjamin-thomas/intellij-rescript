@@ -92,24 +92,10 @@ class ReScriptLanguageClient(project: Project) : LanguageClientImpl(project) {
     }
 }
 
-// LSP4IJ retries the connection multiple times, so we guard the notification
-// to avoid spamming the user.
-private val notifiedMissing = AtomicBoolean(false)
-
-private fun notifyServerNotFound(project: Project) {
-    if (!notifiedMissing.compareAndSet(false, true)) return
-
-    NotificationGroupManager.getInstance()
-        .getNotificationGroup("ReScript")
-        .createNotification(
-            "ReScript LSP not found",
-            "Install it with: npm install -g @rescript/language-server",
-            NotificationType.ERROR
-        )
-        .notify(project)
-}
-
 class ReScriptLanguageServer(project: Project) : ProcessStreamConnectionProvider() {
+    // LSP4IJ retries the connection multiple times, so we guard the notification to avoid spamming the user.
+    private val notifiedMissing = AtomicBoolean(false)
+
     init {
         setup(project)
     }
@@ -123,6 +109,26 @@ class ReScriptLanguageServer(project: Project) : ProcessStreamConnectionProvider
         }
         commands = listOf(serverPath, "--stdio")
         workingDirectory = project.basePath
+    }
+
+    private fun notifyServerNotFound(project: Project) {
+        if (!notifiedMissing.compareAndSet(false, true)) return
+
+        NotificationGroupManager.getInstance()
+            .getNotificationGroup("ReScript")
+            .createNotification(
+                "ReScript LSP not found",
+                """
+                    Install it with:
+                    <br><br>
+                    <code>npm install -g @rescript/language-server</code>
+                    <br><br>
+                    After installing, you may need to log out and back in
+                    (or relaunch your IDE from a terminal to pick up the updated PATH).
+                """.trimIndent(),
+                NotificationType.ERROR
+            )
+            .notify(project)
     }
 
     /**
