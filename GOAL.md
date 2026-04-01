@@ -224,27 +224,40 @@ grammar rules only when a native feature demands it.
    `BindingPattern` and `Expr` are public PSI nodes. `LetBinding` implements
    `PsiNameIdentifierOwner` via mixin — `getName()` extracts the LIDENT from
    the binding pattern (returns null for destructuring/discard).
-5. **StringLiteral PSI node** — wrap `STRING_START STRING_CONTENT* STRING_END` in a
+5. **Move Statement Up/Down** (Alt+Shift+Up/Down) — move entire top-level
+   declarations as a unit. Annotations move with their declaration
+   (`@react.component` + `let make` move together). Uses `StatementUpDownMover`.
+   No grammar changes needed — purely structural PSI navigation (~130 lines).
+6. **Tighten ModuleBinding + rename BindingPattern** — Three sub-tasks:
+   a. Rename `BindingPattern` → `LetBindingPattern` (it's specific to let bindings).
+   b. Tighten `ModuleBinding` from `MODULE body_token*` to
+      `MODULE UIDENT EQ ModuleBody` with mixin + `PsiNameIdentifierOwner`.
+      `ModuleBody` is a public opaque PSI node (like `Expr` but for modules).
+   c. Same pattern for `TypeDeclaration` if time permits.
+7. **Breadcrumbs** — show the path in the PSI tree at the bottom of the editor
+   (e.g. `Foo.res > module App > let make`). Uses `getName()` from #4 and #6.
+   Implement a `BreadcrumbsProvider` (~28 lines).
+8. **StringLiteral PSI node** — wrap `STRING_START STRING_CONTENT* STRING_END` in a
    composite node. Required for language injection (Alt+Enter → "Inject Language or
    Reference" for SQL, etc.)
-6. **Regex internals highlighting** — break `/pattern/flags` into sub-tokens.
-7. **Native structure view** — custom icons, sorting, filtering. Depends on #4.
-8. **Go to Test / Implementation** (Ctrl+Shift+T) — switch between `src/Foo.res` and
-   `test/Foo_test.res` (or similar naming convention). Uses `GotoTestOrCodeHandler`.
-   Phase 1: file-level navigation based on naming convention.
-   Phase 2: function-level focus — jump to the test/implementation of the function
-   under the cursor (à la Cursive for Clojure). Depends on #4.
-   Phase 3: if the test function doesn't exist, offer to create it with an empty body
-   (e.g. `let test_make = () => { }` in the test file).
-9. **Breadcrumbs** — show the path in the PSI tree at the bottom of the editor
-   (e.g. `Foo.res > module App > let make`). Uses `getName()` from #4.
-10. **Template string interpolation** — `${expr}` inside backtick strings. Lexer state
+9. **Regex internals highlighting** — break `/pattern/flags` into sub-tokens.
+10. **Native structure view** — custom icons, sorting, filtering. Depends on #4.
+11. **Go to Test / Implementation** (Ctrl+Shift+T) — switch between `src/Foo.res` and
+    `test/Foo_test.res` (or similar naming convention). Uses `GotoTestOrCodeHandler`.
+    Phase 1: file-level navigation based on naming convention.
+    Phase 2: function-level focus — jump to the test/implementation of the function
+    under the cursor (à la Cursive for Clojure). Depends on #4.
+    Phase 3: if the test function doesn't exist, offer to create it with an empty body
+    (e.g. `let test_make = () => { }` in the test file).
+12. **Template string interpolation** — `${expr}` inside backtick strings. Lexer state
     switches back to `YYINITIAL` inside `${}` with brace depth tracking.
-11. **JSX token awareness** — lexer states for `<div>`, `<Component />`. Needs
+13. **JSX token awareness** — lexer states for `<div>`, `<Component />`. Needs
     disambiguation: `<` after an identifier is comparison, otherwise JSX (same
     pattern as regex/division).
 
 ### Longer term
 
-12. **Expression parsing** — tighten `body_token*` into real expression rules.
-13. **Decorator-declaration wrapping** — parent-child instead of siblings.
+14. **Expression parsing** — tighten `body_token*` into real expression rules.
+15. **Extract variable / function** — select an expression, create a `let name = <expr>`.
+    Depends on #14 for validating that the selection is a complete expression.
+16. **Decorator-declaration wrapping** — parent-child instead of siblings.
