@@ -53,19 +53,20 @@ classes.
 
 ### States
 
-The lexer has four states:
+The lexer starts in `YYINITIAL` (the default state) and switches to
+purpose-specific states when it encounters certain tokens. Each state has its
+own set of rules. The lexer exits a state when it encounters the matching
+closing token (e.g., `"` exits `IN_STRING`, `` ` `` exits `IN_TEMPLATE`,
+`*/` at depth 0 exits `IN_BLOCK_COMMENT`).
 
-- **`YYINITIAL`** — default state, handles keywords, operators, delimiters, etc.
-- **`IN_STRING`** — inside a `"double-quoted string"`. Emits `STRING_CONTENT`,
-  `STRING_ESCAPE`, and `STRING_END` tokens. Entered when `"` is seen in
-  `YYINITIAL`. Exits on closing `"` or newline (unclosed string recovery).
-- **`IN_TEMPLATE`** — inside a `` `backtick template` ``. Emits `TEMPLATE_CONTENT`
-  and `TEMPLATE_END`. Entered when `` ` `` is seen in `YYINITIAL`.
-- **`REGEX`** — inside a `/regex/` literal. Uses `yypushback(1)` to re-consume
-  the `/` after the regex-vs-division decision (see "Pushback technique" below).
+This mechanism is how the lexer handles constructs where the same character
+means different things depending on context — a `\n` inside a string is an
+escape sequence, but outside it's whitespace. States are declared with
+`%state NAME` in the `.flex` file, and transitions use `yybegin(STATE)`.
 
-When we add nested block comments (`/* /* */ */`), we'll need a `COMMENT` state
-with a depth counter. A regex alone cannot handle nesting.
+Some states need auxiliary data: `IN_BLOCK_COMMENT` tracks a `commentDepth`
+counter for nesting, and `REGEX` uses `yypushback(1)` to re-consume the `/`
+after the regex-vs-division decision (see "Pushback technique" below).
 
 ### Pushback technique (`yypushback`)
 
@@ -220,17 +221,12 @@ registered, it shows individual tokens as `PsiElement(TOKEN_TYPE)` nodes.
 
 ## Current limitations (TODOs)
 
-- **Nested block comments**: `/* /* */ */` — our regex-based rule doesn't handle
-  nesting. Needs a JFlex state with depth counter.
 - **Template string interpolation**: `` `hello ${name}` `` — the `IN_TEMPLATE`
   state currently treats everything between backticks as `TEMPLATE_CONTENT`.
   Interpolation requires the lexer to exit back to `YYINITIAL` inside `${}`,
   with brace depth tracking to handle nested braces. See GOAL.md.
-- **Full numeric literals**: hex, octal, binary, underscore separators, BigInt
-  suffix, etc. See GOAL.md Phase 1b.
-- **v12 operators**: `&&&`, `|||`, `<<<`, `>>>`, etc. See GOAL.md Phase 1d.
-- **Missing keywords**: `async`, `await`, `try`, `catch`, `while`, `for`,
-  `and`, `as`.
+- **v12 operators**: `&&&`, `|||`, `^^^`, `~~~`, `>>>`, `<<`, `>>`, `**`,
+  `===`, `!==`, `:>`, `..`. See GOAL.md.
 
 ## Reference implementations
 
