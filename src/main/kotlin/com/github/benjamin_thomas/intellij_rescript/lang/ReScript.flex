@@ -71,8 +71,12 @@ LINE_COMMENT = "//" [^\n]*
 BLOCK_COMMENT = "/*" [^*]* ("*" [^/] [^*]*)* "*/"
 LOWER_IDENT = [a-z_][a-zA-Z0-9_]*
 UPPER_IDENT = [A-Z][a-zA-Z0-9_]*
-INT = [0-9]+
-FLOAT = [0-9]+ "." [0-9]+
+HEX_INT = 0[xX][0-9a-fA-F][0-9a-fA-F_]*
+OCT_INT = 0[oO][0-7][0-7_]*
+BIN_INT = 0[bB][01][01_]*
+BIGINT = [0-9][0-9_]*n
+INT = [0-9][0-9_]*
+FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
 
 %%
 
@@ -104,6 +108,10 @@ FLOAT = [0-9]+ "." [0-9]+
     "as"                { return track(ReScriptTypes.AS); }
 
     {FLOAT}             { return track(ReScriptTypes.FLOAT); }
+    {HEX_INT}           { return track(ReScriptTypes.INT); }
+    {OCT_INT}           { return track(ReScriptTypes.INT); }
+    {BIN_INT}           { return track(ReScriptTypes.INT); }
+    {BIGINT}            { return track(ReScriptTypes.BIGINT); }
     {INT}               { return track(ReScriptTypes.INT); }
     \"                  { yybegin(IN_STRING); return track(ReScriptTypes.STRING_START); }
     `                   { yybegin(IN_TEMPLATE); return track(ReScriptTypes.TEMPLATE_START); }

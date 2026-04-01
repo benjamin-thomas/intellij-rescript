@@ -214,8 +214,8 @@ grammar rules only when a native feature demands it.
 
 ### Next up (ordered by effort, smallest first)
 
-1. **Full numeric literals** — hex (`0xFF`), octal (`0o77`), binary (`0b1010`),
-   underscores (`1_000_000`), hex floats.
+1. ~~**Full numeric literals**~~ — DONE. Hex, octal, binary, underscores, scientific
+   notation, BigInt suffix (`n`). Hex floats skipped (undocumented, niche).
 2. **Nested block comments** — `/* /* */ */` with depth counter.
 3. **Tighten LetBinding** — `LET LIDENT body_token*` to extract names.
 4. **StringLiteral PSI node** — wrap `STRING_START STRING_CONTENT* STRING_END` in a

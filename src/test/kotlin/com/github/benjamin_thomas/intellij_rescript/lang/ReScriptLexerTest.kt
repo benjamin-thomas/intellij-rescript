@@ -35,6 +35,24 @@ class ReScriptLexerTest {
     fun testRegex() = runLexerTest("Regex.res", "Regex.out")
 
     @Test
+    fun testNumericHex() = runLexerTest("NumericHex.res", "NumericHex.out")
+
+    @Test
+    fun testNumericOctal() = runLexerTest("NumericOctal.res", "NumericOctal.out")
+
+    @Test
+    fun testNumericBinary() = runLexerTest("NumericBinary.res", "NumericBinary.out")
+
+    @Test
+    fun testNumericUnderscores() = runLexerTest("NumericUnderscores.res", "NumericUnderscores.out")
+
+    @Test
+    fun testNumericFloats() = runLexerTest("NumericFloats.res", "NumericFloats.out")
+
+    @Test
+    fun testNumericBigInt() = runLexerTest("NumericBigInt.res", "NumericBigInt.out")
+
+    @Test
     fun testStringSimple() = runLexerTest("StringSimple.res", "StringSimple.out")
 
     @Test

@@ -39,6 +39,7 @@
         UIDENT     = 'UIDENT'
 
         // Literals
+        BIGINT     = 'BIGINT'
         INT        = 'INT'
         FLOAT      = 'FLOAT'
         STRING_START   = 'STRING_START'
@@ -190,7 +191,7 @@ private non_decl_token ::= keyword | identifier | literal | operator | punctuati
 private keyword     ::= REC | TRUE | FALSE | SWITCH | IF | ELSE
                       | ASYNC | AWAIT | TRY | CATCH | WHILE | FOR | AND | AS
 private identifier  ::= LIDENT | UIDENT
-private literal     ::= INT | FLOAT | STRING_START | STRING_END | STRING_CONTENT | STRING_ESCAPE
+private literal     ::= BIGINT | INT | FLOAT | STRING_START | STRING_END | STRING_CONTENT | STRING_ESCAPE
                       | TEMPLATE_START | TEMPLATE_END | TEMPLATE_CONTENT | REGEX
 private operator    ::= EQ | EQEQ | BANGEQ | AMPAMP | PIPEPIPE | PLUS | MINUS | STAR | SLASH
                       | LT | GT | LTEQ | GTEQ | ARROW | FAT_ARROW | PIPE_FORWARD

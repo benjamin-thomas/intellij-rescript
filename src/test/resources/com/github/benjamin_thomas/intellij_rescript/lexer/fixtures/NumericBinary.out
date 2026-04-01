@@ -1,0 +1,5 @@
+INT ('0b1010')
+WHITE_SPACE ('\n')
+INT ('0B1010')
+WHITE_SPACE ('\n')
+INT ('0b1111_0000')

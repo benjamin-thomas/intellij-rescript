@@ -1,0 +1,5 @@
+INT ('0xFF')
+WHITE_SPACE ('\n')
+INT ('0XFF')
+WHITE_SPACE ('\n')
+INT ('0xDEAD_BEEF')

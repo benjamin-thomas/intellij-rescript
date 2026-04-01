@@ -1,0 +1,5 @@
+BIGINT ('42n')
+WHITE_SPACE ('\n')
+BIGINT ('1_000n')
+WHITE_SPACE ('\n')
+BIGINT ('0n')

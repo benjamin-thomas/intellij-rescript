@@ -41,7 +41,7 @@ class ReScriptSyntaxHighlighter : SyntaxHighlighterBase() {
             ReScriptTypes.LIDENT -> IDENTIFIER
             ReScriptTypes.UIDENT -> TYPE_NAME
 
-            ReScriptTypes.INT, ReScriptTypes.FLOAT -> NUMBER
+            ReScriptTypes.BIGINT, ReScriptTypes.INT, ReScriptTypes.FLOAT -> NUMBER
             ReScriptTypes.STRING_START, ReScriptTypes.STRING_END,
             ReScriptTypes.STRING_CONTENT,
             ReScriptTypes.TEMPLATE_START, ReScriptTypes.TEMPLATE_END,
