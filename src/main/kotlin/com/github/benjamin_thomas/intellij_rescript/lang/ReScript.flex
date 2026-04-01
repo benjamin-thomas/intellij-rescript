@@ -122,9 +122,18 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }
     {UPPER_IDENT}       { return track(ReScriptTypes.UIDENT); }
 
+    "&&&"               { return track(ReScriptTypes.AMPAMPAMP); }
     "&&"                { return track(ReScriptTypes.AMPAMP); }
+    "|||"               { return track(ReScriptTypes.PIPEPIPEPIPE); }
     "||"                { return track(ReScriptTypes.PIPEPIPE); }
+    "^^^"               { return track(ReScriptTypes.CARETCARETCARET); }
+    "~~~"               { return track(ReScriptTypes.TILDETILDETILDE); }
+    "<<"                { return track(ReScriptTypes.SHIFT_LEFT); }
+    ">>>"               { return track(ReScriptTypes.SHIFT_RIGHT_UNSIGNED); }
+    ">>"                { return track(ReScriptTypes.SHIFT_RIGHT); }
+    "==="               { return track(ReScriptTypes.EQEQEQ); }
     "=="                { return track(ReScriptTypes.EQEQ); }
+    "!=="               { return track(ReScriptTypes.BANGEQEQ); }
     "!="                { return track(ReScriptTypes.BANGEQ); }
     "<="                { return track(ReScriptTypes.LTEQ); }
     ">="                { return track(ReScriptTypes.GTEQ); }
@@ -133,6 +142,7 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
     "|>"                { return track(ReScriptTypes.PIPE_FORWARD); }
     "+."                { return track(ReScriptTypes.PLUS_DOT); }
     "-."                { return track(ReScriptTypes.MINUS_DOT); }
+    "**"                { return track(ReScriptTypes.STARSTAR); }
     "*."                { return track(ReScriptTypes.STAR_DOT); }
     "/."                { return track(ReScriptTypes.SLASH_DOT); }
     "="                 { return track(ReScriptTypes.EQ); }
@@ -159,8 +169,10 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
     "]"                 { return track(ReScriptTypes.RBRACKET); }
     ","                 { return track(ReScriptTypes.COMMA); }
     ";"                 { return track(ReScriptTypes.SEMICOLON); }
+    ":>"                { return track(ReScriptTypes.COLONGT); }
     ":"                 { return track(ReScriptTypes.COLON); }
     "..."               { return track(ReScriptTypes.DOTDOTDOT); }
+    ".."                { return track(ReScriptTypes.DOTDOT); }
     "."                 { return track(ReScriptTypes.DOT); }
     "@"                 { return track(ReScriptTypes.AT); }
     "~"                 { return track(ReScriptTypes.TILDE); }

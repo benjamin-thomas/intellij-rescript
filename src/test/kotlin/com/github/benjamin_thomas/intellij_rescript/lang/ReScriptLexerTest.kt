@@ -26,6 +26,42 @@ class ReScriptLexerTest {
     fun testOperators() = runLexerTest("Operators.res", "Operators.out")
 
     @Test
+    fun testOperatorsV12BitwiseAnd() = runLexerTest("OperatorsV12BitwiseAnd.res", "OperatorsV12BitwiseAnd.out")
+
+    @Test
+    fun testOperatorsV12BitwiseOr() = runLexerTest("OperatorsV12BitwiseOr.res", "OperatorsV12BitwiseOr.out")
+
+    @Test
+    fun testOperatorsV12BitwiseXor() = runLexerTest("OperatorsV12BitwiseXor.res", "OperatorsV12BitwiseXor.out")
+
+    @Test
+    fun testOperatorsV12BitwiseNot() = runLexerTest("OperatorsV12BitwiseNot.res", "OperatorsV12BitwiseNot.out")
+
+    @Test
+    fun testOperatorsV12ShiftLeft() = runLexerTest("OperatorsV12ShiftLeft.res", "OperatorsV12ShiftLeft.out")
+
+    @Test
+    fun testOperatorsV12ShiftRight() = runLexerTest("OperatorsV12ShiftRight.res", "OperatorsV12ShiftRight.out")
+
+    @Test
+    fun testOperatorsV12UnsignedShiftRight() = runLexerTest("OperatorsV12UnsignedShiftRight.res", "OperatorsV12UnsignedShiftRight.out")
+
+    @Test
+    fun testOperatorsV12Exponentiation() = runLexerTest("OperatorsV12Exponentiation.res", "OperatorsV12Exponentiation.out")
+
+    @Test
+    fun testOperatorsV12StrictEqual() = runLexerTest("OperatorsV12StrictEqual.res", "OperatorsV12StrictEqual.out")
+
+    @Test
+    fun testOperatorsV12StrictNotEqual() = runLexerTest("OperatorsV12StrictNotEqual.res", "OperatorsV12StrictNotEqual.out")
+
+    @Test
+    fun testOperatorsV12Coercion() = runLexerTest("OperatorsV12Coercion.res", "OperatorsV12Coercion.out")
+
+    @Test
+    fun testOperatorsV12Range() = runLexerTest("OperatorsV12Range.res", "OperatorsV12Range.out")
+
+    @Test
     fun testDelimiters() = runLexerTest("Delimiters.res", "Delimiters.out")
 
     @Test

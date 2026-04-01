@@ -56,8 +56,20 @@
         BLOCK_COMMENT = 'BLOCK_COMMENT'
 
         // Multi-char operators
+        AMPAMPAMP    = 'AMPAMPAMP'
         AMPAMP       = 'AMPAMP'
+        PIPEPIPEPIPE = 'PIPEPIPEPIPE'
         PIPEPIPE     = 'PIPEPIPE'
+        CARETCARETCARET = 'CARETCARETCARET'
+        TILDETILDETILDE = 'TILDETILDETILDE'
+        SHIFT_LEFT   = 'SHIFT_LEFT'
+        SHIFT_RIGHT  = 'SHIFT_RIGHT'
+        SHIFT_RIGHT_UNSIGNED = 'SHIFT_RIGHT_UNSIGNED'
+        STARSTAR     = 'STARSTAR'
+        EQEQEQ       = 'EQEQEQ'
+        BANGEQEQ     = 'BANGEQEQ'
+        COLONGT      = 'COLONGT'
+        DOTDOT       = 'DOTDOT'
         EQEQ         = 'EQEQ'
         BANGEQ        = 'BANGEQ'
         LTEQ          = 'LTEQ'
@@ -193,7 +205,12 @@ private keyword     ::= REC | TRUE | FALSE | SWITCH | IF | ELSE
 private identifier  ::= LIDENT | UIDENT
 private literal     ::= BIGINT | INT | FLOAT | STRING_START | STRING_END | STRING_CONTENT | STRING_ESCAPE
                       | TEMPLATE_START | TEMPLATE_END | TEMPLATE_CONTENT | REGEX
-private operator    ::= EQ | EQEQ | BANGEQ | AMPAMP | PIPEPIPE | PLUS | MINUS | STAR | SLASH
+private operator    ::= EQ | EQEQ | EQEQEQ | BANGEQ | BANGEQEQ
+                      | AMPAMPAMP | AMPAMP | PIPEPIPEPIPE | PIPEPIPE
+                      | CARETCARETCARET | TILDETILDETILDE
+                      | SHIFT_LEFT | SHIFT_RIGHT | SHIFT_RIGHT_UNSIGNED
+                      | STARSTAR | COLONGT | DOTDOT
+                      | PLUS | MINUS | STAR | SLASH
                       | LT | GT | LTEQ | GTEQ | ARROW | FAT_ARROW | PIPE_FORWARD
                       | PLUS_DOT | MINUS_DOT | STAR_DOT | SLASH_DOT
 private punctuation ::= COMMA | SEMICOLON | COLON | DOT | DOTDOTDOT

@@ -217,8 +217,9 @@ grammar rules only when a native feature demands it.
 1. ~~**Full numeric literals**~~ — DONE. Hex, octal, binary, underscores, scientific
    notation, BigInt suffix (`n`). Hex floats skipped (undocumented, niche).
 2. ~~**Nested block comments**~~ — DONE. Depth-tracking lexer state + folding support.
-3. **v12 operators** — `&&&`, `|||`, `^^^`, `~~~` (bitwise), `<<`, `>>`, `>>>` (shifts),
-   `**` (exponentiation), `===`, `!==` (strict equality), `:>` (coercion), `..` (range).
+3. ~~**v12 operators**~~ — DONE. `&&&`, `|||`, `^^^`, `~~~` (bitwise), `<<`, `>>`, `>>>`
+   (shifts), `**` (exponentiation), `===`, `!==` (strict equality), `:>` (coercion),
+   `..` (range).
 4. **Tighten LetBinding** — `LET LIDENT body_token*` to extract names.
 5. **StringLiteral PSI node** — wrap `STRING_START STRING_CONTENT* STRING_END` in a
    composite node. Required for language injection (Alt+Enter → "Inject Language or
