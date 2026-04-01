@@ -220,7 +220,10 @@ grammar rules only when a native feature demands it.
 3. ~~**v12 operators**~~ — DONE. `&&&`, `|||`, `^^^`, `~~~` (bitwise), `<<`, `>>`, `>>>`
    (shifts), `**` (exponentiation), `===`, `!==` (strict equality), `:>` (coercion),
    `..` (range).
-4. **Tighten LetBinding** — `LET LIDENT body_token*` to extract names.
+4. ~~**Tighten LetBinding**~~ — DONE. Split into `LET REC? BindingPattern EQ Expr`.
+   `BindingPattern` and `Expr` are public PSI nodes. `LetBinding` implements
+   `PsiNameIdentifierOwner` via mixin — `getName()` extracts the LIDENT from
+   the binding pattern (returns null for destructuring/discard).
 5. **StringLiteral PSI node** — wrap `STRING_START STRING_CONTENT* STRING_END` in a
    composite node. Required for language injection (Alt+Enter → "Inject Language or
    Reference" for SQL, etc.)
@@ -231,13 +234,17 @@ grammar rules only when a native feature demands it.
    Phase 1: file-level navigation based on naming convention.
    Phase 2: function-level focus — jump to the test/implementation of the function
    under the cursor (à la Cursive for Clojure). Depends on #4.
-9. **Template string interpolation** — `${expr}` inside backtick strings. Lexer state
-   switches back to `YYINITIAL` inside `${}` with brace depth tracking.
-10. **JSX token awareness** — lexer states for `<div>`, `<Component />`. Needs
+   Phase 3: if the test function doesn't exist, offer to create it with an empty body
+   (e.g. `let test_make = () => { }` in the test file).
+9. **Breadcrumbs** — show the path in the PSI tree at the bottom of the editor
+   (e.g. `Foo.res > module App > let make`). Uses `getName()` from #4.
+10. **Template string interpolation** — `${expr}` inside backtick strings. Lexer state
+    switches back to `YYINITIAL` inside `${}` with brace depth tracking.
+11. **JSX token awareness** — lexer states for `<div>`, `<Component />`. Needs
     disambiguation: `<` after an identifier is comparison, otherwise JSX (same
     pattern as regex/division).
 
 ### Longer term
 
-11. **Expression parsing** — tighten `body_token*` into real expression rules.
-12. **Decorator-declaration wrapping** — parent-child instead of siblings.
+12. **Expression parsing** — tighten `body_token*` into real expression rules.
+13. **Decorator-declaration wrapping** — parent-child instead of siblings.

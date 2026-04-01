@@ -143,7 +143,12 @@ private declaration ::= block_declaration { recoverWhile = decl_recover }
 private decl_recover ::= !(decl_keyword | <<eof>>)
 
 // Bindings (bind a name to a value)
-LetBinding      ::= LET    body_token* { pin = 1 }
+// See _knowledge/parser/PSI_CUSTOMIZATION.md for how mixin + implements work.
+LetBinding      ::= LET REC? BindingPattern EQ Expr {
+    pin = 1
+    mixin="com.github.benjamin_thomas.intellij_rescript.lang.psi.impl.ReScriptLetBindingMixin"
+    implements="com.intellij.psi.PsiNameIdentifierOwner"
+}
 ModuleBinding   ::= MODULE body_token* { pin = 1 }
 
 // Declarations
@@ -216,3 +221,34 @@ private operator    ::= EQ | EQEQ | EQEQEQ | BANGEQ | BANGEQEQ
 private punctuation ::= COMMA | SEMICOLON | COLON | DOT | DOTDOTDOT
                       | TILDE | PIPE | UNDERSCORE | BANG | QUESTION | HASH | TICK | PCT
 private comment     ::= LINE_COMMENT | BLOCK_COMMENT
+
+// =============================================================================
+// Let binding: binding pattern and expression
+//
+// LetBinding splits at the top-level '=' into:
+//   - BindingPattern: the binding pattern (left of '=') — public PSI node
+//   - Expr: the value expression (right of '=') — public PSI node, opaque for now
+//
+// In ReScript, '=' never appears inside a binding pattern (no default values
+// in record destructuring like JS), so the first '=' is always the boundary.
+// =============================================================================
+
+BindingPattern ::= binding_pattern_token+
+private binding_pattern_token ::= delimited_block | binding_pattern_atom
+
+// Like non_decl_token but without EQ (EQ is the pattern/expr boundary)
+private binding_pattern_atom ::= keyword | identifier | literal
+                               | binding_pattern_operator | punctuation | comment
+
+// operator minus EQ
+private binding_pattern_operator ::= EQEQ | EQEQEQ | BANGEQ | BANGEQEQ
+                          | AMPAMPAMP | AMPAMP | PIPEPIPEPIPE | PIPEPIPE
+                          | CARETCARETCARET | TILDETILDETILDE
+                          | SHIFT_LEFT | SHIFT_RIGHT | SHIFT_RIGHT_UNSIGNED
+                          | STARSTAR | COLONGT | DOTDOT
+                          | PLUS | MINUS | STAR | SLASH
+                          | LT | GT | LTEQ | GTEQ | ARROW | FAT_ARROW | PIPE_FORWARD
+                          | PLUS_DOT | MINUS_DOT | STAR_DOT | SLASH_DOT
+
+// Expression: public node, opaque internals (same tokens as body_token)
+Expr ::= (delimited_block | non_decl_token)+

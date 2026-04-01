@@ -1,9 +1,11 @@
 ReScript File
   ReScriptLetBindingImpl(LET_BINDING)
     PsiElement(LET)('let')
-    PsiElement(LIDENT)('x')
+    ReScriptBindingPatternImpl(BINDING_PATTERN)
+      PsiElement(LIDENT)('x')
     PsiElement(EQ)('=')
-    PsiElement(INT)('1')
+    ReScriptExprImpl(EXPR)
+      PsiElement(INT)('1')
   ReScriptTypeDeclarationImpl(TYPE_DECLARATION)
     PsiElement(TYPE)('type')
     PsiElement(LIDENT)('t')

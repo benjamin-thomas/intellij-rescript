@@ -55,4 +55,7 @@ fun testCommentsBetweenDeclarations() = runParserTest("CommentsBetweenDeclaratio
     fun testExpressionExtensionPoint() = runParserTest("ExpressionExtensionPoint.res", "ExpressionExtensionPoint.out")
     fun testErrorRecovery() = runParserTest("ErrorRecovery.res", "ErrorRecovery.out", hasParseErrors = true)
     fun testErrorRecoveryInBlock() = runParserTest("ErrorRecoveryInBlock.res", "ErrorRecoveryInBlock.out", hasParseErrors = true)
+    fun testLetRec() = runParserTest("LetRec.res", "LetRec.out")
+    fun testLetDestructuring() = runParserTest("LetDestructuring.res", "LetDestructuring.out")
+    fun testLetDiscard() = runParserTest("LetDiscard.res", "LetDiscard.out")
 }
