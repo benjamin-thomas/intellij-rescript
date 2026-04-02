@@ -74,6 +74,9 @@
                 language="ReScript"
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptSpellcheckingStrategy"/>
 
+        <statementUpDownMover
+                implementation="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptStatementMover"/>
+
         <projectViewNestingRulesProvider
                 implementation="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptFileNestingProvider"/>
 
