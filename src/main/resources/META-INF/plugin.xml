@@ -74,6 +74,9 @@
                 language="ReScript"
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptSpellcheckingStrategy"/>
 
+        <breadcrumbsInfoProvider
+                implementation="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptBreadcrumbsProvider"/>
+
         <statementUpDownMover
                 implementation="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptStatementMover"/>
 

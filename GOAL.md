@@ -246,15 +246,16 @@ grammar rules only when a native feature demands it.
    single `DecoratedDeclaration` PSI node. Rule: `DecoratedDeclaration ::= Decorator+ bare_declaration`.
    Multiple decorators are flat siblings (no nesting). Move Statement updated to
    move the whole decorated unit. Unblocks breadcrumbs and future inspections.
-7. **Tighten ModuleBinding + rename BindingPattern** — Three sub-tasks:
+7. ~~**Tighten ModuleBinding + rename BindingPattern**~~ — DONE. Three sub-tasks:
    a. ~~Rename `BindingPattern` → `LetBindingPattern`~~ — DONE.
-   b. Tighten `ModuleBinding` from `MODULE body_token*` to
-      `MODULE UIDENT EQ ModuleBody` with mixin + `PsiNameIdentifierOwner`.
-      `ModuleBody` is a public opaque PSI node (like `Expr` but for modules).
-   c. Same pattern for `TypeDeclaration` if time permits.
-8. **Breadcrumbs** — show the path in the PSI tree at the bottom of the editor
-   (e.g. `Foo.res > module App > let make`). Uses `getName()` from #4 and #7.
-   Implement a `BreadcrumbsProvider` (~28 lines).
+   b. ~~Tighten `ModuleBinding`~~ — DONE. `MODULE UIDENT EQ ModuleBody` with mixin +
+      `PsiNameIdentifierOwner`. `ModuleBody` is a public opaque PSI node (`body_token+`).
+   c. Same pattern for `TypeDeclaration` if time permits (deferred).
+8. ~~**Breadcrumbs**~~ — DONE. `ReScriptBreadcrumbsProvider` shows `let`/`module`
+   names in the editor breadcrumb bar. Skips nameless bindings (destructuring, discard).
+   Decorated declarations show the inner binding name (not the decorator).
+   Future: add `type`, `external`, and expression-level breadcrumbs (`switch`, `if`, `try`)
+   as those rules get tightened with `PsiNameIdentifierOwner`.
 9. **StringLiteral PSI node** — wrap `STRING_START STRING_CONTENT* STRING_END` in a
    composite node. Required for language injection (Alt+Enter → "Inject Language or
    Reference" for SQL, etc.)
