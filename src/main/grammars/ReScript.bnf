@@ -131,16 +131,22 @@
 File ::= declaration*
 
 // All declaration types (change 1 of 2)
-private block_declaration ::= LetBinding | ModuleBinding | TypeDeclaration
-                            | OpenStatement | IncludeStatement | ExternalDeclaration | ExceptionDeclaration
-                            | ExtensionPoint | Decorator
+private block_declaration ::= DecoratedDeclaration | bare_declaration
+
+// Declarations without decorator wrapper (used by DecoratedDeclaration)
+private bare_declaration ::= LetBinding | ModuleBinding | TypeDeclaration
+                           | OpenStatement | IncludeStatement | ExternalDeclaration | ExceptionDeclaration
+                           | ExtensionPoint
+
+// Decorator + declaration wrapper: all decorators are siblings of the declaration
+DecoratedDeclaration ::= Decorator+ bare_declaration { pin = 1 }
 
 // All declaration-starting keywords (change 2 of 2)
-private decl_keyword ::= LET | MODULE | TYPE | OPEN | INCLUDE | EXTERNAL | EXCEPTION | PCT_PCT | AT
+private decl_keyword ::= LET | MODULE | TYPE | OPEN | INCLUDE | EXTERNAL | EXCEPTION
 
 // Top-level wrapper: adds error recovery between declarations
 private declaration ::= block_declaration { recoverWhile = decl_recover }
-private decl_recover ::= !(decl_keyword | <<eof>>)
+private decl_recover ::= !(decl_keyword | AT | PCT_PCT | <<eof>>)
 
 // Bindings (bind a name to a value)
 // See _knowledge/parser/PSI_CUSTOMIZATION.md for how mixin + implements work.
@@ -165,8 +171,11 @@ ExceptionDeclaration ::= EXCEPTION body_token* { pin = 1 }
 // Extension points (%%raw, %%private, etc.)
 ExtensionPoint  ::= PCT_PCT body_token* { pin = 1 }
 
-// Decorators (@react.component, @module, @val, etc.)
-Decorator       ::= AT body_token* { pin = 1 }
+// Decorators (@react.component, @module, @as, @val, etc.)
+// The ReScript compiler allows any keyword as a decorator name (res_core.ml: parse_attribute_id).
+Decorator       ::= AT decorator_name (DOT decorator_name)* paren_block? { pin = 1 }
+// Any keyword is valid as a decorator name (matches ReScript compiler behavior).
+private decorator_name ::= LIDENT | UIDENT | expr_keyword | decl_keyword
 
 // =============================================================================
 // Permissive body
@@ -184,7 +193,7 @@ Decorator       ::= AT body_token* { pin = 1 }
 // ends and the next begins). See NestedLetBindings test fixture.
 //
 // ADDING A NEW TOKEN:
-//   Add it to exactly one category below (keyword, identifier, literal,
+//   Add it to exactly one category below (expr_keyword, LIDENT/UIDENT, literal,
 //   operator, punctuation, or comment). If forgotten, the token will silently
 //   cause parse errors inside declaration bodies.
 // =============================================================================
@@ -201,13 +210,12 @@ private bracket_block   ::= LBRACKET paren_content* RBRACKET { pin = 1 }
 private block_content ::= block_declaration | paren_content
 
 // Inside parens/brackets: keywords are raw tokens, no declarations
-private paren_content ::= delimited_block | decl_keyword | non_decl_token
+private paren_content ::= delimited_block | decl_keyword | AT | PCT_PCT | non_decl_token
 
 // All non-declaration-keyword, non-delimiter tokens
-private non_decl_token ::= keyword | identifier | literal | operator | punctuation | comment
-private keyword     ::= REC | TRUE | FALSE | SWITCH | IF | ELSE
-                      | ASYNC | AWAIT | TRY | CATCH | WHILE | FOR | AND | AS
-private identifier  ::= LIDENT | UIDENT
+private non_decl_token ::= expr_keyword | LIDENT | UIDENT | literal | operator | punctuation | comment
+private expr_keyword ::= REC | TRUE | FALSE | SWITCH | IF | ELSE
+                       | ASYNC | AWAIT | TRY | CATCH | WHILE | FOR | AND | AS
 private literal     ::= BIGINT | INT | FLOAT | STRING_START | STRING_END | STRING_CONTENT | STRING_ESCAPE
                       | TEMPLATE_START | TEMPLATE_END | TEMPLATE_CONTENT | REGEX
 private operator    ::= EQ | EQEQ | EQEQEQ | BANGEQ | BANGEQEQ
@@ -237,7 +245,7 @@ BindingPattern ::= binding_pattern_token+
 private binding_pattern_token ::= delimited_block | binding_pattern_atom
 
 // Like non_decl_token but without EQ (EQ is the pattern/expr boundary)
-private binding_pattern_atom ::= keyword | identifier | literal
+private binding_pattern_atom ::= expr_keyword | LIDENT | UIDENT | literal
                                | binding_pattern_operator | punctuation | comment
 
 // operator minus EQ

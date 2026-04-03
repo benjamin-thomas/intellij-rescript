@@ -1,0 +1,13 @@
+ReScript File
+  ReScriptDecoratedDeclarationImpl(DECORATED_DECLARATION)
+    ReScriptDecoratorImpl(DECORATOR)
+      PsiElement(AT)('@')
+      PsiElement(LIDENT)('unboxed')
+    ReScriptTypeDeclarationImpl(TYPE_DECLARATION)
+      PsiElement(TYPE)('type')
+      PsiElement(LIDENT)('a')
+      PsiElement(EQ)('=')
+      PsiElement(UIDENT)('Name')
+      PsiElement(LPAREN)('(')
+      PsiElement(LIDENT)('string')
+      PsiElement(RPAREN)(')')

@@ -267,6 +267,184 @@ class ReScriptStatementMoverTest : BasePlatformTestCase() {
         )
     }
 
+    fun testMoveDecoratedLetDownPastLet() {
+        // Arrange
+        myFixture.configureByText(
+            "Test.res",
+            """
+            @react.component<caret>
+            let make = () => {
+              <div />
+            }
+            let a = 1
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert
+        myFixture.checkResult(
+            """
+            let a = 1
+            @react.component
+            let make = () => {
+              <div />
+            }
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveDecoratedLetDownWithCursorOnLet() {
+        // Arrange
+        myFixture.configureByText(
+            "Test.res",
+            """
+            @react.component
+            let make<caret> = () => {
+              <div />
+            }
+            let a = 1
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert
+        myFixture.checkResult(
+            """
+            let a = 1
+            @react.component
+            let make = () => {
+              <div />
+            }
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveLetDownPastDecoratedLet() {
+        // Arrange
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let a<caret> = 1
+            @react.component
+            let make = () => {
+              <div />
+            }
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert
+        myFixture.checkResult(
+            """
+            @react.component
+            let make = () => {
+              <div />
+            }
+            let a = 1
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveDecoratedLetUpPastLet() {
+        // Arrange
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let a = 1
+            @react.component<caret>
+            let make = () => {
+              <div />
+            }
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_UP_ACTION)
+
+        // Assert
+        myFixture.checkResult(
+            """
+            @react.component
+            let make = () => {
+              <div />
+            }
+            let a = 1
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveStackedDecoratorsDownPastLet() {
+        // Arrange
+        myFixture.configureByText(
+            "Test.res",
+            """
+            @react.component
+            @genType<caret>
+            let make = () => {
+              <div />
+            }
+            let a = 1
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert
+        myFixture.checkResult(
+            """
+            let a = 1
+            @react.component
+            @genType
+            let make = () => {
+              <div />
+            }
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveDecoratedTypeDownPastLet() {
+        // Arrange
+        myFixture.configureByText(
+            "Test.res",
+            """
+            @unboxed<caret>
+            type a = Name(string)
+            let x = 1
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert
+        myFixture.checkResult(
+            """
+            let x = 1
+            @unboxed
+            type a = Name(string)
+
+            """.trimIndent()
+        )
+    }
+
     fun testMoveLetDownPastLet() {
         // Arrange
         myFixture.configureByText(

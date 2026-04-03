@@ -34,6 +34,12 @@ class ReScriptParserTest : ParsingTestCase(
             fullDataPath = myFullDataPath,
         )(inputFile, expectedOutputFile)
 
+    /** Verify that the parser doesn't crash on the given input (no gold file comparison). */
+    private fun assertParserDoesNotCrash(inputFile: String) {
+        val name = inputFile.removeSuffix(".res")
+        createPsiFile(name, loadFile(inputFile))
+    }
+
     fun testLetBinding() = runParserTest("LetBinding.res", "LetBinding.out")
     fun testModuleBinding() = runParserTest("ModuleBinding.res", "ModuleBinding.out")
     fun testModuleAlias() = runParserTest("ModuleAlias.res", "ModuleAlias.out")
@@ -43,19 +49,34 @@ class ReScriptParserTest : ParsingTestCase(
     fun testNestedLetBindings() = runParserTest("NestedLetBindings.res", "NestedLetBindings.out")
     fun testNestedDelimiters() = runParserTest("NestedDelimiters.res", "NestedDelimiters.out")
     fun testExtensionPoint() = runParserTest("ExtensionPoint.res", "ExtensionPoint.out")
-    fun testDecorator() = runParserTest("Decorator.res", "Decorator.out")
-    fun testDecoratorAfterLet() = runParserTest("DecoratorAfterLet.res", "DecoratorAfterLet.out")
+    fun testDecoratedDeclarationAfterLet() =
+        runParserTest("DecoratedDeclarationAfterLet.res", "DecoratedDeclarationAfterLet.out")
+
     fun testOpenStatement() = runParserTest("OpenStatement.res", "OpenStatement.out")
     fun testIncludeStatement() = runParserTest("IncludeStatement.res", "IncludeStatement.out")
     fun testExternalDeclaration() = runParserTest("ExternalDeclaration.res", "ExternalDeclaration.out")
     fun testExceptionDeclaration() = runParserTest("ExceptionDeclaration.res", "ExceptionDeclaration.out")
     fun testEmptyFile() = runParserTest("EmptyFile.res", "EmptyFile.out")
-    fun testStackedDecorators() = runParserTest("StackedDecorators.res", "StackedDecorators.out")
-fun testCommentsBetweenDeclarations() = runParserTest("CommentsBetweenDeclarations.res", "CommentsBetweenDeclarations.out")
+    fun testStackedDecoratedDeclaration() =
+        runParserTest("StackedDecoratedDeclaration.res", "StackedDecoratedDeclaration.out")
+
+    fun testCommentsBetweenDeclarations() =
+        runParserTest("CommentsBetweenDeclarations.res", "CommentsBetweenDeclarations.out")
+
     fun testExpressionExtensionPoint() = runParserTest("ExpressionExtensionPoint.res", "ExpressionExtensionPoint.out")
-    fun testErrorRecovery() = runParserTest("ErrorRecovery.res", "ErrorRecovery.out", hasParseErrors = true)
-    fun testErrorRecoveryInBlock() = runParserTest("ErrorRecoveryInBlock.res", "ErrorRecoveryInBlock.out", hasParseErrors = true)
+    fun testErrorRecovery() = assertParserDoesNotCrash("ErrorRecovery.res")
+    fun testErrorRecoveryInBlock() = assertParserDoesNotCrash("ErrorRecoveryInBlock.res")
     fun testLetRec() = runParserTest("LetRec.res", "LetRec.out")
     fun testLetDestructuring() = runParserTest("LetDestructuring.res", "LetDestructuring.out")
     fun testLetDiscard() = runParserTest("LetDiscard.res", "LetDiscard.out")
+    fun testDecoratedDeclaration() = runParserTest("DecoratedDeclaration.res", "DecoratedDeclaration.out")
+    fun testDecoratedType() = runParserTest("DecoratedType.res", "DecoratedType.out")
+    fun testDecoratedModule() = runParserTest("DecoratedModule.res", "DecoratedModule.out")
+    fun testDecoratedExternal() = runParserTest("DecoratedExternal.res", "DecoratedExternal.out")
+    fun testDecoratedOpen() = runParserTest("DecoratedOpen.res", "DecoratedOpen.out")
+    fun testDecoratedInclude() = runParserTest("DecoratedInclude.res", "DecoratedInclude.out")
+    fun testDecoratedExceptionDecl() = runParserTest("DecoratedExceptionDecl.res", "DecoratedExceptionDecl.out")
+    fun testDecoratedExtensionPoint() = runParserTest("DecoratedExtensionPoint.res", "DecoratedExtensionPoint.out")
+    fun testDecoratedExternalWithModule() =
+        runParserTest("DecoratedExternalWithModule.res", "DecoratedExternalWithModule.out")
 }

@@ -142,9 +142,11 @@ are IntelliJ test annotations, not ReScript syntax.
 
 ### Decorator-declaration association
 
-`@react.component` and the following `let make` are **siblings** in the PSI
-tree. To make them parent-child (for refactoring/inspections), we'd add:
-`DecoratedDeclaration ::= Decorator+ block_declaration`.
+`@react.component` and the following `let make` are wrapped in a single
+`DecoratedDeclaration` PSI node (parent-child). Rule:
+`DecoratedDeclaration ::= Decorator+ bare_declaration`. Multiple decorators
+are flat siblings inside the wrapper (no nesting). Move Statement, breadcrumbs,
+and future inspections can treat the decorated unit as one node.
 
 ### LSP semantic tokens (disabled)
 
@@ -229,10 +231,10 @@ grammar rules only when a native feature demands it.
    `module`, `type`, `open`, `include`, `external`, `exception`, `%%extension`.
    v2 (decorator bundling: `@react.component` + `let make` move together)
    depends on #6 below.
-6. **Decorator-declaration wrapping** — change grammar so `@decorator let foo = ...`
-   is a single `DecoratedDeclaration` PSI node (parent-child) instead of siblings.
-   Rule: `DecoratedDeclaration ::= Decorator+ block_declaration`. Unblocks
-   Move Statement v2, breadcrumbs, and future refactoring/inspections.
+6. ~~**Decorator-declaration wrapping**~~ — DONE. `@decorator let foo = ...` is a
+   single `DecoratedDeclaration` PSI node. Rule: `DecoratedDeclaration ::= Decorator+ bare_declaration`.
+   Multiple decorators are flat siblings (no nesting). Move Statement updated to
+   move the whole decorated unit. Unblocks breadcrumbs and future inspections.
 7. **Tighten ModuleBinding + rename BindingPattern** — Three sub-tasks:
    a. Rename `BindingPattern` → `LetBindingPattern` (it's specific to let bindings).
    b. Tighten `ModuleBinding` from `MODULE body_token*` to
@@ -259,6 +261,19 @@ grammar rules only when a native feature demands it.
 14. **JSX token awareness** — lexer states for `<div>`, `<Component />`. Needs
     disambiguation: `<` after an identifier is comparison, otherwise JSX (same
     pattern as regex/division).
+
+### BNF naming convention refactor
+
+GrammarKit's own examples use `snake_case` everywhere. Our BNF uses `PascalCase` for
+public rules (generate PSI nodes) and `snake_case` for private rules (no PSI node).
+The `private` keyword is what actually controls PSI generation; the casing is just a
+visual shorthand. See https://github.com/JetBrains/Grammar-Kit/blob/master/HOWTO.md
+
+Current convention feels exotic. Two candidates for a cleaner convention:
+- **JS-like**: `_underscore` prefix for private rules (e.g. `_block_declaration`)
+- **Go-like**: `PascalCase` for public, `camelCase` for private (e.g. `blockDeclaration`)
+
+Decision pending. When chosen, rename all rules in the BNF in a single pass.
 
 ### Longer term
 

@@ -11,6 +11,7 @@ import com.github.benjamin_thomas.intellij_rescript.ReScriptLanguage
 class ReScriptStatementMover : LineMover() {
 
     private val movableTypes = TokenSet.create(
+        ReScriptTypes.DECORATED_DECLARATION,
         ReScriptTypes.LET_BINDING,
         ReScriptTypes.MODULE_BINDING,
         ReScriptTypes.TYPE_DECLARATION,
@@ -56,7 +57,10 @@ class ReScriptStatementMover : LineMover() {
     private fun findMovableAncestor(psi: PsiElement): PsiElement? {
         var current: PsiElement? = psi
         while (current != null) {
-            if (current.node.elementType in movableTypes) return current
+            if (current.node.elementType in movableTypes) {
+                val isWrappedInDecorator = current.parent?.node?.elementType == ReScriptTypes.DECORATED_DECLARATION
+                return if (isWrappedInDecorator) current.parent else current
+            }
             current = current.parent
         }
         return null
