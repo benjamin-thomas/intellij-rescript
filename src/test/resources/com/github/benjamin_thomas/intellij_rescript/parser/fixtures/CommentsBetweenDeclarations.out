@@ -1,7 +1,7 @@
 ReScript File
   ReScriptLetBindingImpl(LET_BINDING)
     PsiElement(LET)('let')
-    ReScriptBindingPatternImpl(BINDING_PATTERN)
+    ReScriptLetBindingPatternImpl(LET_BINDING_PATTERN)
       PsiElement(LIDENT)('x')
     PsiElement(EQ)('=')
     ReScriptExprImpl(EXPR)
@@ -10,7 +10,7 @@ ReScript File
   PsiComment(BLOCK_COMMENT)('/* A block comment */')
   ReScriptLetBindingImpl(LET_BINDING)
     PsiElement(LET)('let')
-    ReScriptBindingPatternImpl(BINDING_PATTERN)
+    ReScriptLetBindingPatternImpl(LET_BINDING_PATTERN)
       PsiElement(LIDENT)('y')
     PsiElement(EQ)('=')
     ReScriptExprImpl(EXPR)

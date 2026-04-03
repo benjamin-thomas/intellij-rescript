@@ -6,7 +6,7 @@ ReScript File
     PsiElement(LBRACE)('{')
     ReScriptLetBindingImpl(LET_BINDING)
       PsiElement(LET)('let')
-      ReScriptBindingPatternImpl(BINDING_PATTERN)
+      ReScriptLetBindingPatternImpl(LET_BINDING_PATTERN)
         PsiElement(LIDENT)('x')
       PsiElement(EQ)('=')
       ReScriptExprImpl(EXPR)

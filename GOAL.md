@@ -236,7 +236,7 @@ grammar rules only when a native feature demands it.
    Multiple decorators are flat siblings (no nesting). Move Statement updated to
    move the whole decorated unit. Unblocks breadcrumbs and future inspections.
 7. **Tighten ModuleBinding + rename BindingPattern** — Three sub-tasks:
-   a. Rename `BindingPattern` → `LetBindingPattern` (it's specific to let bindings).
+   a. ~~Rename `BindingPattern` → `LetBindingPattern`~~ — DONE.
    b. Tighten `ModuleBinding` from `MODULE body_token*` to
       `MODULE UIDENT EQ ModuleBody` with mixin + `PsiNameIdentifierOwner`.
       `ModuleBody` is a public opaque PSI node (like `Expr` but for modules).

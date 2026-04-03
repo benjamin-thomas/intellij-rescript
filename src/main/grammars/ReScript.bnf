@@ -150,7 +150,7 @@ private decl_recover ::= !(decl_keyword | AT | PCT_PCT | <<eof>>)
 
 // Bindings (bind a name to a value)
 // See _knowledge/parser/PSI_CUSTOMIZATION.md for how mixin + implements work.
-LetBinding      ::= LET REC? BindingPattern EQ Expr {
+LetBinding      ::= LET REC? LetBindingPattern EQ Expr {
     pin = 1
     mixin="com.github.benjamin_thomas.intellij_rescript.lang.psi.impl.ReScriptLetBindingMixin"
     implements="com.intellij.psi.PsiNameIdentifierOwner"
@@ -194,7 +194,7 @@ private decorator_name ::= LIDENT | UIDENT | expr_keyword | decl_keyword
 //
 // ADDING A NEW TOKEN:
 //   Add it to exactly one category below (expr_keyword, LIDENT/UIDENT, literal,
-//   operator, punctuation, or comment). If forgotten, the token will silently
+//   any_operator, punctuation, or comment). If forgotten, the token will silently
 //   cause parse errors inside declaration bodies.
 // =============================================================================
 
@@ -213,19 +213,19 @@ private block_content ::= block_declaration | paren_content
 private paren_content ::= delimited_block | decl_keyword | AT | PCT_PCT | non_decl_token
 
 // All non-declaration-keyword, non-delimiter tokens
-private non_decl_token ::= expr_keyword | LIDENT | UIDENT | literal | operator | punctuation | comment
+private non_decl_token ::= expr_keyword | LIDENT | UIDENT | literal | any_operator | punctuation | comment
 private expr_keyword ::= REC | TRUE | FALSE | SWITCH | IF | ELSE
                        | ASYNC | AWAIT | TRY | CATCH | WHILE | FOR | AND | AS
 private literal     ::= BIGINT | INT | FLOAT | STRING_START | STRING_END | STRING_CONTENT | STRING_ESCAPE
                       | TEMPLATE_START | TEMPLATE_END | TEMPLATE_CONTENT | REGEX
-private operator    ::= EQ | EQEQ | EQEQEQ | BANGEQ | BANGEQEQ
-                      | AMPAMPAMP | AMPAMP | PIPEPIPEPIPE | PIPEPIPE
-                      | CARETCARETCARET | TILDETILDETILDE
-                      | SHIFT_LEFT | SHIFT_RIGHT | SHIFT_RIGHT_UNSIGNED
-                      | STARSTAR | COLONGT | DOTDOT
-                      | PLUS | MINUS | STAR | SLASH
-                      | LT | GT | LTEQ | GTEQ | ARROW | FAT_ARROW | PIPE_FORWARD
-                      | PLUS_DOT | MINUS_DOT | STAR_DOT | SLASH_DOT
+private comparison_operator  ::= EQEQ | EQEQEQ | BANGEQ | BANGEQEQ | LT | GT | LTEQ | GTEQ
+private logical_operator     ::= AMPAMP | PIPEPIPE
+private bitwise_operator     ::= AMPAMPAMP | PIPEPIPEPIPE | CARETCARETCARET | TILDETILDETILDE
+                               | SHIFT_LEFT | SHIFT_RIGHT | SHIFT_RIGHT_UNSIGNED
+private arithmetic_operator  ::= PLUS | MINUS | STAR | SLASH | STARSTAR
+                               | PLUS_DOT | MINUS_DOT | STAR_DOT | SLASH_DOT
+private any_operator         ::= EQ | comparison_operator | logical_operator | bitwise_operator
+                               | arithmetic_operator | ARROW | FAT_ARROW | PIPE_FORWARD | COLONGT | DOTDOT
 private punctuation ::= COMMA | SEMICOLON | COLON | DOT | DOTDOTDOT
                       | TILDE | PIPE | UNDERSCORE | BANG | QUESTION | HASH | TICK | PCT
 private comment     ::= LINE_COMMENT | BLOCK_COMMENT
@@ -234,29 +234,22 @@ private comment     ::= LINE_COMMENT | BLOCK_COMMENT
 // Let binding: binding pattern and expression
 //
 // LetBinding splits at the top-level '=' into:
-//   - BindingPattern: the binding pattern (left of '=') — public PSI node
+//   - LetBindingPattern: the binding pattern (left of '=') — public PSI node
 //   - Expr: the value expression (right of '=') — public PSI node, opaque for now
 //
 // In ReScript, '=' never appears inside a binding pattern (no default values
 // in record destructuring like JS), so the first '=' is always the boundary.
 // =============================================================================
 
-BindingPattern ::= binding_pattern_token+
-private binding_pattern_token ::= delimited_block | binding_pattern_atom
+LetBindingPattern ::= let_binding_pattern_token+
+private let_binding_pattern_token ::= delimited_block | let_binding_pattern_atom
 
 // Like non_decl_token but without EQ (EQ is the pattern/expr boundary)
-private binding_pattern_atom ::= expr_keyword | LIDENT | UIDENT | literal
-                               | binding_pattern_operator | punctuation | comment
-
-// operator minus EQ
-private binding_pattern_operator ::= EQEQ | EQEQEQ | BANGEQ | BANGEQEQ
-                          | AMPAMPAMP | AMPAMP | PIPEPIPEPIPE | PIPEPIPE
-                          | CARETCARETCARET | TILDETILDETILDE
-                          | SHIFT_LEFT | SHIFT_RIGHT | SHIFT_RIGHT_UNSIGNED
-                          | STARSTAR | COLONGT | DOTDOT
-                          | PLUS | MINUS | STAR | SLASH
-                          | LT | GT | LTEQ | GTEQ | ARROW | FAT_ARROW | PIPE_FORWARD
-                          | PLUS_DOT | MINUS_DOT | STAR_DOT | SLASH_DOT
+// Like non_decl_token but without EQ (EQ is the pattern/expr boundary)
+private let_binding_pattern_atom ::= expr_keyword | LIDENT | UIDENT | literal
+                                   | comparison_operator | logical_operator | bitwise_operator
+                                   | arithmetic_operator | ARROW | FAT_ARROW | PIPE_FORWARD | COLONGT | DOTDOT
+                                   | punctuation | comment
 
 // Expression: public node, opaque internals (same tokens as body_token)
 Expr ::= (delimited_block | non_decl_token)+

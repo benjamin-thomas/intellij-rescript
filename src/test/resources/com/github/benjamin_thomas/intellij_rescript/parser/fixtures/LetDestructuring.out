@@ -1,7 +1,7 @@
 ReScript File
   ReScriptLetBindingImpl(LET_BINDING)
     PsiElement(LET)('let')
-    ReScriptBindingPatternImpl(BINDING_PATTERN)
+    ReScriptLetBindingPatternImpl(LET_BINDING_PATTERN)
       PsiElement(LPAREN)('(')
       PsiElement(LIDENT)('a')
       PsiElement(COMMA)(',')
@@ -12,7 +12,7 @@ ReScript File
       PsiElement(LIDENT)('tuple')
   ReScriptLetBindingImpl(LET_BINDING)
     PsiElement(LET)('let')
-    ReScriptBindingPatternImpl(BINDING_PATTERN)
+    ReScriptLetBindingPatternImpl(LET_BINDING_PATTERN)
       PsiElement(LBRACE)('{')
       PsiElement(LIDENT)('name')
       PsiElement(COMMA)(',')
