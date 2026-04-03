@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.3.0 — Navigation & Smarter Parsing
+
+### Navigation
+- **Breadcrumbs**: see where you are in the file (`module Foo > let make`) at the bottom of the editor
+- **Move Statement** (`Alt+Shift+Up/Down`): move entire declarations up/down, including decorated ones (`@react.component let make` moves as a unit)
+
+### Syntax
+- Decorators (`@react.component`, `@module("fs")`, `@as(...)`) are now properly associated with their declaration
+- `.resi` interface files: let signatures and module signatures parse correctly
+- Nested block comments
+- Full numeric literal support (hex, octal, binary, underscores, scientific notation, BigInt)
+- ReScript v12 operators (`&&&`, `|||`, `^^^`, `**`, `===`, `!==`, `:>`, `..`, etc.)
+
 ## v0.2.1 — Fixes & Polish
 
 ### LSP

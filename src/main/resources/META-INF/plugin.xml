@@ -19,8 +19,11 @@
                 <code>npx rescript build -w</code> (older versions)</li>
             <li>LSP4IJ plugin must be installed (required dependency)</li>
         </ul>
-        <p><strong>Early release.</strong> Some constructs (template strings, regex literals)
-        may not highlight correctly yet.</p>
+        <p><strong>Alpha quality.</strong> Core features work well but some constructs
+        (template string interpolation, JSX) are not yet fully parsed.
+        Found something that doesn't work and is not listed in the
+        <a href="https://github.com/benjamin-thomas/intellij-rescript/blob/master/GOAL.md">roadmap</a>?
+        Please <a href="https://github.com/benjamin-thomas/intellij-rescript/issues">report it on GitHub</a>.</p>
     ]]></description>
 
     <extensions defaultExtensionNs="com.intellij">
