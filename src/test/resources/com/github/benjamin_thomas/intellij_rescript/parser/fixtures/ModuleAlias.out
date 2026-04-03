@@ -3,4 +3,5 @@ ReScript File
     PsiElement(MODULE)('module')
     PsiElement(UIDENT)('Foo')
     PsiElement(EQ)('=')
-    PsiElement(UIDENT)('Bar')
+    ReScriptModuleBodyImpl(MODULE_BODY)
+      PsiElement(UIDENT)('Bar')

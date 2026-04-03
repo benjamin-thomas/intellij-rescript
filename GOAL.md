@@ -126,6 +126,17 @@ before queries) and needs time to process files after didOpen.
 
 ## Design notes
 
+### Permissive `body_token` strategy
+
+Most declarations (`TypeDeclaration`, `ExternalDeclaration`, `OpenStatement`, etc.)
+use `body_token*` as an opaque blob — the parser doesn't understand their internals.
+This is intentional. We tighten each rule only when a concrete feature (breadcrumbs,
+inspections, completion) demands structured PSI nodes inside.
+
+Tightened so far: `LetBinding` (split into `LetBindingPattern EQ Expr`) and
+`ModuleBinding` (split into `UIDENT EQ ModuleBody`). `Expr` and `ModuleBody`
+themselves remain opaque (`body_token+`) until a feature needs their internals.
+
 ### Custom parameter info handler (Ctrl+P)
 
 LSP4IJ's built-in handler truncates the signature label (drops closing paren
