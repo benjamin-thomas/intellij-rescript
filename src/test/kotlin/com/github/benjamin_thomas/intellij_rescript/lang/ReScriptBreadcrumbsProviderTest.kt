@@ -60,4 +60,12 @@ class ReScriptBreadcrumbsProviderTest : BasePlatformTestCase() {
         // Assert — shows the let binding, not the decorator
         assertEquals(listOf("let make"), breadcrumbs)
     }
+
+    fun testTypeDeclarationBreadcrumb() {
+        // Act
+        val breadcrumbs = collectBreadcrumbs("type color = Red | Green | Blue")
+
+        // Assert
+        assertEquals(listOf("type color"), breadcrumbs)
+    }
 }

@@ -168,7 +168,14 @@ ModuleSignature ::= COLON (braced_block | UIDENT (DOT UIDENT)*) { pin = 1 }
 ModuleBody      ::= body_token+
 
 // Declarations
-TypeDeclaration ::= TYPE   body_token* { pin = 1 }
+TypeDeclaration ::= TYPE REC? LIDENT TypeBody? {
+    pin = 1
+    mixin="com.github.benjamin_thomas.intellij_rescript.lang.psi.impl.ReScriptTypeDeclarationMixin"
+    implements="com.intellij.psi.PsiNameIdentifierOwner"
+}
+
+// Type body: public node, opaque internals (same tokens as body_token)
+TypeBody        ::= body_token+
 
 // Statements
 OpenStatement   ::= OPEN body_token* { pin = 1 }

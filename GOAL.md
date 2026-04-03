@@ -250,7 +250,8 @@ grammar rules only when a native feature demands it.
    a. ~~Rename `BindingPattern` → `LetBindingPattern`~~ — DONE.
    b. ~~Tighten `ModuleBinding`~~ — DONE. `MODULE UIDENT EQ ModuleBody` with mixin +
       `PsiNameIdentifierOwner`. `ModuleBody` is a public opaque PSI node (`body_token+`).
-   c. Same pattern for `TypeDeclaration` if time permits (deferred).
+   c. ~~Tighten `TypeDeclaration`~~ — DONE. `TYPE REC? LIDENT TypeBody?` with mixin +
+      `PsiNameIdentifierOwner`. Added to breadcrumbs.
 8. ~~**Breadcrumbs**~~ — DONE. `ReScriptBreadcrumbsProvider` shows `let`/`module`
    names in the editor breadcrumb bar. Skips nameless bindings (destructuring, discard).
    Decorated declarations show the inner binding name (not the decorator).

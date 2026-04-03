@@ -9,5 +9,6 @@ ReScript File
   ReScriptTypeDeclarationImpl(TYPE_DECLARATION)
     PsiElement(TYPE)('type')
     PsiElement(LIDENT)('t')
-    PsiElement(EQ)('=')
-    PsiElement(LIDENT)('int')
+    ReScriptTypeBodyImpl(TYPE_BODY)
+      PsiElement(EQ)('=')
+      PsiElement(LIDENT)('int')
