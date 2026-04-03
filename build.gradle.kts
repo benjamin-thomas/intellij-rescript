@@ -84,4 +84,7 @@ intellijPlatform {
             recommended()
         }
     }
+    publishing {
+        token = providers.environmentVariable("PUBLISH_TOKEN")
+    }
 }

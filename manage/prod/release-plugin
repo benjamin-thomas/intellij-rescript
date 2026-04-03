@@ -20,6 +20,12 @@ VERSION=$(grep '^version' build.gradle.kts | head -1 | sed 's/.*"\(.*\)".*/\1/')
 echo "Publishing version: $VERSION"
 echo ""
 
+./gradlew --stop && ./gradlew clean
+
+# Workaround: buildSearchableOptions is disabled but prepareJarSearchableOptions
+# still expects its output directory. After a clean, it doesn't exist.
+mkdir -p build/tmp/buildSearchableOptions
+
 ./gradlew buildPlugin
 echo ""
 
@@ -29,6 +35,6 @@ if [ "$confirm" != "y" ]; then
     exit 0
 fi
 
-./gradlew publishPlugin -Dorg.gradle.project.intellijPublishToken="$TOKEN"
+PUBLISH_TOKEN="$TOKEN" ./gradlew publishPlugin
 echo ""
 echo "Done! Check https://plugins.jetbrains.com/plugin/30982-rescript-ide for status."
