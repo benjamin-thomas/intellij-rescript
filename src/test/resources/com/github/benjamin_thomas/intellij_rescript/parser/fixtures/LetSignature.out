@@ -1,0 +1,11 @@
+ReScript File
+  ReScriptLetBindingImpl(LET_BINDING)
+    PsiElement(LET)('let')
+    ReScriptLetBindingPatternImpl(LET_BINDING_PATTERN)
+      PsiElement(LIDENT)('make')
+      PsiElement(COLON)(':')
+      PsiElement(LIDENT)('unit')
+      PsiElement(FAT_ARROW)('=>')
+      PsiElement(UIDENT)('React')
+      PsiElement(DOT)('.')
+      PsiElement(LIDENT)('element')

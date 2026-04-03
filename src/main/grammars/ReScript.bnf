@@ -150,16 +150,19 @@ private decl_recover ::= !(decl_keyword | AT | PCT_PCT | <<eof>>)
 
 // Bindings (bind a name to a value)
 // See _knowledge/parser/PSI_CUSTOMIZATION.md for how mixin + implements work.
-LetBinding      ::= LET REC? LetBindingPattern EQ Expr {
+LetBinding      ::= LET REC? LetBindingPattern (EQ Expr)? {
     pin = 1
     mixin="com.github.benjamin_thomas.intellij_rescript.lang.psi.impl.ReScriptLetBindingMixin"
     implements="com.intellij.psi.PsiNameIdentifierOwner"
 }
-ModuleBinding   ::= MODULE UIDENT EQ ModuleBody {
+ModuleBinding   ::= MODULE UIDENT ModuleSignature? (EQ ModuleBody)? {
     pin = 1
     mixin="com.github.benjamin_thomas.intellij_rescript.lang.psi.impl.ReScriptModuleBindingMixin"
     implements="com.intellij.psi.PsiNameIdentifierOwner"
 }
+
+// Module signature: `: { ... }` or `: ModuleName`
+ModuleSignature ::= COLON (braced_block | UIDENT (DOT UIDENT)*) { pin = 1 }
 
 // Module body: public node, opaque internals (same tokens as body_token)
 ModuleBody      ::= body_token+
