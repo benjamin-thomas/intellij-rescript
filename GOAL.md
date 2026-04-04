@@ -227,28 +227,24 @@ grammar rules only when a native feature demands it.
 
 ### Next up (ordered by effort, smallest first)
 
-1. ~~**StringLiteral PSI node**~~ — DONE. `StringLiteral` and `TemplateLiteral`
-   composite PSI nodes, `PsiLanguageInjectionHost` implementation, `ElementManipulator`,
-   and `InspectionSuppressor` (for `// noinspection` comments). Language injection
-   works via Alt+Enter → "Inject Language or Reference".
-   Known limitations: "Suppress for file" not yet supported; "Suppress all" is basic.
-2. **Regex internals highlighting** — break `/pattern/flags` into sub-tokens.
-3. **Native structure view** — custom icons, sorting, filtering.
-4. **Go to Test / Implementation** (Ctrl+Shift+T) — switch between `src/Foo.res` and
+1. **Regex internals highlighting** — break `/pattern/flags` into sub-tokens.
+2. **Native structure view** — custom icons, sorting, filtering.
+3. **Go to Test / Implementation** (Ctrl+Shift+T) — switch between `src/Foo.res` and
    `test/Foo_test.res` (or similar naming convention). Uses `GotoTestOrCodeHandler`.
    Phase 1: file-level navigation based on naming convention.
    Phase 2: function-level focus — jump to the test/implementation of the function
    under the cursor (à la Cursive for Clojure).
    Phase 3: if the test function doesn't exist, offer to create it with an empty body
    (e.g. `let test_make = () => { }` in the test file).
-5. **Template string interpolation** — `${expr}` inside backtick strings. Lexer state
+4. **Template string interpolation** — `${expr}` inside backtick strings. Lexer state
    switches back to `YYINITIAL` inside `${}` with brace depth tracking.
-6. **JSX token awareness** — lexer states for `<div>`, `<Component />`. Needs
+   When implemented, disable language injection for template strings containing `${...}`.
+5. **JSX token awareness** — lexer states for `<div>`, `<Component />`. Needs
    disambiguation: `<` after an identifier is comparison, otherwise JSX (same
    pattern as regex/division).
 
 ### Longer term
 
-7. **Expression parsing** — tighten `opaqueBody*` into real expression rules.
-8. **Extract variable / function** — select an expression, create a `let name = <expr>`.
-   Depends on #7 for validating that the selection is a complete expression.
+6. **Expression parsing** — tighten `opaqueBody*` into real expression rules.
+7. **Extract variable / function** — select an expression, create a `let name = <expr>`.
+   Depends on #6 for validating that the selection is a complete expression.

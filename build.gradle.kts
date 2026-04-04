@@ -1,3 +1,4 @@
+import org.jetbrains.changelog.Changelog
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 plugins {
@@ -5,10 +6,11 @@ plugins {
     id("org.jetbrains.kotlin.jvm") version "2.3.20"
     id("org.jetbrains.intellij.platform") version "2.11.0"
     id("org.jetbrains.grammarkit") version "2023.3.0.3"
+    id("org.jetbrains.changelog") version "2.2.1"
 }
 
 group = "com.github.benjamin_thomas"
-version = "0.3.0"
+version = "0.4.0"
 
 repositories {
     mavenCentral()
@@ -75,7 +77,23 @@ tasks {
 
     patchPluginXml {
         sinceBuild.set("253")
+        changeNotes.set(provider {
+            with(project.changelog) {
+                renderItem(
+                    (getOrNull("v${project.version}") ?: getUnreleased())
+                        .withHeader(false)
+                        .withEmptySections(false),
+                    Changelog.OutputType.HTML,
+                )
+            }
+        })
     }
+}
+
+changelog {
+    version.set("v${project.version}")
+    headerParserRegex.set("""v\d+\.\d+\.\d+""".toRegex())
+    groups.empty()
 }
 
 intellijPlatform {

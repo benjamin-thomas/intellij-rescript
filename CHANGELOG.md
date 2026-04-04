@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.0 — Language Injection
+
+### Editor features
+- **Language injection**: inject SQL, HTML, RegExp, or any other language into string literals via Alt+Enter → "Inject Language or Reference". Works on both `"double-quoted"` and `` `backtick` `` strings.
+- **Inspection suppression**: `// noinspection` comments above declarations now suppress warnings (e.g. from injected languages)
+
 ## v0.3.0 — Navigation & Smarter Parsing
 
 ### Navigation
