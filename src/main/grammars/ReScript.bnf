@@ -243,8 +243,7 @@ private parenContent ::= delimitedBlock | declKeyword | AT | PCT_PCT | nonDeclTo
 private nonDeclToken ::= exprKeyword | LIDENT | UIDENT | literal | anyOperator | punctuation | comment
 private exprKeyword ::= REC | TRUE | FALSE | SWITCH | IF | ELSE
                       | ASYNC | AWAIT | TRY | CATCH | WHILE | FOR | AND | AS
-private literal     ::= BIGINT | INT | FLOAT | STRING_START | STRING_END | STRING_CONTENT | STRING_ESCAPE
-                      | TEMPLATE_START | TEMPLATE_END | TEMPLATE_CONTENT | REGEX
+private literal     ::= BIGINT | INT | FLOAT | StringLiteral | TemplateLiteral | REGEX
 private comparisonOperator  ::= EQEQ | EQEQEQ | BANGEQ | BANGEQEQ | LT | GT | LTEQ | GTEQ
 private logicalOperator     ::= AMPAMP | PIPEPIPE
 private bitwiseOperator     ::= AMPAMPAMP | PIPEPIPEPIPE | CARETCARETCARET | TILDETILDETILDE
@@ -276,6 +275,21 @@ private letBindingPatternAtom ::= exprKeyword | LIDENT | UIDENT | literal
                                 | comparisonOperator | logicalOperator | bitwiseOperator
                                 | arithmeticOperator | ARROW | FAT_ARROW | PIPE_FORWARD | COLONGT | DOTDOT
                                 | punctuation | comment
+
+// String literal: composite PSI node wrapping string tokens.
+// Required for language injection (PsiLanguageInjectionHost).
+StringLiteral ::= STRING_START (STRING_CONTENT | STRING_ESCAPE)* STRING_END {
+    pin = 1
+    mixin="com.github.benjamin_thomas.intellij_rescript.lang.psi.impl.ReScriptStringLiteralMixin"
+    implements="com.intellij.psi.PsiLanguageInjectionHost"
+}
+// Template literal: composite PSI node wrapping template string tokens.
+// Same purpose as StringLiteral but for backtick-delimited strings.
+TemplateLiteral ::= TEMPLATE_START TEMPLATE_CONTENT* TEMPLATE_END {
+    pin = 1
+    mixin="com.github.benjamin_thomas.intellij_rescript.lang.psi.impl.ReScriptTemplateLiteralMixin"
+    implements="com.intellij.psi.PsiLanguageInjectionHost"
+}
 
 // Expression: public node, opaque internals (same tokens as opaqueBody)
 Expr ::= (delimitedBlock | nonDeclToken)+

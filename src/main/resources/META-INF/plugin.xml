@@ -80,6 +80,17 @@
         <breadcrumbsInfoProvider
                 implementation="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptBreadcrumbsProvider"/>
 
+        <lang.inspectionSuppressor
+                language="ReScript"
+                implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptInspectionSuppressor"/>
+
+        <lang.elementManipulator
+                forClass="com.github.benjamin_thomas.intellij_rescript.lang.psi.ReScriptStringLiteral"
+                implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.psi.ReScriptStringLiteralManipulator"/>
+        <lang.elementManipulator
+                forClass="com.github.benjamin_thomas.intellij_rescript.lang.psi.ReScriptTemplateLiteral"
+                implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.psi.ReScriptTemplateLiteralManipulator"/>
+
         <statementUpDownMover
                 implementation="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptStatementMover"/>
 

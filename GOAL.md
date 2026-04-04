@@ -227,9 +227,11 @@ grammar rules only when a native feature demands it.
 
 ### Next up (ordered by effort, smallest first)
 
-1. **StringLiteral PSI node** — wrap `STRING_START STRING_CONTENT* STRING_END` in a
-   composite node. Required for language injection (Alt+Enter → "Inject Language or
-   Reference" for SQL, etc.)
+1. ~~**StringLiteral PSI node**~~ — DONE. `StringLiteral` and `TemplateLiteral`
+   composite PSI nodes, `PsiLanguageInjectionHost` implementation, `ElementManipulator`,
+   and `InspectionSuppressor` (for `// noinspection` comments). Language injection
+   works via Alt+Enter → "Inject Language or Reference".
+   Known limitations: "Suppress for file" not yet supported; "Suppress all" is basic.
 2. **Regex internals highlighting** — break `/pattern/flags` into sub-tokens.
 3. **Native structure view** — custom icons, sorting, filtering.
 4. **Go to Test / Implementation** (Ctrl+Shift+T) — switch between `src/Foo.res` and

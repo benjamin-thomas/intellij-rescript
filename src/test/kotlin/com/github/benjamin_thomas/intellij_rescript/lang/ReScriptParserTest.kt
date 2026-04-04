@@ -81,4 +81,9 @@ class ReScriptParserTest : ParsingTestCase(
         runParserTest("DecoratedExternalWithModule.res", "DecoratedExternalWithModule.out")
     fun testLetSignature() = runParserTest("LetSignature.res", "LetSignature.out")
     fun testModuleWithSignature() = runParserTest("ModuleWithSignature.res", "ModuleWithSignature.out")
+    fun testStringLiteral() = runParserTest("StringLiteral.res", "StringLiteral.out")
+    fun testStringLiteralWithEscape() = runParserTest("StringLiteralWithEscape.res", "StringLiteralWithEscape.out")
+    fun testStringLiteralEmpty() = runParserTest("StringLiteralEmpty.res", "StringLiteralEmpty.out")
+    fun testTemplateLiteral() = runParserTest("TemplateLiteral.res", "TemplateLiteral.out")
+    fun testTemplateLiteralEmpty() = runParserTest("TemplateLiteralEmpty.res", "TemplateLiteralEmpty.out")
 }

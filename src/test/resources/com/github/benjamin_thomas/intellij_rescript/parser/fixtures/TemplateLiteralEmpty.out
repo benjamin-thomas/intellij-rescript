@@ -1,0 +1,10 @@
+ReScript File
+  ReScriptLetBindingImpl(LET_BINDING)
+    PsiElement(LET)('let')
+    ReScriptLetBindingPatternImpl(LET_BINDING_PATTERN)
+      PsiElement(LIDENT)('x')
+    PsiElement(EQ)('=')
+    ReScriptExprImpl(EXPR)
+      ReScriptTemplateLiteralImpl(TEMPLATE_LITERAL)
+        PsiElement(TEMPLATE_START)('`')
+        PsiElement(TEMPLATE_END)('`')
