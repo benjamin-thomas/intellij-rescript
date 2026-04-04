@@ -1,6 +1,6 @@
 ---
 summary: Design rationale for Elm-style lexer states for strings and templates
-updated: 2026-03-31
+updated: 2026-04-04
 relates: [architecture]
 ---
 
@@ -67,6 +67,14 @@ They are separate because:
   `STRING_END`. This limits damage to one line.
 - **Backtick templates**: no special recovery yet — the lexer stays in
   `IN_TEMPLATE` until it hits a closing backtick or EOF.
+
+## Parser-level grouping: composite PSI nodes
+
+At the parser level, the lexer's multi-token sequences are wrapped into composite
+PSI nodes: `StringLiteral` groups `STRING_START (STRING_CONTENT | STRING_ESCAPE)*
+STRING_END`, and `TemplateLiteral` groups `TEMPLATE_START TEMPLATE_CONTENT*
+TEMPLATE_END`. This is required for language injection (`PsiLanguageInjectionHost`
+needs a single parent node). See `_knowledge/jetbrains/LANGUAGE_INJECTION.md`.
 
 ## Regex vs division disambiguation
 

@@ -12,6 +12,11 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiParserFacade
 import com.intellij.psi.PsiWhiteSpace
 
+private fun findTopLevelDeclaration(element: PsiElement): PsiElement? {
+    return generateSequence(element) { it.parent }
+        .firstOrNull { it.parent is PsiFile }
+}
+
 class ReScriptInspectionSuppressor : InspectionSuppressor {
 
     override fun isSuppressedFor(element: PsiElement, toolId: String): Boolean {
@@ -26,11 +31,6 @@ class ReScriptInspectionSuppressor : InspectionSuppressor {
         SuppressInspectionFix(toolId),
         SuppressInspectionFix(SuppressionUtil.ALL),
     )
-
-    private fun findTopLevelDeclaration(element: PsiElement): PsiElement? {
-        return generateSequence(element) { it.parent }
-            .firstOrNull { it.parent is PsiFile }
-    }
 
     private fun leadingComments(element: PsiElement): Sequence<PsiComment> {
         return generateSequence(element.prevSibling) { it.prevSibling }
@@ -49,11 +49,8 @@ class ReScriptInspectionSuppressor : InspectionSuppressor {
             }
         }
 
-        override fun getContainer(context: PsiElement?): PsiElement? {
-            if (context == null) return null
-            return generateSequence(context) { it.parent }
-                .firstOrNull { it.parent is PsiFile }
-        }
+        override fun getContainer(context: PsiElement?): PsiElement? =
+            findTopLevelDeclaration(context ?: return null)
 
         override fun createSuppression(project: Project, element: PsiElement, container: PsiElement) {
             val comment = SuppressionUtil.createComment(project, "noinspection $myID", ReScriptLanguage)

@@ -1,6 +1,6 @@
 ---
 summary: getStringLiteralElements and getCommentTokens — what they're actually used for
-updated: 2026-03-31
+updated: 2026-04-04
 relates: [lexer, parser]
 ---
 
@@ -10,8 +10,10 @@ relates: [lexer, parser]
 
 Tells the platform which tokens are string literals.
 
-**Used by**: spell checking (check spelling inside strings), "Find in String
-Literals" search filter, and language injection (Alt+Enter → "Inject Language").
+**Used by**: spell checking (check spelling inside strings) and "Find in String
+Literals" search filter. Note: this does NOT enable language injection — injection
+requires composite PSI nodes implementing `PsiLanguageInjectionHost` plus
+registered `ElementManipulator`s (see `_knowledge/jetbrains/LANGUAGE_INJECTION.md`).
 
 **Not related to**: syntax highlighting (that's `SyntaxHighlighter`) or quote
 auto-pairing (that's `QuoteHandler`). These three features happen to need

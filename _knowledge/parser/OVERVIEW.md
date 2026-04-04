@@ -190,10 +190,16 @@ by hand.
 
 The Elm plugin uses this approach — ~95 rules, hand-written PSI.
 
-### Our approach (TBD)
+### Our approach
 
-Start with generated PSI (Option A) for simplicity. Switch to hand-written
-(Option B) if we need more control later.
+We use generated PSI (Option A) with `mixin` for customization. Current mixins:
+`LetBinding`, `ModuleBinding`, `TypeDeclaration` (for `PsiNameIdentifierOwner`),
+`StringLiteral`, `TemplateLiteral` (for `PsiLanguageInjectionHost`).
+
+`StringLiteral` and `TemplateLiteral` are composite PSI nodes that wrap the
+lexer's multi-token string representation (e.g. `STRING_START STRING_CONTENT*
+STRING_END`) into a single parent node. This is required for language injection —
+see `_knowledge/jetbrains/LANGUAGE_INJECTION.md`.
 
 ## `extends` — PSI type hierarchy
 
