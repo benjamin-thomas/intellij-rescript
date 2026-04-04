@@ -26,6 +26,7 @@ echo ""
 # still expects its output directory. After a clean, it doesn't exist.
 mkdir -p build/tmp/buildSearchableOptions
 
+./gradlew test
 ./gradlew buildPlugin
 echo ""
 
