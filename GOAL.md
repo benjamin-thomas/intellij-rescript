@@ -126,16 +126,16 @@ before queries) and needs time to process files after didOpen.
 
 ## Design notes
 
-### Permissive `body_token` strategy
+### Permissive `opaqueBody` strategy
 
 Most declarations (`TypeDeclaration`, `ExternalDeclaration`, `OpenStatement`, etc.)
-use `body_token*` as an opaque blob — the parser doesn't understand their internals.
+use `opaqueBody*` as an opaque blob — the parser doesn't understand their internals.
 This is intentional. We tighten each rule only when a concrete feature (breadcrumbs,
 inspections, completion) demands structured PSI nodes inside.
 
 Tightened so far: `LetBinding` (split into `LetBindingPattern EQ Expr`) and
 `ModuleBinding` (split into `UIDENT EQ ModuleBody`). `Expr` and `ModuleBody`
-themselves remain opaque (`body_token+`) until a feature needs their internals.
+themselves remain opaque (`opaqueBody+`) until a feature needs their internals.
 
 ### Custom parameter info handler (Ctrl+P)
 
@@ -155,7 +155,7 @@ are IntelliJ test annotations, not ReScript syntax.
 
 `@react.component` and the following `let make` are wrapped in a single
 `DecoratedDeclaration` PSI node (parent-child). Rule:
-`DecoratedDeclaration ::= Decorator+ bare_declaration`. Multiple decorators
+`DecoratedDeclaration ::= Decorator+ bareDeclaration`. Multiple decorators
 are flat siblings inside the wrapper (no nesting). Move Statement, breadcrumbs,
 and future inspections can treat the decorated unit as one node.
 
@@ -227,69 +227,26 @@ grammar rules only when a native feature demands it.
 
 ### Next up (ordered by effort, smallest first)
 
-1. ~~**Full numeric literals**~~ — DONE. Hex, octal, binary, underscores, scientific
-   notation, BigInt suffix (`n`). Hex floats skipped (undocumented, niche).
-2. ~~**Nested block comments**~~ — DONE. Depth-tracking lexer state + folding support.
-3. ~~**v12 operators**~~ — DONE. `&&&`, `|||`, `^^^`, `~~~` (bitwise), `<<`, `>>`, `>>>`
-   (shifts), `**` (exponentiation), `===`, `!==` (strict equality), `:>` (coercion),
-   `..` (range).
-4. ~~**Tighten LetBinding**~~ — DONE. Split into `LET REC? BindingPattern EQ Expr`.
-   `BindingPattern` and `Expr` are public PSI nodes. `LetBinding` implements
-   `PsiNameIdentifierOwner` via mixin — `getName()` extracts the LIDENT from
-   the binding pattern (returns null for destructuring/discard).
-5. ~~**Move Statement Up/Down v1**~~ — DONE. Alt+Shift+Up/Down moves entire
-   top-level declarations as a unit. Supports all declaration types: `let`,
-   `module`, `type`, `open`, `include`, `external`, `exception`, `%%extension`.
-   v2 (decorator bundling: `@react.component` + `let make` move together)
-   depends on #6 below.
-6. ~~**Decorator-declaration wrapping**~~ — DONE. `@decorator let foo = ...` is a
-   single `DecoratedDeclaration` PSI node. Rule: `DecoratedDeclaration ::= Decorator+ bare_declaration`.
-   Multiple decorators are flat siblings (no nesting). Move Statement updated to
-   move the whole decorated unit. Unblocks breadcrumbs and future inspections.
-7. ~~**Tighten ModuleBinding + rename BindingPattern**~~ — DONE. Three sub-tasks:
-   a. ~~Rename `BindingPattern` → `LetBindingPattern`~~ — DONE.
-   b. ~~Tighten `ModuleBinding`~~ — DONE. `MODULE UIDENT EQ ModuleBody` with mixin +
-      `PsiNameIdentifierOwner`. `ModuleBody` is a public opaque PSI node (`body_token+`).
-   c. ~~Tighten `TypeDeclaration`~~ — DONE. `TYPE REC? LIDENT TypeBody?` with mixin +
-      `PsiNameIdentifierOwner`. Added to breadcrumbs.
-8. ~~**Breadcrumbs**~~ — DONE. `ReScriptBreadcrumbsProvider` shows `let`/`module`
-   names in the editor breadcrumb bar. Skips nameless bindings (destructuring, discard).
-   Decorated declarations show the inner binding name (not the decorator).
-   Future: add `type`, `external`, and expression-level breadcrumbs (`switch`, `if`, `try`)
-   as those rules get tightened with `PsiNameIdentifierOwner`.
-9. **StringLiteral PSI node** — wrap `STRING_START STRING_CONTENT* STRING_END` in a
+1. **StringLiteral PSI node** — wrap `STRING_START STRING_CONTENT* STRING_END` in a
    composite node. Required for language injection (Alt+Enter → "Inject Language or
    Reference" for SQL, etc.)
-10. **Regex internals highlighting** — break `/pattern/flags` into sub-tokens.
-11. **Native structure view** — custom icons, sorting, filtering. Depends on #4.
-12. **Go to Test / Implementation** (Ctrl+Shift+T) — switch between `src/Foo.res` and
-    `test/Foo_test.res` (or similar naming convention). Uses `GotoTestOrCodeHandler`.
-    Phase 1: file-level navigation based on naming convention.
-    Phase 2: function-level focus — jump to the test/implementation of the function
-    under the cursor (à la Cursive for Clojure). Depends on #4.
-    Phase 3: if the test function doesn't exist, offer to create it with an empty body
-    (e.g. `let test_make = () => { }` in the test file).
-13. **Template string interpolation** — `${expr}` inside backtick strings. Lexer state
-    switches back to `YYINITIAL` inside `${}` with brace depth tracking.
-14. **JSX token awareness** — lexer states for `<div>`, `<Component />`. Needs
-    disambiguation: `<` after an identifier is comparison, otherwise JSX (same
-    pattern as regex/division).
-
-### BNF naming convention refactor
-
-GrammarKit's own examples use `snake_case` everywhere. Our BNF uses `PascalCase` for
-public rules (generate PSI nodes) and `snake_case` for private rules (no PSI node).
-The `private` keyword is what actually controls PSI generation; the casing is just a
-visual shorthand. See https://github.com/JetBrains/Grammar-Kit/blob/master/HOWTO.md
-
-Current convention feels exotic. Two candidates for a cleaner convention:
-- **JS-like**: `_underscore` prefix for private rules (e.g. `_block_declaration`)
-- **Go-like**: `PascalCase` for public, `camelCase` for private (e.g. `blockDeclaration`)
-
-Decision pending. When chosen, rename all rules in the BNF in a single pass.
+2. **Regex internals highlighting** — break `/pattern/flags` into sub-tokens.
+3. **Native structure view** — custom icons, sorting, filtering.
+4. **Go to Test / Implementation** (Ctrl+Shift+T) — switch between `src/Foo.res` and
+   `test/Foo_test.res` (or similar naming convention). Uses `GotoTestOrCodeHandler`.
+   Phase 1: file-level navigation based on naming convention.
+   Phase 2: function-level focus — jump to the test/implementation of the function
+   under the cursor (à la Cursive for Clojure).
+   Phase 3: if the test function doesn't exist, offer to create it with an empty body
+   (e.g. `let test_make = () => { }` in the test file).
+5. **Template string interpolation** — `${expr}` inside backtick strings. Lexer state
+   switches back to `YYINITIAL` inside `${}` with brace depth tracking.
+6. **JSX token awareness** — lexer states for `<div>`, `<Component />`. Needs
+   disambiguation: `<` after an identifier is comparison, otherwise JSX (same
+   pattern as regex/division).
 
 ### Longer term
 
-15. **Expression parsing** — tighten `body_token*` into real expression rules.
-16. **Extract variable / function** — select an expression, create a `let name = <expr>`.
-    Depends on #15 for validating that the selection is a complete expression.
+7. **Expression parsing** — tighten `opaqueBody*` into real expression rules.
+8. **Extract variable / function** — select an expression, create a `let name = <expr>`.
+   Depends on #7 for validating that the selection is a complete expression.

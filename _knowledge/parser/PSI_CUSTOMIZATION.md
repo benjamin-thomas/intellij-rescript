@@ -56,18 +56,18 @@ comments) that don't appear in `.out` files.
 
 ### Example: finding the name in a LetBinding
 
-For `let x = 1`, the LetBinding's child `BindingPattern` looks like this
+For `let x = 1`, the LetBinding's child `LetBindingPattern` looks like this
 in `.out`:
 
 ```
-ReScriptBindingPatternImpl(BINDING_PATTERN)
+ReScriptLetBindingPatternImpl(LET_BINDING_PATTERN)
   PsiElement(LIDENT)('x')
 ```
 
 But the **actual** children in memory include whitespace:
 
 ```
-ReScriptBindingPatternImpl(BINDING_PATTERN)
+ReScriptLetBindingPatternImpl(LET_BINDING_PATTERN)
   PsiWhiteSpace(' ')          ← invisible in .out
   PsiElement(LIDENT)('x')
 ```

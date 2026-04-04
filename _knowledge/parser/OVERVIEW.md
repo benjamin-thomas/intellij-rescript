@@ -11,7 +11,7 @@ and refactoring.
 Flat tokens:    LET  LIDENT('x')  EQ  INT('1')
 
 PSI tree:       ReScriptFile
-                  LetDeclaration
+                  LetBinding
                     PsiElement(LET)('let')
                     PsiElement(LIDENT)('x')
                     PsiElement(EQ)('=')
@@ -27,7 +27,7 @@ generator. You write a BNF-like grammar in a `.bnf` file, it generates:
 2. **A types holder** (Java class) — constants for every element type
 3. **PSI classes** (optional) — interfaces and implementations for every rule
 
-The `.bnf` file lives at `src/main/grammars/ReScript.bnf` (to be created).
+The `.bnf` file lives at `src/main/grammars/ReScript.bnf`.
 Generated output goes to `src/main/gen/`.
 
 ### Relationship to the lexer
@@ -68,15 +68,18 @@ Configuration in `{ ... }` at the top:
 
 ### Grammar rules
 
+Naming convention (Go-like): `PascalCase` for public rules (generate PSI
+nodes), `camelCase` for private rules (parser-internal, no PSI node).
+
 ```bnf
 File ::= item*
 
 private item ::= declaration
-    { recoverWhile=item_recover }
+    { recoverWhile=itemRecover }
 
-private item_recover ::= !(LET | TYPE | MODULE | <<eof>>)
+private itemRecover ::= !(LET | TYPE | MODULE | <<eof>>)
 
-LetDeclaration ::= LET LIDENT EQ Expression
+LetBinding ::= LET LIDENT EQ Expression
     { pin=1 }
 ```
 
@@ -92,13 +95,13 @@ rule. Don't backtrack even if later elements fail. Instead, produce error
 markers for the missing parts.
 
 ```bnf
-LetDeclaration ::= LET LIDENT EQ Expression    { pin=1 }
+LetBinding ::= LET LIDENT EQ Expression    { pin=1 }
 ```
 
 With this, typing `let ` (incomplete) produces:
 
 ```
-LetDeclaration        <-- node created despite error
+LetBinding        <-- node created despite error
   PsiElement(LET)
   PsiErrorElement     <-- "identifier expected"
 ```
@@ -107,12 +110,12 @@ Without `pin`, the parser would backtrack entirely and produce no node — losin
 the structural information that this is a let declaration.
 
 **When to pin**: on the keyword or token that unambiguously identifies the rule.
-For `LetDeclaration`, pin on `LET` (position 1). For `TypeDeclaration`, pin on
+For `LetBinding`, pin on `LET` (position 1). For `TypeDeclaration`, pin on
 `TYPE`. For a function call, maybe pin on `(`.
 
 **`extendedPin`** (on by default): when pinned, the parser tries to match each
 remaining element even if intermediate ones fail. So `let = 1` (missing
-identifier) still produces a `LetDeclaration` with an error on the missing
+identifier) still produces a `LetBinding` with an error on the missing
 `LIDENT`, but successfully parses `EQ` and `Expression`.
 
 ### `recoverWhile` — skip garbage tokens
@@ -122,7 +125,7 @@ tokens to skip before attempting the next rule. It's always a negative
 lookahead:
 
 ```bnf
-private item_recover ::= !(LET | TYPE | MODULE | OPEN | EXTERNAL | <<eof>>)
+private itemRecover ::= !(LET | TYPE | MODULE | OPEN | EXTERNAL | <<eof>>)
 ```
 
 This means: "keep skipping tokens while we do NOT see a keyword that starts
@@ -135,26 +138,26 @@ File ::= item*
 
 // Dispatcher — private (no PSI node), carries recovery
 private item ::= declaration
-    { recoverWhile=item_recover }
+    { recoverWhile=itemRecover }
 
 // Stop at any top-level keyword or EOF
-private item_recover ::= !(LET | TYPE | MODULE | OPEN | EXTERNAL | <<eof>>)
+private itemRecover ::= !(LET | TYPE | MODULE | OPEN | EXTERNAL | <<eof>>)
 
 // Concrete rules — pin on their keyword
-LetDeclaration ::= LET LIDENT EQ Expression    { pin=1 }
+LetBinding ::= LET LIDENT EQ Expression    { pin=1 }
 TypeDeclaration ::= TYPE LIDENT ...             { pin=1 }
 ModuleDeclaration ::= MODULE UIDENT ...         { pin=1 }
 ```
 
 **How it works**: The user types `let x = ` and stops.
 
-1. Parser enters `item`, tries `LetDeclaration`.
+1. Parser enters `item`, tries `LetBinding`.
 2. Matches `LET` (pins), matches `x`, matches `=` — good so far.
 3. Tries to match `Expression` — fails (nothing there).
-4. Because of pin, a `LetDeclaration` node IS created with an error marker.
+4. Because of pin, a `LetBinding` node IS created with an error marker.
 5. `recoverWhile` fires, skips nothing (at EOF), returns.
 6. The `File ::= item*` loop exits.
-7. Result: a valid PSI tree with one `LetDeclaration` containing an error.
+7. Result: a valid PSI tree with one `LetBinding` containing an error.
 
 ## PSI class generation
 
@@ -164,9 +167,9 @@ The default — GrammarKit generates interfaces, implementations, and a factory
 for every public rule. You customize via `mixin` and `implements`:
 
 ```bnf
-LetDeclaration ::= LET LIDENT EQ Expression {
+LetBinding ::= LET LIDENT EQ Expression {
     pin=1
-    mixin="...LetDeclarationMixin"
+    mixin="...ReScriptLetBindingMixin"
     implements="com.intellij.psi.PsiNamedElement"
 }
 ```
@@ -387,11 +390,11 @@ folding, and go-to-symbol immediately.
 File ::= item*
 
 private item ::= declaration
-    { recoverWhile=item_recover }
+    { recoverWhile=itemRecover }
 
-private item_recover ::= !(LET | TYPE | MODULE | OPEN | EXTERNAL | <<eof>>)
+private itemRecover ::= !(LET | TYPE | MODULE | OPEN | EXTERNAL | <<eof>>)
 
-private declaration ::= LetDeclaration
+private declaration ::= LetBinding
                        | TypeDeclaration
                        | ModuleDeclaration
                        | OpenStatement

@@ -142,14 +142,13 @@ produced by the GrammarKit parser:
 
 ```
 ReScript File
-  ReScriptLetDeclarationImpl(LET_DECLARATION)
+  ReScriptLetBindingImpl(LET_BINDING)
     PsiElement(LET)('let')
-    PsiWhiteSpace(' ')
-    PsiElement(LIDENT)('x')
-    PsiWhiteSpace(' ')
+    ReScriptLetBindingPatternImpl(LET_BINDING_PATTERN)
+      PsiElement(LIDENT)('x')
     PsiElement(EQ)('=')
-    PsiWhiteSpace(' ')
-    PsiElement(INT)('1')
+    ReScriptExprImpl(EXPR)
+      PsiElement(INT)('1')
 ```
 
 ## Layers and what they provide

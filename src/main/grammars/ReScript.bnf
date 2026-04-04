@@ -121,9 +121,17 @@
 // =============================================================================
 // Top-level structure
 //
+// Naming convention (Go-like):
+//   PascalCase = public rule (generates a PSI node)
+//   camelCase  = private rule (no PSI node, parser-internal)
+//
+// Why not _underscore prefix for private rules? GrammarKit treats _-prefixed
+// names specially: it ignores the `private` keyword and generates PSI nodes
+// for them anyway, plus emits bogus token types. So we rely on casing alone.
+//
 // ADDING A NEW DECLARATION TYPE:
-//   1. Add the rule to `block_declaration` and define the concrete rule below
-//   2. Add its keyword to `decl_keyword`
+//   1. Add the rule to `blockDeclaration` and define the concrete rule below
+//   2. Add its keyword to `declKeyword`
 // That's it. Top-level recovery, brace nesting, and paren/bracket handling
 // all derive from these two rules automatically.
 // =============================================================================
@@ -131,22 +139,22 @@
 File ::= declaration*
 
 // All declaration types (change 1 of 2)
-private block_declaration ::= DecoratedDeclaration | bare_declaration
+private blockDeclaration ::= DecoratedDeclaration | bareDeclaration
 
 // Declarations without decorator wrapper (used by DecoratedDeclaration)
-private bare_declaration ::= LetBinding | ModuleBinding | TypeDeclaration
-                           | OpenStatement | IncludeStatement | ExternalDeclaration | ExceptionDeclaration
-                           | ExtensionPoint
+private bareDeclaration ::= LetBinding | ModuleBinding | TypeDeclaration
+                          | OpenStatement | IncludeStatement | ExternalDeclaration | ExceptionDeclaration
+                          | ExtensionPoint
 
 // Decorator + declaration wrapper: all decorators are siblings of the declaration
-DecoratedDeclaration ::= Decorator+ bare_declaration { pin = 1 }
+DecoratedDeclaration ::= Decorator+ bareDeclaration { pin = 1 }
 
 // All declaration-starting keywords (change 2 of 2)
-private decl_keyword ::= LET | MODULE | TYPE | OPEN | INCLUDE | EXTERNAL | EXCEPTION
+private declKeyword ::= LET | MODULE | TYPE | OPEN | INCLUDE | EXTERNAL | EXCEPTION
 
 // Top-level wrapper: adds error recovery between declarations
-private declaration ::= block_declaration { recoverWhile = decl_recover }
-private decl_recover ::= !(decl_keyword | AT | PCT_PCT | <<eof>>)
+private declaration ::= blockDeclaration { recoverWhile = declRecover }
+private declRecover ::= !(declKeyword | AT | PCT_PCT | <<eof>>)
 
 // Bindings (bind a name to a value)
 // See _knowledge/parser/PSI_CUSTOMIZATION.md for how mixin + implements work.
@@ -162,10 +170,10 @@ ModuleBinding   ::= MODULE UIDENT ModuleSignature? (EQ ModuleBody)? {
 }
 
 // Module signature: `: { ... }` or `: ModuleName`
-ModuleSignature ::= COLON (braced_block | UIDENT (DOT UIDENT)*) { pin = 1 }
+ModuleSignature ::= COLON (bracedBlock | UIDENT (DOT UIDENT)*) { pin = 1 }
 
-// Module body: public node, opaque internals (same tokens as body_token)
-ModuleBody      ::= body_token+
+// Module body: public node, opaque internals (same tokens as opaqueBody)
+ModuleBody      ::= opaqueBody+
 
 // Declarations
 TypeDeclaration ::= TYPE REC? LIDENT TypeBody? {
@@ -174,35 +182,37 @@ TypeDeclaration ::= TYPE REC? LIDENT TypeBody? {
     implements="com.intellij.psi.PsiNameIdentifierOwner"
 }
 
-// Type body: public node, opaque internals (same tokens as body_token)
-TypeBody        ::= body_token+
+// Type body: public node, opaque internals (same tokens as opaqueBody)
+TypeBody        ::= opaqueBody+
 
 // Statements
-OpenStatement   ::= OPEN body_token* { pin = 1 }
-IncludeStatement ::= INCLUDE body_token* { pin = 1 }
+OpenStatement   ::= OPEN opaqueBody* { pin = 1 }
+IncludeStatement ::= INCLUDE opaqueBody* { pin = 1 }
 
 // Declarations
-ExternalDeclaration  ::= EXTERNAL body_token* { pin = 1 }
-ExceptionDeclaration ::= EXCEPTION body_token* { pin = 1 }
+ExternalDeclaration  ::= EXTERNAL opaqueBody* { pin = 1 }
+ExceptionDeclaration ::= EXCEPTION opaqueBody* { pin = 1 }
 
 // Extension points (%%raw, %%private, etc.)
-ExtensionPoint  ::= PCT_PCT body_token* { pin = 1 }
+ExtensionPoint  ::= PCT_PCT opaqueBody* { pin = 1 }
 
 // Decorators (@react.component, @module, @as, @val, etc.)
 // The ReScript compiler allows any keyword as a decorator name (res_core.ml: parse_attribute_id).
-Decorator       ::= AT decorator_name (DOT decorator_name)* paren_block? { pin = 1 }
+Decorator       ::= AT decoratorName (DOT decoratorName)* parenBlock? { pin = 1 }
 // Any keyword is valid as a decorator name (matches ReScript compiler behavior).
-private decorator_name ::= LIDENT | UIDENT | expr_keyword | decl_keyword
+private decoratorName ::= LIDENT | UIDENT | exprKeyword | declKeyword
 
 // =============================================================================
-// Permissive body
+// Opaque body — a catch-all blob for declaration bodies we don't parse yet.
+// As features demand structure, rules stop using opaqueBody and define their
+// own sub-rules (e.g. LetBinding already splits into LetBindingPattern + Expr).
 //
 // Consumes any token, tracking delimiter depth so that nested declarations
 // inside { } are recognized as proper PSI nodes rather than raw tokens.
 // Inside ( ) and [ ], keywords are consumed as raw tokens — no declarations
 // start inside parens/brackets in ReScript.
 //
-// Known limitation: body_token* is greedy — a nested let binding consumes
+// Known limitation: opaqueBody* is greedy — a nested let binding consumes
 // everything until the next let/type/module or closing brace. This means
 // trailing expressions in a block (e.g. `2 + b` after `let b = 1`) get
 // attached to the inner binding rather than the enclosing block.
@@ -210,39 +220,39 @@ private decorator_name ::= LIDENT | UIDENT | expr_keyword | decl_keyword
 // ends and the next begins). See NestedLetBindings test fixture.
 //
 // ADDING A NEW TOKEN:
-//   Add it to exactly one category below (expr_keyword, LIDENT/UIDENT, literal,
-//   any_operator, punctuation, or comment). If forgotten, the token will silently
+//   Add it to exactly one category below (exprKeyword, LIDENT/UIDENT, literal,
+//   anyOperator, punctuation, or comment). If forgotten, the token will silently
 //   cause parse errors inside declaration bodies.
 // =============================================================================
 
-private body_token ::= delimited_block | non_decl_token
+private opaqueBody ::= delimitedBlock | nonDeclToken
 
-private delimited_block ::= braced_block | paren_block | bracket_block
-private braced_block    ::= LBRACE block_content* RBRACE { pin = 1 }
-private paren_block     ::= LPAREN paren_content* RPAREN { pin = 1 }
-private bracket_block   ::= LBRACKET paren_content* RBRACKET { pin = 1 }
+private delimitedBlock ::= bracedBlock | parenBlock | bracketBlock
+private bracedBlock    ::= LBRACE blockContent* RBRACE { pin = 1 }
+private parenBlock     ::= LPAREN parenContent* RPAREN { pin = 1 }
+private bracketBlock   ::= LBRACKET parenContent* RBRACKET { pin = 1 }
 
 // Inside braces: nested declarations are valid.
-// References block_declaration (not declaration) to avoid recoverWhile eating past `}`.
-private block_content ::= block_declaration | paren_content
+// References blockDeclaration (not declaration) to avoid recoverWhile eating past `}`.
+private blockContent ::= blockDeclaration | parenContent
 
 // Inside parens/brackets: keywords are raw tokens, no declarations
-private paren_content ::= delimited_block | decl_keyword | AT | PCT_PCT | non_decl_token
+private parenContent ::= delimitedBlock | declKeyword | AT | PCT_PCT | nonDeclToken
 
 // All non-declaration-keyword, non-delimiter tokens
-private non_decl_token ::= expr_keyword | LIDENT | UIDENT | literal | any_operator | punctuation | comment
-private expr_keyword ::= REC | TRUE | FALSE | SWITCH | IF | ELSE
-                       | ASYNC | AWAIT | TRY | CATCH | WHILE | FOR | AND | AS
+private nonDeclToken ::= exprKeyword | LIDENT | UIDENT | literal | anyOperator | punctuation | comment
+private exprKeyword ::= REC | TRUE | FALSE | SWITCH | IF | ELSE
+                      | ASYNC | AWAIT | TRY | CATCH | WHILE | FOR | AND | AS
 private literal     ::= BIGINT | INT | FLOAT | STRING_START | STRING_END | STRING_CONTENT | STRING_ESCAPE
                       | TEMPLATE_START | TEMPLATE_END | TEMPLATE_CONTENT | REGEX
-private comparison_operator  ::= EQEQ | EQEQEQ | BANGEQ | BANGEQEQ | LT | GT | LTEQ | GTEQ
-private logical_operator     ::= AMPAMP | PIPEPIPE
-private bitwise_operator     ::= AMPAMPAMP | PIPEPIPEPIPE | CARETCARETCARET | TILDETILDETILDE
-                               | SHIFT_LEFT | SHIFT_RIGHT | SHIFT_RIGHT_UNSIGNED
-private arithmetic_operator  ::= PLUS | MINUS | STAR | SLASH | STARSTAR
-                               | PLUS_DOT | MINUS_DOT | STAR_DOT | SLASH_DOT
-private any_operator         ::= EQ | comparison_operator | logical_operator | bitwise_operator
-                               | arithmetic_operator | ARROW | FAT_ARROW | PIPE_FORWARD | COLONGT | DOTDOT
+private comparisonOperator  ::= EQEQ | EQEQEQ | BANGEQ | BANGEQEQ | LT | GT | LTEQ | GTEQ
+private logicalOperator     ::= AMPAMP | PIPEPIPE
+private bitwiseOperator     ::= AMPAMPAMP | PIPEPIPEPIPE | CARETCARETCARET | TILDETILDETILDE
+                              | SHIFT_LEFT | SHIFT_RIGHT | SHIFT_RIGHT_UNSIGNED
+private arithmeticOperator  ::= PLUS | MINUS | STAR | SLASH | STARSTAR
+                              | PLUS_DOT | MINUS_DOT | STAR_DOT | SLASH_DOT
+private anyOperator         ::= EQ | comparisonOperator | logicalOperator | bitwiseOperator
+                              | arithmeticOperator | ARROW | FAT_ARROW | PIPE_FORWARD | COLONGT | DOTDOT
 private punctuation ::= COMMA | SEMICOLON | COLON | DOT | DOTDOTDOT
                       | TILDE | PIPE | UNDERSCORE | BANG | QUESTION | HASH | TICK | PCT
 private comment     ::= LINE_COMMENT | BLOCK_COMMENT
@@ -258,15 +268,14 @@ private comment     ::= LINE_COMMENT | BLOCK_COMMENT
 // in record destructuring like JS), so the first '=' is always the boundary.
 // =============================================================================
 
-LetBindingPattern ::= let_binding_pattern_token+
-private let_binding_pattern_token ::= delimited_block | let_binding_pattern_atom
+LetBindingPattern ::= letBindingPatternToken+
+private letBindingPatternToken ::= delimitedBlock | letBindingPatternAtom
 
-// Like non_decl_token but without EQ (EQ is the pattern/expr boundary)
-// Like non_decl_token but without EQ (EQ is the pattern/expr boundary)
-private let_binding_pattern_atom ::= expr_keyword | LIDENT | UIDENT | literal
-                                   | comparison_operator | logical_operator | bitwise_operator
-                                   | arithmetic_operator | ARROW | FAT_ARROW | PIPE_FORWARD | COLONGT | DOTDOT
-                                   | punctuation | comment
+// Like nonDeclToken but without EQ (EQ is the pattern/expr boundary)
+private letBindingPatternAtom ::= exprKeyword | LIDENT | UIDENT | literal
+                                | comparisonOperator | logicalOperator | bitwiseOperator
+                                | arithmeticOperator | ARROW | FAT_ARROW | PIPE_FORWARD | COLONGT | DOTDOT
+                                | punctuation | comment
 
-// Expression: public node, opaque internals (same tokens as body_token)
-Expr ::= (delimited_block | non_decl_token)+
+// Expression: public node, opaque internals (same tokens as opaqueBody)
+Expr ::= (delimitedBlock | nonDeclToken)+
