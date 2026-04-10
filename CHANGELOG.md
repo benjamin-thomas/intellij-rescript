@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.1 — Top-level Expression Statements
+
+### Parser
+- **Top-level expression statements** are now recognized at file scope. Previously, files starting with `switch`, `if`, a function call like `Console.log("hi")`, or any other non-declaration expression produced parse errors and red squiggles on valid ReScript code. The parser now accepts them as opaque structure items, on par with `let`/`type`/`module`/etc.
+- **Move Statement** (`Alt+Shift+Up/Down`): partial support for top-level expression statements. They reorder correctly across declaration boundaries (e.g. swapping a `Console.log(...)` with an adjacent `let`). Two or more consecutive expression statements currently move as a single block rather than individually — a known limitation of the opaque-parsing strategy that will be lifted once expressions get real grammatical structure.
+
 ## v0.4.0 — Language Injection
 
 ### Editor features
