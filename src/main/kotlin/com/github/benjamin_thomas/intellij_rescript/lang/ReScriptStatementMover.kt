@@ -20,6 +20,7 @@ class ReScriptStatementMover : LineMover() {
         ReScriptTypes.EXTERNAL_DECLARATION,
         ReScriptTypes.EXCEPTION_DECLARATION,
         ReScriptTypes.EXTENSION_POINT,
+        ReScriptTypes.TOP_LEVEL_EXPR,
     )
 
     override fun checkAvailable(editor: Editor, file: PsiFile, info: MoveInfo, down: Boolean): Boolean {

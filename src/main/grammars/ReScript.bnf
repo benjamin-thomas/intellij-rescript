@@ -136,7 +136,7 @@
 // all derive from these two rules automatically.
 // =============================================================================
 
-File ::= declaration*
+File ::= structureItem*
 
 // All declaration types (change 1 of 2)
 private blockDeclaration ::= DecoratedDeclaration | bareDeclaration
@@ -152,9 +152,15 @@ DecoratedDeclaration ::= Decorator+ bareDeclaration { pin = 1 }
 // All declaration-starting keywords (change 2 of 2)
 private declKeyword ::= LET | MODULE | TYPE | OPEN | INCLUDE | EXTERNAL | EXCEPTION
 
-// Top-level wrapper: adds error recovery between declarations
-private declaration ::= blockDeclaration { recoverWhile = declRecover }
-private declRecover ::= !(declKeyword | AT | PCT_PCT | <<eof>>)
+// Top-level item: a declaration or a top-level expression statement.
+// Boundary detection is the same for both: a structure item runs until
+// the next declaration starter or EOF.
+private structureItem ::= (blockDeclaration | TopLevelExpr) { recoverWhile = structureItemRecover }
+private structureItemRecover ::= !(declKeyword | AT | PCT_PCT | <<eof>>)
+
+// Top-level expression statement: public node, opaque internals (same tokens as Expr).
+// Covers switch/if/for/while/try/function-call/etc. — anything that isn't a declaration.
+TopLevelExpr ::= (delimitedBlock | nonDeclToken)+
 
 // Bindings (bind a name to a value)
 // See _knowledge/parser/PSI_CUSTOMIZATION.md for how mixin + implements work.

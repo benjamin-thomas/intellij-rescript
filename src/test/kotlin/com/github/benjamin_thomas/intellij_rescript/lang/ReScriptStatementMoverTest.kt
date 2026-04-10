@@ -445,6 +445,30 @@ class ReScriptStatementMoverTest : BasePlatformTestCase() {
         )
     }
 
+    fun testMoveTopLevelExprDownPastLet() {
+        // Arrange
+        myFixture.configureByText(
+            "Test.res",
+            """
+            Console.log<caret>("hi")
+            let a = 1
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert
+        myFixture.checkResult(
+            """
+            let a = 1
+            Console.log("hi")
+
+            """.trimIndent()
+        )
+    }
+
     fun testMoveLetDownPastLet() {
         // Arrange
         myFixture.configureByText(

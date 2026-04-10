@@ -1,0 +1,11 @@
+ReScript File
+  ReScriptTopLevelExprImpl(TOP_LEVEL_EXPR)
+    PsiElement(SWITCH)('switch')
+    PsiElement(LIDENT)('x')
+    PsiElement(LBRACE)('{')
+    PsiElement(PIPE)('|')
+    PsiElement(UNDERSCORE)('_')
+    PsiElement(FAT_ARROW)('=>')
+    PsiElement(LPAREN)('(')
+    PsiElement(RPAREN)(')')
+    PsiElement(RBRACE)('}')
