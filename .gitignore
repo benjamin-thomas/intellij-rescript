@@ -4,3 +4,4 @@
 /build/
 /src/main/gen/
 /.kotlin/errors/
+/.claude/settings.local.json

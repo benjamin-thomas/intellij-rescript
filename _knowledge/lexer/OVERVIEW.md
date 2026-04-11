@@ -224,9 +224,10 @@ registered, it shows individual tokens as `PsiElement(TOKEN_TYPE)` nodes.
 - **Template string interpolation**: `` `hello ${name}` `` — the `IN_TEMPLATE`
   state currently treats everything between backticks as `TEMPLATE_CONTENT`.
   Interpolation requires the lexer to exit back to `YYINITIAL` inside `${}`,
-  with brace depth tracking to handle nested braces. See GOAL.md.
+  with brace depth tracking to handle nested braces. Tracked in
+  `_tickets/todo/grammar/020_template-string-interpolation/`.
 - **v12 operators**: `&&&`, `|||`, `^^^`, `~~~`, `>>>`, `<<`, `>>`, `**`,
-  `===`, `!==`, `:>`, `..`. See GOAL.md.
+  `===`, `!==`, `:>`, `..`.
 
 ## Reference implementations
 

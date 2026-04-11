@@ -23,7 +23,7 @@
         <p><strong>Alpha quality.</strong> Core features work well but some constructs
         (template string interpolation, JSX) are not yet fully parsed.
         Found something that doesn't work and is not listed in the
-        <a href="https://github.com/benjamin-thomas/intellij-rescript/blob/master/GOAL.md">roadmap</a>?
+        <a href="https://github.com/benjamin-thomas/intellij-rescript/tree/master/_tickets/todo">roadmap</a>?
         Please <a href="https://github.com/benjamin-thomas/intellij-rescript/issues">report it on GitHub</a>.</p>
     ]]></description>
 

@@ -8,7 +8,7 @@ The `_knowledge/` directory contains domain knowledge about how JetBrains langua
 plugins work and how this plugin is built. Reading it is optional — consult when
 you need context on a specific topic.
 
-- `GOAL.md` (root) — roadmap, phases, what's done, what's next
+- `_tickets/todo/` — planned work, decomposed into context-sized tickets (see `_tickets/todo/<subject>/<NNN_name>/ticket.md`)
 - `_knowledge/INDEX.md` — entry point to the knowledge base
 
 Knowledge can become stale. If you discover that something in `_knowledge/` is
