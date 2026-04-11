@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.2 — Explicit LSP Path Configuration
+
+### LSP
+- **ReScript settings page** (`Languages & Frameworks > ReScript`): configure an explicit absolute path to `rescript-language-server`. Replaces the previous implicit `PATH` lookup, which silently failed for GUI-launched IDEs that don't inherit the shell environment.
+- **Auto-detect** button probes common install locations (`/usr/local/bin`, `/opt/homebrew/bin`, `/usr/bin`, and every `~/.nvm/versions/node/*/bin`) in addition to `PATH`, and fills the field with the first match.
+- "Server not found" notification now shows the configured path (if any), explains that an absolute path is required, and includes an **Open ReScript Settings** action to jump straight to the settings page.
+- Saving the settings restarts the language server in all open projects, so path changes take effect without an IDE restart.
+
 ## v0.4.1 — Top-level Expression Statements
 
 ### Parser
