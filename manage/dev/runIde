@@ -1,8 +1,7 @@
 #!/bin/bash
 
 # If running into cache/stale issues, run:
-#   ./gradlew --stop
-# The re-run
+#   ./gradlew --stop && ./gradlew clean && ./manage/dev/runIde
 
 # IDEA_JVM_ARGS="-Dfoo=1;-Dbar=2" 
 ENV_VARS=(

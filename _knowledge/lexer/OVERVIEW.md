@@ -102,15 +102,24 @@ Multi-character operators must also be listed before single-character ones:
 JFlex generates a class implementing `FlexLexer`. IntelliJ expects a `Lexer`.
 These are different interfaces for the same job — tokenizing text.
 
-`FlexAdapter` bridges them. Our `ReScriptLexerAdapter` is one line:
+JetBrains ships `FlexAdapter` as the default bridge, but ReScript uses a
+custom `ReScriptLexerAdapter` because template interpolation needs richer
+incremental restart state than raw JFlex lexical state can represent.
+
+See `_knowledge/lexer/RESTART_STATE.md` for the detailed rationale. At a high
+level, the adapter exists so IntelliJ's single integer restart state can encode
+all context needed to restart correctly inside `${...}`.
+
+The old minimal form would have been:
 
 ```kotlin
 class ReScriptLexerAdapter : FlexAdapter(_ReScriptLexer(null))
 ```
 
-This is the [Adapter pattern](https://en.wikipedia.org/wiki/Adapter_pattern) —
-a thin wrapper that translates one API to another, like a power adapter between
-an EU plug and a US socket.
+The current adapter is still the same
+[Adapter pattern](https://en.wikipedia.org/wiki/Adapter_pattern) — a wrapper
+that translates one API to another — but it also packs and restores restart
+state for incremental lexing.
 
 ## Token types
 
@@ -213,6 +222,11 @@ rather than from the beginning):
   every token boundary and verifies the remaining tokens match. Catches bugs in
   state save/restore.
 
+Template interpolation specifically relies on this restart correctness: the
+restart state must preserve more than just raw JFlex lexical state so the
+closing `}` of `${...}` restarts as `TEMPLATE_INTERPOLATION_END`, not plain
+`RBRACE`. See `_knowledge/lexer/RESTART_STATE.md`.
+
 ### Observing tokens in runIde
 
 Run `./gradlew runIde`, open a `.res` file, then use
@@ -221,11 +235,6 @@ registered, it shows individual tokens as `PsiElement(TOKEN_TYPE)` nodes.
 
 ## Current limitations (TODOs)
 
-- **Template string interpolation**: `` `hello ${name}` `` — the `IN_TEMPLATE`
-  state currently treats everything between backticks as `TEMPLATE_CONTENT`.
-  Interpolation requires the lexer to exit back to `YYINITIAL` inside `${}`,
-  with brace depth tracking to handle nested braces. Tracked in
-  `_tickets/todo/grammar/020_template-string-interpolation/`.
 - **v12 operators**: `&&&`, `|||`, `^^^`, `~~~`, `>>>`, `<<`, `>>`, `**`,
   `===`, `!==`, `:>`, `..`.
 

@@ -1,5 +1,6 @@
 package com.github.benjamin_thomas.intellij_rescript.lang.psi.impl
 
+import com.github.benjamin_thomas.intellij_rescript.lang.psi.ReScriptTemplateLiteral
 import com.intellij.extapi.psi.ASTWrapperPsiElement
 import com.intellij.lang.ASTNode
 import com.intellij.openapi.util.TextRange
@@ -8,7 +9,8 @@ import com.intellij.psi.PsiLanguageInjectionHost
 
 abstract class ReScriptTemplateLiteralMixin(node: ASTNode) : ASTWrapperPsiElement(node), PsiLanguageInjectionHost {
 
-    override fun isValidHost(): Boolean = true
+    override fun isValidHost(): Boolean =
+        (this as ReScriptTemplateLiteral).templateInterpolationList.isEmpty()
 
     override fun updateText(text: String): PsiLanguageInjectionHost {
         // TODO: implement when rename/refactoring needs it

@@ -1,6 +1,6 @@
 ---
 summary: How language injection works — dual PSI trees, PsiLanguageInjectionHost, StringLiteral vs TemplateLiteral
-updated: 2026-04-04
+updated: 2026-04-12
 relates: [parser, architecture]
 ---
 
@@ -21,12 +21,14 @@ Without it, IntelliJ doesn't know which tokens form "the string" to inject into.
 We have two separate nodes rather than one generic "string group":
 
 - **`StringLiteral`** — double-quoted `"..."`, single-line, no interpolation.
-- **`TemplateLiteral`** — backtick `` `...` ``, multi-line, will have `${expr}` interpolation in the future.
+- **`TemplateLiteral`** — backtick `` `...` ``, multi-line, supports `${expr}` interpolation.
 
-They are separate because interpolation will require different internal structure
-(text segments + expression holes). When interpolation is implemented, language
-injection should be disabled for template strings that contain `${...}` — the
-content is no longer pure text.
+When a template contains any `${...}`, `isValidHost()` returns false. This is a
+semantic rule, not a cosmetic one: injection says "treat this entire string region
+as a foreign language," but interpolation holes contain real ReScript expressions.
+Injecting SQL (or any other language) over a string region that contains live
+ReScript tokens would be incoherent — the foreign parser would try to parse
+`${count + 1}` as SQL.
 
 ## Three pieces for injection to work
 

@@ -8,6 +8,9 @@ import com.intellij.psi.PsiLanguageInjectionHost
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 
+// Kotlin still treats `$` as string-template syntax even in raw strings.
+private const val DOLLAR = "$"
+
 class ReScriptLanguageInjectionTest : BasePlatformTestCase() {
 
     fun testStringLiteralIsInjectionHost() {
@@ -30,6 +33,17 @@ class ReScriptLanguageInjectionTest : BasePlatformTestCase() {
         // Assert
         assertInstanceOf(literal, PsiLanguageInjectionHost::class.java)
         assertTrue((literal as PsiLanguageInjectionHost).isValidHost)
+    }
+
+    fun testInterpolatedTemplateLiteralIsNotInjectionHost() {
+        // Arrange
+        val file = myFixture.configureByText("Test.res", """let x = `hello ${DOLLAR}{name}`""")
+        val literal = PsiTreeUtil.findChildOfType(file, ReScriptTemplateLiteral::class.java)
+            ?: error("No TemplateLiteral found")
+
+        // Assert
+        assertInstanceOf(literal, PsiLanguageInjectionHost::class.java)
+        assertFalse((literal as PsiLanguageInjectionHost).isValidHost)
     }
 
     fun testStringLiteralManipulatorRange() {

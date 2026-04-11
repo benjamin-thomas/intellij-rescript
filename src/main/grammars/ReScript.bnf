@@ -49,6 +49,8 @@
         TEMPLATE_START = 'TEMPLATE_START'
         TEMPLATE_END   = 'TEMPLATE_END'
         TEMPLATE_CONTENT  = 'TEMPLATE_CONTENT'
+        TEMPLATE_INTERPOLATION_START = 'TEMPLATE_INTERPOLATION_START'
+        TEMPLATE_INTERPOLATION_END   = 'TEMPLATE_INTERPOLATION_END'
         REGEX          = 'REGEX'
 
         // Comments
@@ -291,10 +293,14 @@ StringLiteral ::= STRING_START (STRING_CONTENT | STRING_ESCAPE)* STRING_END {
 }
 // Template literal: composite PSI node wrapping template string tokens.
 // Same purpose as StringLiteral but for backtick-delimited strings.
-TemplateLiteral ::= TEMPLATE_START TEMPLATE_CONTENT* TEMPLATE_END {
+TemplateLiteral ::= TEMPLATE_START templateLiteralPart* TEMPLATE_END {
     pin = 1
     mixin="com.github.benjamin_thomas.intellij_rescript.lang.psi.impl.ReScriptTemplateLiteralMixin"
     implements="com.intellij.psi.PsiLanguageInjectionHost"
+}
+private templateLiteralPart ::= TEMPLATE_CONTENT | TemplateInterpolation
+TemplateInterpolation ::= TEMPLATE_INTERPOLATION_START Expr TEMPLATE_INTERPOLATION_END {
+    pin = 1
 }
 
 // Expression: public node, opaque internals (same tokens as opaqueBody)

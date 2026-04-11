@@ -1,6 +1,6 @@
 ---
 summary: Design rationale for Elm-style lexer states for strings and templates
-updated: 2026-04-04
+updated: 2026-04-12
 relates: [architecture]
 ---
 
@@ -35,8 +35,9 @@ With lexer states, the string is broken into multiple tokens:
 This enables:
 1. **Escape sequence highlighting** — `\n`, `\t`, `\"` get a distinct color
    (`DefaultLanguageHighlighterColors.VALID_STRING_ESCAPE`)
-2. **Future interpolation** — backtick templates will need the lexer to exit
-   back to `YYINITIAL` inside `${expr}`, which requires state-based lexing
+2. **Template interpolation** — backtick templates exit back to `YYINITIAL`
+   inside `${expr}`, with brace-depth tracking to know which `}` closes the
+   interpolation
 3. **Clean QuoteHandler** — `STRING_START` and `TEMPLATE_START` are separate
    tokens, so `SimpleTokenSetQuoteHandler` can recognize them by cursor position
 
@@ -52,7 +53,7 @@ Double-quoted strings and backtick templates have **separate token types**:
 | `STRING_END` | `TEMPLATE_END` |
 
 They are separate because:
-- Backtick templates will need `${expr}` interpolation (the lexer must re-enter
+- Backtick templates support `${expr}` interpolation (the lexer re-enters
   `YYINITIAL` with brace depth tracking) — this is fundamentally different from
   double-quoted string lexing
 - They may get different visual styling (e.g. a background tint on template
@@ -72,9 +73,33 @@ They are separate because:
 
 At the parser level, the lexer's multi-token sequences are wrapped into composite
 PSI nodes: `StringLiteral` groups `STRING_START (STRING_CONTENT | STRING_ESCAPE)*
-STRING_END`, and `TemplateLiteral` groups `TEMPLATE_START TEMPLATE_CONTENT*
-TEMPLATE_END`. This is required for language injection (`PsiLanguageInjectionHost`
-needs a single parent node). See `_knowledge/jetbrains/LANGUAGE_INJECTION.md`.
+STRING_END`, and `TemplateLiteral` groups `TEMPLATE_START` plus alternating raw
+template content and `TemplateInterpolation` children before `TEMPLATE_END`.
+This is required for language injection (`PsiLanguageInjectionHost` needs a
+single parent node) and for PSI consumers that need interpolation holes as
+distinct nodes. See `_knowledge/jetbrains/LANGUAGE_INJECTION.md`.
+
+## Known limitation: nested template literals inside interpolations
+
+Nested backtick templates inside an interpolation are valid ReScript syntax
+(verified against `bsc` 12.2.0), e.g.:
+
+```rescript
+let nested = `outer ${`inner ${x}`}`
+```
+
+Our lexer does not fully handle this case. The brace-depth counter in the JFlex
+lexer is a single `int`, not a stack, so the inner `${` unconditionally assigns
+`templateInterpolationDepth = 1`, clobbering the outer depth. Interpolation
+boundaries inside nested templates may therefore be misidentified after the
+inner template closes.
+
+Fixing this requires replacing the counter with an `IntStack` (one entry per
+active interpolation). JavaScript's parser effectively does this — arbitrary
+nesting depth works fine in real JS/ReScript code. We're deliberately accepting
+the limitation for now because this pattern is rare in real-world ReScript, and
+the single-int form round-trips cleanly through IntelliJ's packed restart state
+(see `_knowledge/lexer/RESTART_STATE.md`).
 
 ## Regex vs division disambiguation
 

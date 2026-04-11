@@ -3,6 +3,9 @@ package com.github.benjamin_thomas.intellij_rescript.lang
 import com.intellij.psi.tree.TokenSet
 import kotlin.test.Test
 
+// Kotlin still treats `$` as string-template syntax even in raw strings.
+private const val DOLLAR = "$"
+
 class ReScriptLexerTest {
     private fun runLexerTest(inputFile: String, expectedOutputFile: String) =
         runSnapshotTest(ReScriptLexerAdapter(), inputFile, expectedOutputFile)
@@ -116,6 +119,18 @@ class ReScriptLexerTest {
     fun testTemplateWithSpaces() = runLexerTest("TemplateWithSpaces.res", "TemplateWithSpaces.out")
 
     @Test
+    fun testTemplateInterpolationSimple() =
+        runLexerTest("TemplateInterpolationSimple.res", "TemplateInterpolationSimple.out")
+
+    @Test
+    fun testTemplateInterpolationNestedBraces() =
+        runLexerTest("TemplateInterpolationNestedBraces.res", "TemplateInterpolationNestedBraces.out")
+
+    @Test
+    fun testTemplateInterpolationStringLiteral() =
+        runLexerTest("TemplateInterpolationStringLiteral.res", "TemplateInterpolationStringLiteral.out")
+
+    @Test
     fun testTemplateEmpty() = runLexerTest("TemplateEmpty.res", "TemplateEmpty.out")
 
     @Test
@@ -135,5 +150,10 @@ class ReScriptLexerTest {
     @Test
     fun testCorrectRestart() {
         checkCorrectRestart(ReScriptLexerAdapter(), "let x = if foo { 1 } else { 2 }")
+    }
+
+    @Test
+    fun testCorrectRestartWithTemplateInterpolation() {
+        checkCorrectRestart(ReScriptLexerAdapter(), """let x = `hello ${DOLLAR}{name}`""")
     }
 }
