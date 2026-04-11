@@ -28,6 +28,8 @@ what's planned.
 - JetBrains IDE 2025.3+
 - [LSP4IJ](https://plugins.jetbrains.com/plugin/23257-lsp4ij) plugin
 - `npm install -g @rescript/language-server`
+- Set an explicit executable path in `Languages & Frameworks > ReScript`
+- The ReScript settings page includes an `Auto-detect` button for common install locations
 - `npx rescript watch` running in your project (the language server needs the
   compiler's output to provide diagnostics and completions)
 

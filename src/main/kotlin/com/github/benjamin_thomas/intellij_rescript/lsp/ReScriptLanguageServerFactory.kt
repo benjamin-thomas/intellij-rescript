@@ -2,15 +2,20 @@ package com.github.benjamin_thomas.intellij_rescript.lsp
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
+import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.components.service
+import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.ProjectManager
 import com.redhat.devtools.lsp4ij.LanguageServerFactory
 import com.redhat.devtools.lsp4ij.LanguageServerManager
 import com.redhat.devtools.lsp4ij.client.LanguageClientImpl
 import com.redhat.devtools.lsp4ij.server.ProcessStreamConnectionProvider
 import com.redhat.devtools.lsp4ij.server.StreamConnectionProvider
 import java.io.File
+import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
 
 class ReScriptLanguageServerFactory : LanguageServerFactory {
@@ -101,9 +106,10 @@ class ReScriptLanguageServer(project: Project) : ProcessStreamConnectionProvider
     }
 
     private fun setup(project: Project) {
-        val serverPath = findServerPath()
+        val configuredPath = normalizedPath(service<ReScriptLspSettings>().state.languageServerPath)
+        val serverPath = executablePath(configuredPath)
         if (serverPath == null) {
-            notifyServerNotFound(project)
+            notifyServerNotFound(project, configuredPath)
             LanguageServerManager.getInstance(project).stop("rescriptLanguageServer")
             return
         }
@@ -111,23 +117,34 @@ class ReScriptLanguageServer(project: Project) : ProcessStreamConnectionProvider
         workingDirectory = project.basePath
     }
 
-    private fun notifyServerNotFound(project: Project) {
+    private fun notifyServerNotFound(project: Project, configuredPath: String?) {
         if (!notifiedMissing.compareAndSet(false, true)) return
+
+        val message = buildString {
+            configuredPath?.let {
+                append("Configured path: <code>")
+                append(escapeHtml(it))
+                append("</code><br><br>")
+            }
+            append("ReScript needs an explicit absolute path to <code>rescript-language-server</code>.")
+            append("<br><br>")
+            append("Install it globally:")
+            append("<br><br>")
+            append("<code>npm install -g @rescript/language-server</code>")
+            append("<br><br>")
+            append("Then set the executable path in Languages &amp; Frameworks &gt; ReScript.")
+        }
 
         NotificationGroupManager.getInstance()
             .getNotificationGroup("ReScript")
             .createNotification(
                 "ReScript LSP not found",
-                """
-                    Install it with:
-                    <br><br>
-                    <code>npm install -g @rescript/language-server</code>
-                    <br><br>
-                    After installing, you may need to log out and back in
-                    (or relaunch your IDE from a terminal to pick up the updated PATH).
-                """.trimIndent(),
+                message,
                 NotificationType.ERROR
             )
+            .addAction(NotificationAction.createSimple("Open ReScript Settings") {
+                ShowSettingsUtil.getInstance().showSettingsDialog(project, ReScriptLspConfigurable::class.java)
+            })
             .notify(project)
     }
 
@@ -146,9 +163,74 @@ class ReScriptLanguageServer(project: Project) : ProcessStreamConnectionProvider
     }
 }
 
-// Finds rescript-language-server in PATH.
-// Installed globally via: npm install -g @rescript/language-server
-fun findServerPath(): String? =
-    System.getenv("PATH")?.split(File.pathSeparator)?.firstNotNullOfOrNull { dir ->
-        File(dir, "rescript-language-server").takeIf { it.canExecute() }?.path
+private const val RESCRIPT_LANGUAGE_SERVER = "rescript-language-server"
+
+fun autoDetectLanguageServerPath(
+    pathEnv: String = System.getenv("PATH") ?: "",
+    extraSearchDirs: Sequence<Path> = defaultLanguageServerSearchDirs(),
+): String? {
+    val searchDirs = sequenceOf(pathDirs(pathEnv), extraSearchDirs).flatten().distinct()
+    return searchDirs.firstNotNullOfOrNull { dir ->
+        executablePath(dir.resolve(RESCRIPT_LANGUAGE_SERVER).toString())
+    }
+}
+
+private fun pathDirs(pathEnv: String): Sequence<Path> =
+    pathEnv.splitToSequence(File.pathSeparator)
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .map { Path.of(it) }
+
+private fun defaultLanguageServerSearchDirs(): Sequence<Path> {
+    val home = System.getProperty("user.home")
+    // GUI-launched JetBrains instances may not inherit the shell PATH, so we
+    // probe a few conventional install locations directly.
+    return sequenceOf(
+        Path.of("/usr/local/bin"),
+        Path.of("/opt/homebrew/bin"),
+        Path.of("/usr/bin"),
+        Path.of(home, ".nvm", "versions", "node"),
+    ).flatMap { path ->
+        if (path.fileName?.toString() == "node") {
+            runCatching {
+                java.nio.file.Files.list(path).use { children ->
+                    children.map { it.resolve("bin") }.toList().asSequence()
+                }
+            }.getOrDefault(emptySequence())
+        } else {
+            sequenceOf(path)
+        }
+    }
+}
+
+fun normalizedPath(path: String?): String? =
+    path?.trim()?.ifBlank { null }
+
+fun executablePath(path: String?): String? =
+    normalizedPath(path)
+        ?.let(::File)
+        ?.takeIf { it.isFile && it.canExecute() }
+        ?.absolutePath
+
+fun restartReScriptLspInOpenProjects(shouldStart: Boolean) {
+    ProjectManager.getInstance().openProjects.forEach { project ->
+        val manager = LanguageServerManager.getInstance(project)
+        manager.stop("rescriptLanguageServer")
+        if (shouldStart) {
+            manager.start("rescriptLanguageServer")
+        }
+    }
+}
+
+private fun escapeHtml(text: String): String =
+    buildString(text.length) {
+        text.forEach { char ->
+            when (char) {
+                '&' -> append("&amp;")
+                '<' -> append("&lt;")
+                '>' -> append("&gt;")
+                '"' -> append("&quot;")
+                else -> append(char)
+            }
+        }
     }

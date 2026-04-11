@@ -14,6 +14,7 @@
         <ul>
             <li>Install <code>@rescript/language-server</code> globally:
                 <code>npm install -g @rescript/language-server</code></li>
+            <li>Set its executable path in <code>Languages &amp; Frameworks &gt; ReScript</code></li>
             <li>Run the ReScript compiler in watch mode in your project terminal:
                 <code>npx rescript watch</code> (v12+) or
                 <code>npx rescript build -w</code> (older versions)</li>
@@ -100,6 +101,13 @@
         <!--suppress PluginXmlI18n -->
         <notificationGroup id="ReScript"
                            displayType="BALLOON"/>
+
+        <projectConfigurable
+                id="language.rescript"
+                displayName="ReScript"
+                groupId="language"
+                instance="com.github.benjamin_thomas.intellij_rescript.lsp.ReScriptLspConfigurable"/>
+        <postStartupActivity implementation="com.github.benjamin_thomas.intellij_rescript.lsp.ReScriptLspStartupActivity"/>
     </extensions>
 
     <extensions defaultExtensionNs="com.redhat.devtools.lsp4ij">

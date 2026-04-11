@@ -71,11 +71,15 @@ IntelliJ's DevKit inspections require:
 
 ### LSP integration
 
-The ReScript language server (`@rescript/language-server`) is found via PATH
-(globally installed with `npm install -g`). If not found, a balloon notification
-tells the user how to install it. The notification fires only once (guarded by
-`AtomicBoolean`), and `LanguageServerManager.stop()` is called to prevent
-LSP4IJ from retrying.
+The ReScript language server (`@rescript/language-server`) is configured with a
+single explicit executable path under Languages & Frameworks > ReScript. The
+settings UI offers an auto-detect helper, but runtime uses only the saved path.
+
+For development, `runIde` can seed the saved value from a JVM launch property
+when the setting is blank. If no valid path is configured, a balloon
+notification opens the settings page. The notification fires only once
+(guarded by `AtomicBoolean`), and `LanguageServerManager.stop()` is called to
+prevent LSP4IJ from retrying.
 
 The LSP provides: hover, completion, go-to-definition, diagnostics, formatting,
 code actions. It does NOT provide inlay hints / inline type annotations — this

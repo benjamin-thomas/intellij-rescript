@@ -69,7 +69,14 @@ tasks {
 
     // Usage: IDEA_JVM_ARGS="-Dsun.java2d.uiScale.enabled=false" IDEA_PROJECT=~/code/github.com/benjamin-thomas/7guis/rescript-7guis ./gradlew runIde
     runIde {
-        System.getenv("IDEA_JVM_ARGS")?.split(" ")?.let { jvmArgs(it) }
+        val extraJvmArgs = mutableListOf<String>()
+        System.getenv("IDEA_JVM_ARGS")?.split(";")?.map { it.trim() }?.filter { it.isNotBlank() }?.let { extraJvmArgs += it }
+        System.getenv("IDEA_RESCRIPT_LSP")?.takeIf { it.isNotBlank() }?.let {
+            extraJvmArgs += "-Drescript.lsp.path=$it"
+        }
+        if (extraJvmArgs.isNotEmpty()) {
+            jvmArgs(extraJvmArgs)
+        }
         System.getenv("IDEA_PROJECT")?.let { projectPath ->
             argumentProviders += CommandLineArgumentProvider { listOf(projectPath) }
         }

@@ -3,4 +3,12 @@
 # If running into cache/stale issues, run:
 #   ./gradlew --stop
 # The re-run
-IDEA_JVM_ARGS="-Dsun.java2d.uiScale.enabled=false" IDEA_PROJECT=~/code/github.com/benjamin-thomas/7guis/rescript-7guis exec ./gradlew runIde
+
+# IDEA_JVM_ARGS="-Dfoo=1;-Dbar=2" 
+ENV_VARS=(
+  "IDEA_PROJECT=$HOME/code/github.com/benjamin-thomas/7guis/rescript-7guis"
+  "IDEA_JVM_ARGS=-Dsun.java2d.uiScale.enabled=false"
+  "IDEA_RESCRIPT_LSP=$HOME/.nvm/versions/node/v22.19.0/bin/rescript-language-server"
+)
+
+exec env "${ENV_VARS[@]}" ./gradlew runIde
