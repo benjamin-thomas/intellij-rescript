@@ -5,12 +5,14 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 
+const val RESCRIPT_NODE_PATH_PROPERTY = "rescript.node.path"
 const val RESCRIPT_LSP_PATH_PROPERTY = "rescript.lsp.path"
 
 @Service(Service.Level.APP)
 @State(name = "ReScriptLspSettings", storages = [Storage("rescript.xml")])
 class ReScriptLspSettings : PersistentStateComponent<ReScriptLspSettings.State> {
     data class State(
+        var nodePath: String? = null,
         var languageServerPath: String? = null,
     )
 
@@ -23,14 +25,18 @@ class ReScriptLspSettings : PersistentStateComponent<ReScriptLspSettings.State> 
     }
 
     fun seedFromLaunchProperty() {
-        state.languageServerPath = seededLanguageServerPath(
+        state.nodePath = seededLaunchPath(
+            currentPath = state.nodePath,
+            launchProperty = System.getProperty(RESCRIPT_NODE_PATH_PROPERTY),
+        )
+        state.languageServerPath = seededLaunchPath(
             currentPath = state.languageServerPath,
             launchProperty = System.getProperty(RESCRIPT_LSP_PATH_PROPERTY),
         )
     }
 }
 
-fun seededLanguageServerPath(currentPath: String?, launchProperty: String?): String? {
+fun seededLaunchPath(currentPath: String?, launchProperty: String?): String? {
     val normalizedCurrentPath = normalizedPath(currentPath)
     if (normalizedCurrentPath != null) return normalizedCurrentPath
 

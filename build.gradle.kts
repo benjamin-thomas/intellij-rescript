@@ -71,6 +71,9 @@ tasks {
     runIde {
         val extraJvmArgs = mutableListOf<String>()
         System.getenv("IDEA_JVM_ARGS")?.split(";")?.map { it.trim() }?.filter { it.isNotBlank() }?.let { extraJvmArgs += it }
+        System.getenv("IDEA_RESCRIPT_NODE")?.takeIf { it.isNotBlank() }?.let {
+            extraJvmArgs += "-Drescript.node.path=$it"
+        }
         System.getenv("IDEA_RESCRIPT_LSP")?.takeIf { it.isNotBlank() }?.let {
             extraJvmArgs += "-Drescript.lsp.path=$it"
         }

@@ -73,12 +73,49 @@ class ReScriptLanguageServerFactoryTest {
     }
 
     @Test
+    fun `it auto detects node from PATH`() {
+        val pathDir = Files.createTempDirectory("node-path")
+        val nodeBin = pathDir.resolve("node").apply {
+            writeText("#!/bin/sh\n")
+            toFile().setExecutable(true)
+        }
+
+        val detectedPath = autoDetectNodePath(
+            pathEnv = pathDir.toString(),
+            extraSearchDirs = emptySequence(),
+        )
+
+        assertEquals(nodeBin.toAbsolutePath().toString(), detectedPath)
+    }
+
+    @Test
+    fun `it auto detects node deterministically from extra search dirs`() {
+        val firstDir = Files.createTempDirectory("node-first")
+        val secondDir = Files.createTempDirectory("node-second")
+        val firstNode = firstDir.resolve("node").apply {
+            writeText("#!/bin/sh\n")
+            toFile().setExecutable(true)
+        }
+        secondDir.resolve("node").apply {
+            writeText("#!/bin/sh\n")
+            toFile().setExecutable(true)
+        }
+
+        val detectedPath = autoDetectNodePath(
+            pathEnv = "",
+            extraSearchDirs = sequenceOf(firstDir, secondDir),
+        )
+
+        assertEquals(firstNode.toAbsolutePath().toString(), detectedPath)
+    }
+
+    @Test
     fun `it seeds launch property only when the current path is blank`() {
-        val seededPath = seededLanguageServerPath(
+        val seededPath = seededLaunchPath(
             currentPath = "   ",
             launchProperty = "/tmp/rescript-language-server",
         )
-        val preservedPath = seededLanguageServerPath(
+        val preservedPath = seededLaunchPath(
             currentPath = "/existing/rescript-language-server",
             launchProperty = "/tmp/rescript-language-server",
         )

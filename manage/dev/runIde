@@ -1,13 +1,16 @@
 #!/bin/bash
 
-# If running into cache/stale issues, run:
-#   ./gradlew --stop && ./gradlew clean && ./manage/dev/runIde
+# Runs with --no-daemon so this script never registers a gradle daemon in
+# ~/.gradle/daemon/*/registry.bin. That keeps the daemon pool clean for the IDE
+# (which manages its own daemon) and avoids the --stop-hang dance when
+# something else leaves the registry in a weird state.
 
-# IDEA_JVM_ARGS="-Dfoo=1;-Dbar=2" 
+# IDEA_JVM_ARGS="-Dfoo=1;-Dbar=2"
 ENV_VARS=(
   "IDEA_PROJECT=$HOME/code/github.com/benjamin-thomas/7guis/rescript-7guis"
   "IDEA_JVM_ARGS=-Dsun.java2d.uiScale.enabled=false"
+  "IDEA_RESCRIPT_NODE=$HOME/.nvm/versions/node/v22.19.0/bin/node"
   "IDEA_RESCRIPT_LSP=$HOME/.nvm/versions/node/v22.19.0/bin/rescript-language-server"
 )
 
-exec env "${ENV_VARS[@]}" ./gradlew runIde
+exec env "${ENV_VARS[@]}" ./gradlew --no-daemon runIde

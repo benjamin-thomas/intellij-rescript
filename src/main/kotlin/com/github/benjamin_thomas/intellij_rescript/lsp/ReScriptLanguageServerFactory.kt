@@ -106,39 +106,63 @@ class ReScriptLanguageServer(project: Project) : ProcessStreamConnectionProvider
     }
 
     private fun setup(project: Project) {
-        val configuredPath = normalizedPath(service<ReScriptLspSettings>().state.languageServerPath)
-        val serverPath = executablePath(configuredPath)
-        if (serverPath == null) {
-            notifyServerNotFound(project, configuredPath)
+        val settings = service<ReScriptLspSettings>().state
+        val configuredNode = normalizedPath(settings.nodePath)
+        val configuredServer = normalizedPath(settings.languageServerPath)
+        val nodePath = executablePath(configuredNode)
+        val serverPath = executablePath(configuredServer)
+
+        if (nodePath == null || serverPath == null) {
+            notifyPathsNotFound(project, configuredNode, nodePath, configuredServer, serverPath)
             LanguageServerManager.getInstance(project).stop("rescriptLanguageServer")
             return
         }
-        commands = listOf(serverPath, "--stdio")
+
+        commands = listOf(nodePath, serverPath, "--stdio")
         workingDirectory = project.basePath
     }
 
-    private fun notifyServerNotFound(project: Project, configuredPath: String?) {
+    private fun notifyPathsNotFound(
+        project: Project,
+        configuredNode: String?,
+        resolvedNode: String?,
+        configuredServer: String?,
+        resolvedServer: String?,
+    ) {
         if (!notifiedMissing.compareAndSet(false, true)) return
 
         val message = buildString {
-            configuredPath?.let {
-                append("Configured path: <code>")
-                append(escapeHtml(it))
-                append("</code><br><br>")
+            if (resolvedNode == null) {
+                append("<b>Node path</b> is not set or not executable.")
+                configuredNode?.let {
+                    append("<br>Configured path: <code>")
+                    append(escapeHtml(it))
+                    append("</code>")
+                }
+                append("<br><br>")
             }
-            append("ReScript needs an explicit absolute path to <code>rescript-language-server</code>.")
+            if (resolvedServer == null) {
+                append("<b>Language server path</b> is not set or not executable.")
+                configuredServer?.let {
+                    append("<br>Configured path: <code>")
+                    append(escapeHtml(it))
+                    append("</code>")
+                }
+                append("<br><br>")
+            }
+            append("ReScript needs explicit absolute paths to both <code>node</code> and <code>rescript-language-server</code>.")
             append("<br><br>")
-            append("Install it globally:")
+            append("Install the language server:")
             append("<br><br>")
             append("<code>npm install -g @rescript/language-server</code>")
             append("<br><br>")
-            append("Then set the executable path in Languages &amp; Frameworks &gt; ReScript.")
+            append("Then set the executable paths in Languages &amp; Frameworks &gt; ReScript.")
         }
 
         NotificationGroupManager.getInstance()
             .getNotificationGroup("ReScript")
             .createNotification(
-                "ReScript LSP not found",
+                "ReScript LSP not started",
                 message,
                 NotificationType.ERROR
             )
@@ -164,14 +188,28 @@ class ReScriptLanguageServer(project: Project) : ProcessStreamConnectionProvider
 }
 
 private const val RESCRIPT_LANGUAGE_SERVER = "rescript-language-server"
+private const val NODE_BINARY = "node"
 
 fun autoDetectLanguageServerPath(
     pathEnv: String = System.getenv("PATH") ?: "",
     extraSearchDirs: Sequence<Path> = defaultLanguageServerSearchDirs(),
+): String? =
+    firstExecutableIn(RESCRIPT_LANGUAGE_SERVER, pathEnv, extraSearchDirs)
+
+fun autoDetectNodePath(
+    pathEnv: String = System.getenv("PATH") ?: "",
+    extraSearchDirs: Sequence<Path> = defaultLanguageServerSearchDirs(),
+): String? =
+    firstExecutableIn(NODE_BINARY, pathEnv, extraSearchDirs)
+
+private fun firstExecutableIn(
+    executableName: String,
+    pathEnv: String,
+    extraSearchDirs: Sequence<Path>,
 ): String? {
     val searchDirs = sequenceOf(pathDirs(pathEnv), extraSearchDirs).flatten().distinct()
     return searchDirs.firstNotNullOfOrNull { dir ->
-        executablePath(dir.resolve(RESCRIPT_LANGUAGE_SERVER).toString())
+        executablePath(dir.resolve(executableName).toString())
     }
 }
 
