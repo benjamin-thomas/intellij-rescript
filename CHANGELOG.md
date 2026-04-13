@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.5.0 — Template Interpolation
+
+### Parser
+- **Template string interpolation** (`` `Hello ${name}` ``) is now parsed. Interpolated expressions inside backtick strings become their own `TemplateInterpolation` PSI nodes alongside the surrounding template content, and no longer produce parse errors.
+- Known limitation: **nested template literals inside interpolations** — e.g. `` `outer ${`inner ${x}`}` `` — are not yet handled. This is valid ReScript but rare in practice; the lexer's brace-depth counter can't yet track multiple active interpolations at once.
+- Language injection is no longer offered on interpolated template literals — splitting the injected text across `${...}` holes would never produce valid output. Plain (non-interpolated) backtick strings remain injectable.
+
+### LSP
+- **Node path setting**: the ReScript settings page now has a Node path field alongside the language server path. Both are required to launch the LSP server properly. An `Auto-detect` button probes `PATH` and common install locations (including every `~/.nvm/versions/node/*/bin`). Existing users upgrading from v0.4.x will need to set it.
+
 ## v0.4.2 — Explicit LSP Path Configuration
 
 ### LSP
