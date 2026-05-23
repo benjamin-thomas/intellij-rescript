@@ -6,6 +6,12 @@ type shape =
   | Rectangle({width: float, height: float})
   | Triangle(float, float, float)
 
+@unboxed
+type responseFormat =
+  | Auto(bool)
+  | @as("json") Json
+  | @as("text") Text
+
 type color = [
   | #red
   | #green

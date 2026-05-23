@@ -198,8 +198,11 @@ TypeDeclaration ::= TYPE REC? LIDENT TypeBody? {
     implements="com.intellij.psi.PsiNameIdentifierOwner"
 }
 
-// Type body: public node, opaque internals (same tokens as opaqueBody)
-TypeBody        ::= opaqueBody+
+// Type body: public node, opaque internals.
+// Type declarations may contain attributes inside the body, e.g.
+// `type t = A | @as("x") B`, without making `@` part of general expressions.
+TypeBody        ::= typeBodyOpaqueContent+
+private typeBodyOpaqueContent ::= delimitedBlock | nonDeclToken | AT
 
 // Statements
 OpenStatement   ::= OPEN opaqueBody* { pin = 1 }
