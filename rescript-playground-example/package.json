@@ -1,0 +1,14 @@
+{
+  "name": "rescript-playground",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Manual smoke-test fixture for the IntelliJ ReScript plugin",
+  "scripts": {
+    "build": "rescript build",
+    "watch": "rescript build -w",
+    "clean": "rescript clean"
+  },
+  "devDependencies": {
+    "rescript": "^12.2.0"
+  }
+}

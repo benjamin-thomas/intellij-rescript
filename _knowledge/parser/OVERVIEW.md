@@ -113,6 +113,21 @@ the structural information that this is a let declaration.
 For `LetBinding`, pin on `LET` (position 1). For `TypeDeclaration`, pin on
 `TYPE`. For a function call, maybe pin on `(`.
 
+**Do not pin on a shared prefix.** If the first token sequence can also be valid
+inside another construct, pinning there prevents backtracking and creates false
+parser errors. Example from the `support-field-attributes` branch:
+
+```bnf
+DecoratedDeclaration ::= Decorator+ bareDeclaration { pin=1 }
+```
+
+`@as("display_name") displayName: string` is valid inside a record type, but
+`Decorator+` succeeds first. With `pin=1`, the parser commits to
+`DecoratedDeclaration`, then expects a declaration keyword (`let`, `type`,
+`module`, ...). The next token is a record field name, so valid code gets a
+`PsiErrorElement`. The pin point must move to the part that proves this is
+actually a declaration, or the rule must otherwise allow backtracking.
+
 **`extendedPin`** (on by default): when pinned, the parser tries to match each
 remaining element even if intermediate ones fail. So `let = 1` (missing
 identifier) still produces a `LetBinding` with an error on the missing
@@ -285,6 +300,13 @@ Same approach as lexer tests. Each test has:
 - `LetBinding.out` — expected PSI tree dump
 
 The test calls `createPsiFile` + `toParseTreeText` + `assertSameLinesWithFile`.
+
+When working in explicit TDD mode, stop after the RED phase before writing BNF
+changes. For parser bugs, the RED checkpoint should show a valid ReScript input
+failing `ensureNoErrorElements()` for the expected reason. On
+`support-field-attributes`, the RED fixture is `RecordFieldAttribute.res`: it
+contains generic `@as(...)` record-field attributes and currently fails because
+`DecoratedDeclaration` commits too early.
 
 ### Why we use currying for parser tests
 
