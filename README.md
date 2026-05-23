@@ -57,6 +57,34 @@ See [CHANGELOG.md](CHANGELOG.md) for what's shipped and
 Search for "ReScript IDE" in your IDE's plugin settings, or install from the
 [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/30982-rescript-ide).
 
+## Main alternative
+
+The main JetBrains Marketplace alternative currently is
+[rescript-intellij-plugin](https://plugins.jetbrains.com/plugin/30430-rescript).
+
+ReScript IDE is intentionally smaller in scope and is expected to remain that way. It focuses on
+editor support and LSP-backed language features rather than broader project tooling such as project
+creation workflows.
+
+It also differs architecturally:
+
+- it relies heavily on LSP4IJ to provide semantic features through LSP;
+- it uses GrammarKit/JFlex rather than a handwritten parser;
+- it is currently power-user oriented: you are expected to manage your own environment, configure
+  explicit tool paths, and keep a compiler/watch process running outside the IDE.
+
+This is also a learning project, with a local [`_knowledge/`](_knowledge/) base designed to help
+both human and LLM readers understand the codebase.
+
+## Contributions
+
+LLM-assisted contributions are welcome. This codebase already uses LLMs as learning and
+implementation tools, but changes are expected to be heavily human-directed, understood, reviewed,
+and tested.
+
+In practice that means contributors should understand the change they're submitting and be able to
+discuss it during review.
+
 ## Inspiration and reference material
 
 - [intellij-elm](https://github.com/elm-tooling/intellij-elm) — the gold
