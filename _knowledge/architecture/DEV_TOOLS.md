@@ -23,6 +23,25 @@ relates: [architecture, parser, jetbrains]
 - **Debugger**: In the Gradle tool window, find `runIde` under
   Tasks > intellij platform > runIde, right-click > Debug.
 
+## Manual playground project
+
+Use `rescript-playground-example/` as the default sandbox project for manual
+IDE smoke testing. It is intentionally a real ReScript project, not parser test
+data: compile it, run a ReScript watcher, and inspect how the plugin behaves in
+the IDE.
+
+```bash
+manage/dev/runIde
+IDEA_PROJECT=/absolute/path/to/other/rescript/project manage/dev/runIde
+```
+
+The sandbox IDE should open the playground as its project root when validating
+LSP behavior. Opening the playground as a nested directory inside the Kotlin
+plugin project is useful for native parser/highlighter smoke checks, but the
+LSP factory currently uses `project.basePath` as the language-server working
+directory, so a nested playground does not give the ReScript server the right
+workspace root.
+
 ## Tracing an LSP feature end-to-end
 
 Example: **Go to Definition** — Ctrl+click on `withBackLink` (line 78 in

@@ -87,9 +87,56 @@ for PSI inspection, debugging, and LSP tracing.
 
 ```bash
 ./manage/dev/buildPlugin          # build the plugin zip
-./gradlew runIde                  # launch a sandboxed IDE with the plugin
+./manage/dev/runIde               # launch a sandboxed IDE on the playground
 ./gradlew test                    # run the test suite
 ./gradlew verifyPluginProjectConfiguration   # catch plugin.xml issues
+```
+
+### Manual IDE comparison setup
+
+Use `rescript-playground-example/` as the shared manual smoke-test project.
+There are two useful IDEs:
+
+- **Host IDE** — your normal IntelliJ workspace, with the released/baseline
+  ReScript IDE plugin installed from Marketplace.
+- **Sandbox IDE** — launched by `manage/dev/runIde`, with the plugin built from
+  this working tree.
+
+For the host IDE, install/enable:
+
+- **ReScript IDE** (`com.github.benjamin_thomas.intellij_rescript`).
+- **LSP4IJ**.
+- **Multi-Project Workspace** if you want the plugin repo and playground visible
+  in one frame.
+
+Recommended host workspace:
+
+```text
+intellij-rescript-workspace
+  intellij-rescript
+    rescript-playground-example [rescript-playground]
+```
+
+The playground may appear visually nested because it physically lives inside the
+plugin repo; the `[rescript-playground]` suffix shows it is loaded as its own
+workspace project. Do not mark the playground root as excluded. Exclude only
+generated children such as `node_modules/`, `lib/`, and `*.res.mjs` if needed.
+
+Configure the host IDE under `Languages & Frameworks > ReScript` with explicit
+paths to `node` and `rescript-language-server`, then run a ReScript watcher in
+the playground:
+
+```bash
+cd rescript-playground-example
+npm install
+npx rescript build -w
+```
+
+Launch the next-release sandbox against the same playground:
+
+```bash
+manage/dev/runIde
+IDEA_PROJECT=/absolute/path/to/project manage/dev/runIde
 ```
 
 ### Publishing

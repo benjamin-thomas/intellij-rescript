@@ -149,7 +149,7 @@ private bareDeclaration ::= LetBinding | ModuleBinding | TypeDeclaration
                           | ExtensionPoint
 
 // Decorator + declaration wrapper: all decorators are siblings of the declaration
-DecoratedDeclaration ::= Decorator+ bareDeclaration { pin = 1 }
+DecoratedDeclaration ::= Decorator+ bareDeclaration { pin = 2 }
 
 // All declaration-starting keywords (change 2 of 2)
 private declKeyword ::= LET | MODULE | TYPE | OPEN | INCLUDE | EXTERNAL | EXCEPTION

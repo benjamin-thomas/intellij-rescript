@@ -79,6 +79,7 @@ class ReScriptParserTest : ParsingTestCase(
     fun testDecoratedExtensionPoint() = runParserTest("DecoratedExtensionPoint.res", "DecoratedExtensionPoint.out")
     fun testDecoratedExternalWithModule() =
         runParserTest("DecoratedExternalWithModule.res", "DecoratedExternalWithModule.out")
+    fun testRecordFieldAttribute() = runParserTest("RecordFieldAttribute.res", "RecordFieldAttribute.out")
     fun testLetSignature() = runParserTest("LetSignature.res", "LetSignature.out")
     fun testModuleWithSignature() = runParserTest("ModuleWithSignature.res", "ModuleWithSignature.out")
     fun testStringLiteral() = runParserTest("StringLiteral.res", "StringLiteral.out")

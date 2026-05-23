@@ -5,12 +5,17 @@
 # (which manages its own daemon) and avoids the --stop-hang dance when
 # something else leaves the registry in a weird state.
 
+# Usage:
+#   manage/dev/runIde
+#   IDEA_PROJECT=/absolute/path/to/project manage/dev/runIde
+DEFAULT_IDEA_PROJECT="$PWD/rescript-playground-example"
+
 # IDEA_JVM_ARGS="-Dfoo=1;-Dbar=2"
 ENV_VARS=(
-  "IDEA_PROJECT=$HOME/code/github.com/benjamin-thomas/7guis/rescript-7guis"
-  "IDEA_JVM_ARGS=-Dsun.java2d.uiScale.enabled=false"
-  "IDEA_RESCRIPT_NODE=$HOME/.nvm/versions/node/v22.19.0/bin/node"
-  "IDEA_RESCRIPT_LSP=$HOME/.nvm/versions/node/v22.19.0/bin/rescript-language-server"
+  "IDEA_PROJECT=${IDEA_PROJECT:-$DEFAULT_IDEA_PROJECT}"
+  "IDEA_JVM_ARGS=${IDEA_JVM_ARGS:--Dsun.java2d.uiScale.enabled=false}"
+  "IDEA_RESCRIPT_NODE=${IDEA_RESCRIPT_NODE:-$HOME/.nvm/versions/node/v22.19.0/bin/node}"
+  "IDEA_RESCRIPT_LSP=${IDEA_RESCRIPT_LSP:-$HOME/.nvm/versions/node/v22.19.0/bin/rescript-language-server}"
 )
 
 exec env "${ENV_VARS[@]}" ./gradlew --no-daemon runIde
