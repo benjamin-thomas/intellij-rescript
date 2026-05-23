@@ -38,6 +38,14 @@ class ReScriptBreadcrumbsProviderTest : BasePlatformTestCase() {
         assertEquals(listOf("module Foo", "let x"), breadcrumbs)
     }
 
+    fun testModuleTypeDeclarationBreadcrumb() {
+        // Act
+        val breadcrumbs = collectBreadcrumbs("module type Counter = { type t }")
+
+        // Assert
+        assertEquals(listOf("module type Counter", "type t"), breadcrumbs)
+    }
+
     fun testDestructuringSkipped() {
         // Act
         val breadcrumbs = collectBreadcrumbs("let (a, b) = tuple")

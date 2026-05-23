@@ -144,7 +144,7 @@ File ::= structureItem*
 private blockDeclaration ::= DecoratedDeclaration | bareDeclaration
 
 // Declarations without decorator wrapper (used by DecoratedDeclaration)
-private bareDeclaration ::= LetBinding | ModuleBinding | TypeDeclaration
+private bareDeclaration ::= LetBinding | ModuleTypeDeclaration | ModuleBinding | TypeDeclaration
                           | OpenStatement | IncludeStatement | ExternalDeclaration | ExceptionDeclaration
                           | ExtensionPoint
 
@@ -176,12 +176,20 @@ ModuleBinding   ::= MODULE UIDENT ModuleSignature? (EQ ModuleBody)? {
     mixin="com.github.benjamin_thomas.intellij_rescript.lang.psi.impl.ReScriptModuleBindingMixin"
     implements="com.intellij.psi.PsiNameIdentifierOwner"
 }
+ModuleTypeDeclaration ::= MODULE TYPE UIDENT ModuleTypeBody? {
+    pin = 2
+    mixin="com.github.benjamin_thomas.intellij_rescript.lang.psi.impl.ReScriptModuleTypeDeclarationMixin"
+    implements="com.intellij.psi.PsiNameIdentifierOwner"
+}
 
 // Module signature: `: { ... }` or `: ModuleName`
 ModuleSignature ::= COLON (bracedBlock | UIDENT (DOT UIDENT)*) { pin = 1 }
 
 // Module body: public node, opaque internals (same tokens as opaqueBody)
 ModuleBody      ::= opaqueBody+
+
+// Module type body: `= { ... }` or `= OtherSignature`
+ModuleTypeBody ::= EQ (bracedBlock | UIDENT (DOT UIDENT)*) { pin = 1 }
 
 // Declarations
 TypeDeclaration ::= TYPE REC? LIDENT TypeBody? {
