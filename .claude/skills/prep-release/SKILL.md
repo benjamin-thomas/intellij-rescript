@@ -107,9 +107,11 @@ Only after explicit approval from Phase 3.
 
 3. **Apply GOAL.md changes** if any were proposed and approved.
 
-4. **Run `./gradlew test`.** Stream the output; pipe through `grep -E "(FAILED|BUILD|tests completed)" | head` to keep the context tight. If the build fails, **stop**. Print the failure and leave the working tree alone. Do not attempt to revert your edits; the user will inspect and decide.
+4. **Run `./gradlew --no-daemon test`.** Stream the output; pipe through `grep -E "(FAILED|BUILD|tests completed)" | head` to keep the context tight. If the build fails, **stop**. Print the failure and leave the working tree alone. Do not attempt to revert your edits; the user will inspect and decide.
 
-5. **Run `./gradlew verifyPluginProjectConfiguration`.** Same discipline — stop on failure.
+5. **Run `./gradlew --no-daemon verifyPluginProjectConfiguration`.** Same discipline — stop on failure.
+
+   **Always pass `--no-daemon`** for both checks — gives a cold, hermetic invocation that won't reuse stale in-memory state from a prior daemon.
 
 ## Phase 5: Hand off
 
@@ -127,14 +129,11 @@ Once both checks pass, produce the hand-off report. This is the final output of 
    # 2. Tag (lightweight — matches v0.2.0–v0.4.x convention)
    git tag v<X.Y.Z>
 
-   # 3. Sanity check the tag points at the release commit
-   git show v<X.Y.Z> --stat
-
-   # 4. Push commit and tag
+   # 3. Push commit and tags
    git push
-   git push origin v<X.Y.Z>
+   git push --tags
 
-   # 5. Publish to JetBrains Marketplace
+   # 4. Publish to JetBrains Marketplace
    ./manage/prod/release-plugin
    ```
 
