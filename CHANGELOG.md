@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.5.1 — Module Types & Attribute Parsing
+
+### Parser
+- **Module type declarations** are now parsed: `module type Counter = { ... }` (signature body), `module type Serializable = Contract.Serializable` (alias), and the abstract form `module type Counter` (no body, common in `.resi` files). Previously these triggered parse errors at the `module type` keyword.
+- **Variant constructor attributes** — `| @as("json") Json`, `@unboxed type t = | A | @as("x") B`, etc. — no longer error. `@` is now permitted inside type bodies without leaking into general expression syntax.
+- **Record field attributes** — `@as("type") kind: string` and `@as("display_name") displayName: string` inside record type bodies — now parse correctly. The decorator pin was committing too eagerly, which broke fields that lead with `@as(...)`.
+
+### Navigation
+- **Breadcrumbs** now include `module type Foo`, on par with `module`, `let`, and `type`. Nested signature contents (`module type Counter > type t`) show up correctly.
+
 ## v0.5.0 — Template Interpolation
 
 ### Parser
