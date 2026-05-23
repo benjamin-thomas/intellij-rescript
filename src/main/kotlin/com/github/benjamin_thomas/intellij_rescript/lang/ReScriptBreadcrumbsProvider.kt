@@ -7,6 +7,7 @@ import com.intellij.ui.breadcrumbs.BreadcrumbsProvider
 import com.github.benjamin_thomas.intellij_rescript.ReScriptLanguage
 import com.github.benjamin_thomas.intellij_rescript.lang.psi.ReScriptLetBinding
 import com.github.benjamin_thomas.intellij_rescript.lang.psi.ReScriptModuleBinding
+import com.github.benjamin_thomas.intellij_rescript.lang.psi.ReScriptModuleTypeDeclaration
 import com.github.benjamin_thomas.intellij_rescript.lang.psi.ReScriptTypeDeclaration
 
 class ReScriptBreadcrumbsProvider : BreadcrumbsProvider {
@@ -14,7 +15,10 @@ class ReScriptBreadcrumbsProvider : BreadcrumbsProvider {
     override fun getLanguages(): Array<Language> = arrayOf(ReScriptLanguage)
 
     override fun acceptElement(element: PsiElement): Boolean =
-        (element is ReScriptLetBinding || element is ReScriptModuleBinding || element is ReScriptTypeDeclaration)
+        (element is ReScriptLetBinding ||
+            element is ReScriptModuleBinding ||
+            element is ReScriptModuleTypeDeclaration ||
+            element is ReScriptTypeDeclaration)
             && element.name != null
 
     override fun getElementInfo(element: PsiElement): String {
@@ -22,6 +26,7 @@ class ReScriptBreadcrumbsProvider : BreadcrumbsProvider {
         return when (element) {
             is ReScriptLetBinding -> "let $name"
             is ReScriptModuleBinding -> "module $name"
+            is ReScriptModuleTypeDeclaration -> "module type $name"
             is ReScriptTypeDeclaration -> "type $name"
             else -> name
         }
