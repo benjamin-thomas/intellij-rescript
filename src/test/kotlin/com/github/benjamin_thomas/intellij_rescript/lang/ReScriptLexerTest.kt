@@ -140,11 +140,11 @@ class ReScriptLexerTest {
     fun testZeroStateForKeywordsAndIdentifiers() {
         val tokens = TokenSet.create(
             ReScriptTypes.LET, ReScriptTypes.TYPE,
-            ReScriptTypes.MODULE, ReScriptTypes.SWITCH,
+            ReScriptTypes.MODULE, ReScriptTypes.PRIVATE, ReScriptTypes.SWITCH,
             ReScriptTypes.IF, ReScriptTypes.ELSE,
             ReScriptTypes.LIDENT, ReScriptTypes.UIDENT,
         )
-        checkZeroState(ReScriptLexerAdapter(), "let x = if foo { 1 } else { 2 }", tokens)
+        checkZeroState(ReScriptLexerAdapter(), "type t = private { x: int }\nlet x = if foo { 1 } else { 2 }", tokens)
     }
 
     @Test

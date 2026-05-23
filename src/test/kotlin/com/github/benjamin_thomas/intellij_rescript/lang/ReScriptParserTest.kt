@@ -79,6 +79,13 @@ class ReScriptParserTest : ParsingTestCase(
     fun testDecoratedExtensionPoint() = runParserTest("DecoratedExtensionPoint.res", "DecoratedExtensionPoint.out")
     fun testDecoratedExternalWithModule() =
         runParserTest("DecoratedExternalWithModule.res", "DecoratedExternalWithModule.out")
+    fun testTypeBodyDoesNotConsumeFollowingDecorator() =
+        runParserTest("TypeBodyDoesNotConsumeFollowingDecorator.res", "TypeBodyDoesNotConsumeFollowingDecorator.out")
+    fun testPrivateTypeBodyDoesNotConsumeFollowingDecorator() =
+        runParserTest(
+            "PrivateTypeBodyDoesNotConsumeFollowingDecorator.res",
+            "PrivateTypeBodyDoesNotConsumeFollowingDecorator.out"
+        )
     fun testRecordFieldAttribute() = runParserTest("RecordFieldAttribute.res", "RecordFieldAttribute.out")
     fun testVariantConstructorAttribute() =
         runParserTest("VariantConstructorAttribute.res", "VariantConstructorAttribute.out")

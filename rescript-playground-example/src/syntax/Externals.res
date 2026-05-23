@@ -13,6 +13,13 @@
 
 @new external makeError: string => JsExn.t = "Error"
 
+type externalWidget = {
+  label: string,
+}
+
+@module("example-package/@scope/widget") @new
+external makeWidget: string => externalWidget = "Widget"
+
 @send external trim: string => string = "trim"
 
 let delay = (ms, callback) => {

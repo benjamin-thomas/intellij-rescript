@@ -140,6 +140,7 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
     "external"          { return track(ReScriptTypes.EXTERNAL); }
     "exception"         { return track(ReScriptTypes.EXCEPTION); }
     "rec"               { return track(ReScriptTypes.REC); }
+    "private"           { return track(ReScriptTypes.PRIVATE); }
     "true"              { return track(ReScriptTypes.TRUE); }
     "false"             { return track(ReScriptTypes.FALSE); }
     "switch"            { return track(ReScriptTypes.SWITCH); }

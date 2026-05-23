@@ -20,6 +20,7 @@
         EXTERNAL   = 'EXTERNAL'
         EXCEPTION  = 'EXCEPTION'
         REC        = 'REC'
+        PRIVATE    = 'PRIVATE'
         TRUE       = 'TRUE'
         FALSE      = 'FALSE'
         SWITCH     = 'SWITCH'
@@ -198,11 +199,19 @@ TypeDeclaration ::= TYPE REC? LIDENT TypeBody? {
     implements="com.intellij.psi.PsiNameIdentifierOwner"
 }
 
-// Type body: public node, opaque internals.
-// Type declarations may contain attributes inside the body, e.g.
-// `type t = A | @as("x") B`, without making `@` part of general expressions.
-TypeBody        ::= typeBodyOpaqueContent+
-private typeBodyOpaqueContent ::= delimitedBlock | nonDeclToken | AT
+// Type body: mostly opaque for now, but split around top-level `=` so
+// bounded RHS forms stop cleanly before the next declaration:
+//   type t = { ... }
+//   type t = private { ... }
+//
+// Variant constructor attributes are handled explicitly so this stays valid:
+//   type t = A | @as("x") B
+TypeBody ::= typeBodyPreEqContent+ (EQ typeRhs?)? | EQ typeRhs?
+private typeBodyPreEqContent ::= delimitedBlock | nonEqToken
+private typeRhs ::= bracedBlock | privateRecordTypeRhs | typeRhsOpaqueContent+
+private privateRecordTypeRhs ::= PRIVATE bracedBlock
+private typeRhsOpaqueContent ::= typeVariantAttribute | delimitedBlock | nonDeclToken
+private typeVariantAttribute ::= PIPE AT decoratorName (DOT decoratorName)* parenBlock? { pin = 2 }
 
 // Statements
 OpenStatement   ::= OPEN opaqueBody* { pin = 1 }
@@ -260,7 +269,7 @@ private parenContent ::= delimitedBlock | declKeyword | AT | PCT_PCT | nonDeclTo
 
 // All non-declaration-keyword, non-delimiter tokens
 private nonDeclToken ::= exprKeyword | LIDENT | UIDENT | literal | anyOperator | punctuation | comment
-private exprKeyword ::= REC | TRUE | FALSE | SWITCH | IF | ELSE
+private exprKeyword ::= REC | PRIVATE | TRUE | FALSE | SWITCH | IF | ELSE
                       | ASYNC | AWAIT | TRY | CATCH | WHILE | FOR | AND | AS
 private literal     ::= BIGINT | INT | FLOAT | StringLiteral | TemplateLiteral | REGEX
 private comparisonOperator  ::= EQEQ | EQEQEQ | BANGEQ | BANGEQEQ | LT | GT | LTEQ | GTEQ
@@ -271,6 +280,10 @@ private arithmeticOperator  ::= PLUS | MINUS | STAR | SLASH | STARSTAR
                               | PLUS_DOT | MINUS_DOT | STAR_DOT | SLASH_DOT
 private anyOperator         ::= EQ | comparisonOperator | logicalOperator | bitwiseOperator
                               | arithmeticOperator | ARROW | FAT_ARROW | PIPE_FORWARD | COLONGT | DOTDOT
+private nonEqToken          ::= exprKeyword | LIDENT | UIDENT | literal
+                              | comparisonOperator | logicalOperator | bitwiseOperator
+                              | arithmeticOperator | ARROW | FAT_ARROW | PIPE_FORWARD | COLONGT | DOTDOT
+                              | punctuation | comment
 private punctuation ::= COMMA | SEMICOLON | COLON | DOT | DOTDOTDOT
                       | TILDE | PIPE | UNDERSCORE | BANG | QUESTION | HASH | TICK | PCT
 private comment     ::= LINE_COMMENT | BLOCK_COMMENT
