@@ -163,7 +163,7 @@ private structureItemRecover ::= !(declKeyword | AT | PCT_PCT | <<eof>>)
 
 // Top-level expression statement: public node, opaque internals (same tokens as Expr).
 // Covers switch/if/for/while/try/function-call/etc. — anything that isn't a declaration.
-TopLevelExpr ::= (delimitedBlock | nonDeclToken)+
+TopLevelExpr ::= exprAtom+
 
 // Bindings (bind a name to a value)
 // See _knowledge/parser/PSI_CUSTOMIZATION.md for how mixin + implements work.
@@ -210,7 +210,7 @@ TypeBody ::= typeBodyPreEqContent+ (EQ typeRhs?)? | EQ typeRhs?
 private typeBodyPreEqContent ::= delimitedBlock | nonEqToken
 private typeRhs ::= bracedBlock | privateRecordTypeRhs | typeRhsOpaqueContent+
 private privateRecordTypeRhs ::= PRIVATE bracedBlock
-private typeRhsOpaqueContent ::= typeVariantAttribute | delimitedBlock | nonDeclToken
+private typeRhsOpaqueContent ::= typeVariantAttribute | firstClassModuleExpr | delimitedBlock | nonDeclToken
 private typeVariantAttribute ::= PIPE AT decoratorName (DOT decoratorName)* parenBlock? { pin = 2 }
 
 // Statements
@@ -300,7 +300,9 @@ private comment     ::= LINE_COMMENT | BLOCK_COMMENT
 // =============================================================================
 
 LetBindingPattern ::= letBindingPatternToken+
-private letBindingPatternToken ::= delimitedBlock | letBindingPatternAtom
+private letBindingPatternToken ::= firstClassModulePattern | delimitedBlock | letBindingPatternAtom
+// First-class module unpacking in a let pattern, e.g. `let module(Component) = impl`.
+private firstClassModulePattern ::= MODULE parenBlock { pin = 2 }
 
 // Like nonDeclToken but without EQ (EQ is the pattern/expr boundary)
 private letBindingPatternAtom ::= exprKeyword | LIDENT | UIDENT | literal
@@ -328,4 +330,8 @@ TemplateInterpolation ::= TEMPLATE_INTERPOLATION_START Expr TEMPLATE_INTERPOLATI
 }
 
 // Expression: public node, opaque internals (same tokens as opaqueBody)
-Expr ::= (delimitedBlock | nonDeclToken)+
+Expr ::= exprAtom+
+private exprAtom ::= firstClassModuleExpr | delimitedBlock | nonDeclToken
+// First-class module packing, e.g. `module(Env)`.
+// Pin after the `module(...)` shape so `module Env = ...` remains a declaration.
+private firstClassModuleExpr ::= MODULE parenBlock { pin = 2 }

@@ -41,11 +41,25 @@ class ReScriptParserTest : ParsingTestCase(
     }
 
     fun testLetBinding() = runParserTest("LetBinding.res", "LetBinding.out")
+    fun testLetFirstClassModuleExpression() =
+        runParserTest("LetFirstClassModuleExpression.res", "LetFirstClassModuleExpression.out")
+    fun testLetFirstClassModuleExpressionWithConstraint() =
+        runParserTest(
+            "LetFirstClassModuleExpressionWithConstraint.res",
+            "LetFirstClassModuleExpressionWithConstraint.out"
+        )
+    fun testLetFirstClassModuleParameter() =
+        runParserTest("LetFirstClassModuleParameter.res", "LetFirstClassModuleParameter.out")
+    fun testLetFirstClassModuleUnpack() =
+        runParserTest("LetFirstClassModuleUnpack.res", "LetFirstClassModuleUnpack.out")
     fun testModuleBinding() = runParserTest("ModuleBinding.res", "ModuleBinding.out")
     fun testModuleAlias() = runParserTest("ModuleAlias.res", "ModuleAlias.out")
     fun testMultipleDeclarations() = runParserTest("MultipleDeclarations.res", "MultipleDeclarations.out")
     fun testArrowFunction() = runParserTest("ArrowFunction.res", "ArrowFunction.out")
     fun testTypeWithParams() = runParserTest("TypeWithParams.res", "TypeWithParams.out")
+    fun testTypeFirstClassModule() = runParserTest("TypeFirstClassModule.res", "TypeFirstClassModule.out")
+    fun testTypeFirstClassModuleWithTypeEquations() =
+        runParserTest("TypeFirstClassModuleWithTypeEquations.res", "TypeFirstClassModuleWithTypeEquations.out")
     fun testNestedLetBindings() = runParserTest("NestedLetBindings.res", "NestedLetBindings.out")
     fun testNestedDelimiters() = runParserTest("NestedDelimiters.res", "NestedDelimiters.out")
     fun testExtensionPoint() = runParserTest("ExtensionPoint.res", "ExtensionPoint.out")

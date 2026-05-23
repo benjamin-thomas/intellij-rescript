@@ -1,0 +1,10 @@
+ReScript File
+  ReScriptTypeDeclarationImpl(TYPE_DECLARATION)
+    PsiElement(TYPE)('type')
+    PsiElement(LIDENT)('env')
+    ReScriptTypeBodyImpl(TYPE_BODY)
+      PsiElement(EQ)('=')
+      PsiElement(MODULE)('module')
+      PsiElement(LPAREN)('(')
+      PsiElement(UIDENT)('Env')
+      PsiElement(RPAREN)(')')

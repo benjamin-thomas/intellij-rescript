@@ -27,4 +27,25 @@ module Math = {
 
 module V = Math.Vec2
 
+type counterModule = module(Counter)
+let packedCounter: counterModule = module(IntCounter)
+let constrainedCounter = module(IntCounter: Counter)
+let keepCounter = (counter: module(Counter)) => counter
+let unpackedCounterValue = {
+  let module(CounterImpl) = packedCounter
+  CounterImpl.make(1)->CounterImpl.value
+}
+
+module type Store = {
+  type outer
+  module Inner: {
+    type inner
+  }
+}
+
+type typedStore<'inner, 'outer> = module(Store with
+  type Inner.inner = 'inner
+  and type outer = 'outer
+)
+
 let one = V.add(V.zero, (1.0, 0.0))
