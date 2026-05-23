@@ -6,3 +6,4 @@
 /.kotlin/errors/
 /.claude/settings.local.json
 /.codex
+.idea/

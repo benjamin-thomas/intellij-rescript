@@ -82,6 +82,8 @@ class ReScriptParserTest : ParsingTestCase(
     fun testRecordFieldAttribute() = runParserTest("RecordFieldAttribute.res", "RecordFieldAttribute.out")
     fun testLetSignature() = runParserTest("LetSignature.res", "LetSignature.out")
     fun testModuleWithSignature() = runParserTest("ModuleWithSignature.res", "ModuleWithSignature.out")
+    fun testModuleTypeDeclaration() = runParserTest("ModuleTypeDeclaration.res", "ModuleTypeDeclaration.out")
+    fun testModuleTypeAlias() = runParserTest("ModuleTypeAlias.res", "ModuleTypeAlias.out")
     fun testStringLiteral() = runParserTest("StringLiteral.res", "StringLiteral.out")
     fun testStringLiteralWithEscape() = runParserTest("StringLiteralWithEscape.res", "StringLiteralWithEscape.out")
     fun testStringLiteralEmpty() = runParserTest("StringLiteralEmpty.res", "StringLiteralEmpty.out")

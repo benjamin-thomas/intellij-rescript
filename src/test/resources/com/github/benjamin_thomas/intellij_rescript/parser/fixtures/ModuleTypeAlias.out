@@ -1,0 +1,10 @@
+ReScript File
+  ReScriptModuleTypeDeclarationImpl(MODULE_TYPE_DECLARATION)
+    PsiElement(MODULE)('module')
+    PsiElement(TYPE)('type')
+    PsiElement(UIDENT)('Serializable')
+    ReScriptModuleTypeBodyImpl(MODULE_TYPE_BODY)
+      PsiElement(EQ)('=')
+      PsiElement(UIDENT)('Contract')
+      PsiElement(DOT)('.')
+      PsiElement(UIDENT)('Serializable')
