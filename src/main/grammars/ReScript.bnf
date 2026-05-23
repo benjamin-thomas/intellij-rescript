@@ -176,7 +176,7 @@ ModuleBinding   ::= MODULE UIDENT ModuleSignature? (EQ ModuleBody)? {
     mixin="com.github.benjamin_thomas.intellij_rescript.lang.psi.impl.ReScriptModuleBindingMixin"
     implements="com.intellij.psi.PsiNameIdentifierOwner"
 }
-ModuleTypeDeclaration ::= MODULE TYPE UIDENT ModuleTypeBody {
+ModuleTypeDeclaration ::= MODULE TYPE UIDENT ModuleTypeBody? {
     pin = 2
     mixin="com.github.benjamin_thomas.intellij_rescript.lang.psi.impl.ReScriptModuleTypeDeclarationMixin"
     implements="com.intellij.psi.PsiNameIdentifierOwner"
