@@ -134,6 +134,10 @@ class ReScriptLexerTest {
         runLexerTest("TemplateInterpolationStringLiteral.res", "TemplateInterpolationStringLiteral.out")
 
     @Test
+    fun testTemplateInterpolationNestedTemplate() =
+        runLexerTest("TemplateInterpolationNestedTemplate.res", "TemplateInterpolationNestedTemplate.out")
+
+    @Test
     fun testTemplateEmpty() = runLexerTest("TemplateEmpty.res", "TemplateEmpty.out")
 
     @Test
@@ -158,5 +162,10 @@ class ReScriptLexerTest {
     @Test
     fun testCorrectRestartWithTemplateInterpolation() {
         checkCorrectRestart(ReScriptLexerAdapter(), """let x = `hello ${DOLLAR}{name}`""")
+    }
+
+    @Test
+    fun testCorrectRestartWithNestedTemplateInterpolation() {
+        checkCorrectRestart(ReScriptLexerAdapter(), """let x = `outer ${DOLLAR}{`inner ${DOLLAR}{value}`}`""")
     }
 }

@@ -14,18 +14,23 @@ import com.intellij.psi.TokenType;
 
 %{
     // IntelliJ gives the lexer a single int for restart state, so we pack our
-    // restart context into three 8-bit fields inside that int:
-    //   bits 0..7   = JFlex lexical state
-    //   bits 8..15  = block-comment nesting depth
-    //   bits 16..23 = template-interpolation brace depth
+    // restart context into bit fields inside that int:
+    //   bits 0..4    = JFlex lexical state
+    //   bits 5..11   = block-comment nesting depth
+    //   bits 12..31  = packed template-interpolation context
     //
-    // Each field uses 8 bits (mask 0xFF), so each stored value can range from
-    // 0 to 255. That means we support up to 255 nested block comments and up
-    // to 255 nested braces while lexing inside `${...}` before the packed
-    // restart state would overflow its allotted field.
-    private static final int RESTART_FIELD_MASK = 0xFF;
-    private static final int COMMENT_DEPTH_SHIFT = 8;
-    private static final int TEMPLATE_INTERPOLATION_DEPTH_SHIFT = 16;
+    // The interpolation context is a stack of 5-bit brace-depth frames. The
+    // low frame is the current `${...}` depth; higher frames remember enclosing
+    // interpolation depths when a nested template starts its own interpolation.
+    private static final int LEXICAL_STATE_MASK = 0x1F;
+    private static final int COMMENT_DEPTH_MASK = 0x7F;
+    private static final int TEMPLATE_INTERPOLATION_CONTEXT_MASK = 0xFFFFF;
+
+    private static final int COMMENT_DEPTH_SHIFT = 5;
+    private static final int TEMPLATE_INTERPOLATION_CONTEXT_SHIFT = 12;
+
+    private static final int TEMPLATE_INTERPOLATION_FRAME_BITS = 5;
+    private static final int TEMPLATE_INTERPOLATION_FRAME_MASK = 0x1F;
 
     // Track previous non-whitespace token for regex/division disambiguation.
     // When we see `/`, if the previous token is an "expression-end" token
@@ -33,7 +38,7 @@ import com.intellij.psi.TokenType;
     // Otherwise, it's the start of a regex literal.
     private IElementType lastSignificantToken = null;
     private int commentDepth = 0;
-    private int templateInterpolationDepth = 0;
+    private int templateInterpolationContext = 0;
 
     private boolean isSignificant(IElementType type) {
         return type != TokenType.WHITE_SPACE &&
@@ -77,33 +82,72 @@ import com.intellij.psi.TokenType;
                lastSignificantToken != ReScriptTypes.RBRACKET;         // arr[0] / 2
     }
 
-    private int packRestartState(int lexicalState, int commentDepth, int interpolationDepth) {
-        int packedLexicalState = lexicalState;
-        int packedCommentDepth = commentDepth << COMMENT_DEPTH_SHIFT;
-        int packedInterpolationDepth = interpolationDepth << TEMPLATE_INTERPOLATION_DEPTH_SHIFT;
-        return packedLexicalState | packedCommentDepth | packedInterpolationDepth;
+    private int currentTemplateInterpolationDepth() {
+        return templateInterpolationContext & TEMPLATE_INTERPOLATION_FRAME_MASK;
+    }
+
+    private boolean isInTemplateInterpolation() {
+        return currentTemplateInterpolationDepth() > 0;
+    }
+
+    private void startTemplateInterpolation() {
+        if (isInTemplateInterpolation()) {
+            templateInterpolationContext =
+                ((templateInterpolationContext << TEMPLATE_INTERPOLATION_FRAME_BITS)
+                    & TEMPLATE_INTERPOLATION_CONTEXT_MASK) | 1;
+        } else {
+            templateInterpolationContext = 1;
+        }
+    }
+
+    private void incrementTemplateInterpolationDepth() {
+        int depth = currentTemplateInterpolationDepth();
+        if (depth > 0 && depth < TEMPLATE_INTERPOLATION_FRAME_MASK) {
+            templateInterpolationContext++;
+        }
+    }
+
+    private boolean closeTemplateInterpolationBrace() {
+        if (!isInTemplateInterpolation()) return false;
+
+        templateInterpolationContext--;
+        if (currentTemplateInterpolationDepth() == 0) {
+            templateInterpolationContext >>>= TEMPLATE_INTERPOLATION_FRAME_BITS;
+            return true;
+        }
+        return false;
+    }
+
+    private int packRestartState(int lexicalState, int commentDepth, int interpolationContext) {
+        int packedLexicalState = lexicalState & LEXICAL_STATE_MASK;
+        int packedCommentDepth = (commentDepth & COMMENT_DEPTH_MASK) << COMMENT_DEPTH_SHIFT;
+        int packedInterpolationContext =
+            (interpolationContext & TEMPLATE_INTERPOLATION_CONTEXT_MASK)
+                << TEMPLATE_INTERPOLATION_CONTEXT_SHIFT;
+        return packedLexicalState | packedCommentDepth | packedInterpolationContext;
     }
 
     private int unpackLexicalState(int packedState) {
-        return packedState & RESTART_FIELD_MASK;
+        return packedState & LEXICAL_STATE_MASK;
     }
 
     private int unpackCommentDepth(int packedState) {
-        return (packedState >> COMMENT_DEPTH_SHIFT) & RESTART_FIELD_MASK;
+        return (packedState >>> COMMENT_DEPTH_SHIFT) & COMMENT_DEPTH_MASK;
     }
 
-    private int unpackInterpolationDepth(int packedState) {
-        return (packedState >> TEMPLATE_INTERPOLATION_DEPTH_SHIFT) & RESTART_FIELD_MASK;
+    private int unpackInterpolationContext(int packedState) {
+        return (packedState >>> TEMPLATE_INTERPOLATION_CONTEXT_SHIFT)
+            & TEMPLATE_INTERPOLATION_CONTEXT_MASK;
     }
 
     public int getPackedRestartState() {
-        return packRestartState(zzLexicalState, commentDepth, templateInterpolationDepth);
+        return packRestartState(zzLexicalState, commentDepth, templateInterpolationContext);
     }
 
     public void resetWithPackedRestartState(CharSequence buffer, int start, int end, int packedState) {
         lastSignificantToken = null;
         commentDepth = unpackCommentDepth(packedState);
-        templateInterpolationDepth = unpackInterpolationDepth(packedState);
+        templateInterpolationContext = unpackInterpolationContext(packedState);
         reset(buffer, start, end, unpackLexicalState(packedState));
     }
 
@@ -210,16 +254,13 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
     "("                 { return track(ReScriptTypes.LPAREN); }
     ")"                 { return track(ReScriptTypes.RPAREN); }
     "{"                 {
-                            if (templateInterpolationDepth > 0) templateInterpolationDepth++;
+                            incrementTemplateInterpolationDepth();
                             return track(ReScriptTypes.LBRACE);
                         }
     "}"                 {
-                            if (templateInterpolationDepth > 0) {
-                                templateInterpolationDepth--;
-                                if (templateInterpolationDepth == 0) {
-                                    yybegin(IN_TEMPLATE);
-                                    return track(ReScriptTypes.TEMPLATE_INTERPOLATION_END);
-                                }
+                            if (closeTemplateInterpolationBrace()) {
+                                yybegin(IN_TEMPLATE);
+                                return track(ReScriptTypes.TEMPLATE_INTERPOLATION_END);
                             }
                             return track(ReScriptTypes.RBRACE);
                         }
@@ -271,7 +312,7 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
 <IN_TEMPLATE> {
     `                   { yybegin(YYINITIAL); return track(ReScriptTypes.TEMPLATE_END); }
     "${"                {
-                            templateInterpolationDepth = 1;
+                            startTemplateInterpolation();
                             yybegin(YYINITIAL);
                             return track(ReScriptTypes.TEMPLATE_INTERPOLATION_START);
                         }

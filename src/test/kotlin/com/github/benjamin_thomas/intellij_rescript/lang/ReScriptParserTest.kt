@@ -113,6 +113,8 @@ class ReScriptParserTest : ParsingTestCase(
     fun testTemplateLiteral() = runParserTest("TemplateLiteral.res", "TemplateLiteral.out")
     fun testTemplateLiteralInterpolation() =
         runParserTest("TemplateLiteralInterpolation.res", "TemplateLiteralInterpolation.out")
+    fun testTemplateLiteralNestedInterpolation() =
+        runParserTest("TemplateLiteralNestedInterpolation.res", "TemplateLiteralNestedInterpolation.out")
     fun testTemplateLiteralEmpty() = runParserTest("TemplateLiteralEmpty.res", "TemplateLiteralEmpty.out")
     fun testTopLevelSwitch() = runParserTest("TopLevelSwitch.res", "TopLevelSwitch.out")
     fun testTopLevelExprThenLet() = runParserTest("TopLevelExprThenLet.res", "TopLevelExprThenLet.out")

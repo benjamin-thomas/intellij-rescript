@@ -12,6 +12,7 @@ let name = "Benjamin"
 let count = 3
 
 let template = `Hi ${name}, you have ${count->Int.toString} new messages.`
+let nestedTemplate = `outer ${`inner ${name}`}`
 
 let multiline = `line 1
 line 2

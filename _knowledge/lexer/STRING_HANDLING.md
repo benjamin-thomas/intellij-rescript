@@ -79,7 +79,7 @@ This is required for language injection (`PsiLanguageInjectionHost` needs a
 single parent node) and for PSI consumers that need interpolation holes as
 distinct nodes. See `_knowledge/jetbrains/LANGUAGE_INJECTION.md`.
 
-## Known limitation: nested template literals inside interpolations
+## Nested template literals inside interpolations
 
 Nested backtick templates inside an interpolation are valid ReScript syntax
 (verified against `bsc` 12.2.0), e.g.:
@@ -88,18 +88,16 @@ Nested backtick templates inside an interpolation are valid ReScript syntax
 let nested = `outer ${`inner ${x}`}`
 ```
 
-Our lexer does not fully handle this case. The brace-depth counter in the JFlex
-lexer is a single `int`, not a stack, so the inner `${` unconditionally assigns
-`templateInterpolationDepth = 1`, clobbering the outer depth. Interpolation
-boundaries inside nested templates may therefore be misidentified after the
-inner template closes.
+The lexer handles this with a packed interpolation stack. Each active template
+interpolation has its own brace-depth frame. When the lexer enters an inner
+`${...}` from inside a nested template, it pushes the previous interpolation
+depth and starts a fresh depth for the inner interpolation. When the inner
+interpolation closes, it pops back to the outer interpolation depth.
 
-Fixing this requires replacing the counter with an `IntStack` (one entry per
-active interpolation). JavaScript's parser effectively does this — arbitrary
-nesting depth works fine in real JS/ReScript code. We're deliberately accepting
-the limitation for now because this pattern is rare in real-world ReScript, and
-the single-int form round-trips cleanly through IntelliJ's packed restart state
-(see `_knowledge/lexer/RESTART_STATE.md`).
+This matters because the lexer must not let an inner template overwrite the
+state needed to recognize the outer `}` as `TEMPLATE_INTERPOLATION_END`. The
+stack is packed into IntelliJ's single integer restart state; see
+`_knowledge/lexer/RESTART_STATE.md`.
 
 ## Regex vs division disambiguation
 
