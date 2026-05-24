@@ -5,11 +5,15 @@
 let greeting = "hello, world\n"
 let withEscape = "tab:\there\ndouble-quote: \"x\""
 let pathish = "C:\\Users\\someone\\file.txt"
+let multilineDoubleQuoted = "first line
+second line"
 
 let name = "Benjamin"
 let count = 3
 
 let template = `Hi ${name}, you have ${count->Int.toString} new messages.`
+let escapedBackticks = `All input for the \`loginWithMagicLink\` mutation.`
+let nestedTemplate = `outer ${`inner ${name}`}`
 
 let multiline = `line 1
 line 2

@@ -1,6 +1,6 @@
 ---
 summary: How language injection works — dual PSI trees, PsiLanguageInjectionHost, StringLiteral vs TemplateLiteral
-updated: 2026-04-12
+updated: 2026-05-24
 relates: [parser, architecture]
 ---
 
@@ -20,7 +20,7 @@ Without it, IntelliJ doesn't know which tokens form "the string" to inject into.
 
 We have two separate nodes rather than one generic "string group":
 
-- **`StringLiteral`** — double-quoted `"..."`, single-line, no interpolation.
+- **`StringLiteral`** — double-quoted `"..."`, may span physical lines, no interpolation.
 - **`TemplateLiteral`** — backtick `` `...` ``, multi-line, supports `${expr}` interpolation.
 
 When a template contains any `${...}`, `isValidHost()` returns false. This is a

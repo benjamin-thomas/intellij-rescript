@@ -20,6 +20,7 @@
         EXTERNAL   = 'EXTERNAL'
         EXCEPTION  = 'EXCEPTION'
         REC        = 'REC'
+        PRIVATE    = 'PRIVATE'
         TRUE       = 'TRUE'
         FALSE      = 'FALSE'
         SWITCH     = 'SWITCH'
@@ -141,7 +142,7 @@
 File ::= structureItem*
 
 // All declaration types (change 1 of 2)
-private blockDeclaration ::= DecoratedDeclaration | bareDeclaration
+private blockDeclaration ::= StandaloneAttribute | DecoratedDeclaration | bareDeclaration
 
 // Declarations without decorator wrapper (used by DecoratedDeclaration)
 private bareDeclaration ::= LetBinding | ModuleTypeDeclaration | ModuleBinding | TypeDeclaration
@@ -162,7 +163,7 @@ private structureItemRecover ::= !(declKeyword | AT | PCT_PCT | <<eof>>)
 
 // Top-level expression statement: public node, opaque internals (same tokens as Expr).
 // Covers switch/if/for/while/try/function-call/etc. — anything that isn't a declaration.
-TopLevelExpr ::= (delimitedBlock | nonDeclToken)+
+TopLevelExpr ::= exprAtom+
 
 // Bindings (bind a name to a value)
 // See _knowledge/parser/PSI_CUSTOMIZATION.md for how mixin + implements work.
@@ -198,11 +199,19 @@ TypeDeclaration ::= TYPE REC? LIDENT TypeBody? {
     implements="com.intellij.psi.PsiNameIdentifierOwner"
 }
 
-// Type body: public node, opaque internals.
-// Type declarations may contain attributes inside the body, e.g.
-// `type t = A | @as("x") B`, without making `@` part of general expressions.
-TypeBody        ::= typeBodyOpaqueContent+
-private typeBodyOpaqueContent ::= delimitedBlock | nonDeclToken | AT
+// Type body: mostly opaque for now, but split around top-level `=` so
+// bounded RHS forms stop cleanly before the next declaration:
+//   type t = { ... }
+//   type t = private { ... }
+//
+// Variant constructor attributes are handled explicitly so this stays valid:
+//   type t = A | @as("x") B
+TypeBody ::= typeBodyPreEqContent+ (EQ typeRhs?)? | EQ typeRhs?
+private typeBodyPreEqContent ::= delimitedBlock | nonEqToken
+private typeRhs ::= bracedBlock | privateRecordTypeRhs | typeRhsOpaqueContent+
+private privateRecordTypeRhs ::= PRIVATE bracedBlock
+private typeRhsOpaqueContent ::= typeVariantAttribute | firstClassModuleExpr | delimitedBlock | nonDeclToken
+private typeVariantAttribute ::= PIPE AT decoratorName (DOT decoratorName)* parenBlock? { pin = 2 }
 
 // Statements
 OpenStatement   ::= OPEN opaqueBody* { pin = 1 }
@@ -214,6 +223,10 @@ ExceptionDeclaration ::= EXCEPTION opaqueBody* { pin = 1 }
 
 // Extension points (%%raw, %%private, etc.)
 ExtensionPoint  ::= PCT_PCT opaqueBody* { pin = 1 }
+
+// Standalone attributes (`@@warning("-27")`, `@@ocaml.warning("+9")`) are
+// declaration-like items in structure/signature contexts.
+StandaloneAttribute ::= AT AT decoratorName (DOT decoratorName)* parenBlock? { pin = 2 }
 
 // Decorators (@react.component, @module, @as, @val, etc.)
 // The ReScript compiler allows any keyword as a decorator name (res_core.ml: parse_attribute_id).
@@ -260,7 +273,7 @@ private parenContent ::= delimitedBlock | declKeyword | AT | PCT_PCT | nonDeclTo
 
 // All non-declaration-keyword, non-delimiter tokens
 private nonDeclToken ::= exprKeyword | LIDENT | UIDENT | literal | anyOperator | punctuation | comment
-private exprKeyword ::= REC | TRUE | FALSE | SWITCH | IF | ELSE
+private exprKeyword ::= REC | PRIVATE | TRUE | FALSE | SWITCH | IF | ELSE
                       | ASYNC | AWAIT | TRY | CATCH | WHILE | FOR | AND | AS
 private literal     ::= BIGINT | INT | FLOAT | StringLiteral | TemplateLiteral | REGEX
 private comparisonOperator  ::= EQEQ | EQEQEQ | BANGEQ | BANGEQEQ | LT | GT | LTEQ | GTEQ
@@ -271,6 +284,10 @@ private arithmeticOperator  ::= PLUS | MINUS | STAR | SLASH | STARSTAR
                               | PLUS_DOT | MINUS_DOT | STAR_DOT | SLASH_DOT
 private anyOperator         ::= EQ | comparisonOperator | logicalOperator | bitwiseOperator
                               | arithmeticOperator | ARROW | FAT_ARROW | PIPE_FORWARD | COLONGT | DOTDOT
+private nonEqToken          ::= exprKeyword | LIDENT | UIDENT | literal
+                              | comparisonOperator | logicalOperator | bitwiseOperator
+                              | arithmeticOperator | ARROW | FAT_ARROW | PIPE_FORWARD | COLONGT | DOTDOT
+                              | punctuation | comment
 private punctuation ::= COMMA | SEMICOLON | COLON | DOT | DOTDOTDOT
                       | TILDE | PIPE | UNDERSCORE | BANG | QUESTION | HASH | TICK | PCT
 private comment     ::= LINE_COMMENT | BLOCK_COMMENT
@@ -287,7 +304,9 @@ private comment     ::= LINE_COMMENT | BLOCK_COMMENT
 // =============================================================================
 
 LetBindingPattern ::= letBindingPatternToken+
-private letBindingPatternToken ::= delimitedBlock | letBindingPatternAtom
+private letBindingPatternToken ::= firstClassModulePattern | delimitedBlock | letBindingPatternAtom
+// First-class module unpacking in a let pattern, e.g. `let module(Component) = impl`.
+private firstClassModulePattern ::= MODULE parenBlock { pin = 2 }
 
 // Like nonDeclToken but without EQ (EQ is the pattern/expr boundary)
 private letBindingPatternAtom ::= exprKeyword | LIDENT | UIDENT | literal
@@ -315,4 +334,8 @@ TemplateInterpolation ::= TEMPLATE_INTERPOLATION_START Expr TEMPLATE_INTERPOLATI
 }
 
 // Expression: public node, opaque internals (same tokens as opaqueBody)
-Expr ::= (delimitedBlock | nonDeclToken)+
+Expr ::= exprAtom+
+private exprAtom ::= firstClassModuleExpr | delimitedBlock | nonDeclToken
+// First-class module packing, e.g. `module(Env)`.
+// Pin after the `module(...)` shape so `module Env = ...` remains a declaration.
+private firstClassModuleExpr ::= MODULE parenBlock { pin = 2 }

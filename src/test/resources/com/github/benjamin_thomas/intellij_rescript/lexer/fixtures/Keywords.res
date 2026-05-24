@@ -6,6 +6,7 @@ include
 external
 exception
 rec
+private
 switch
 if
 else

@@ -23,7 +23,7 @@ ReScript File
     PsiElement(LIDENT)('apiUser')
     ReScriptTypeBodyImpl(TYPE_BODY)
       PsiElement(EQ)('=')
-      PsiElement(LIDENT)('private')
+      PsiElement(PRIVATE)('private')
       PsiElement(LBRACE)('{')
       PsiElement(LIDENT)('id')
       PsiElement(COLON)(':')

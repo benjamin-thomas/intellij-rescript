@@ -1,0 +1,11 @@
+ReScript File
+  ReScriptLetBindingImpl(LET_BINDING)
+    PsiElement(LET)('let')
+    ReScriptLetBindingPatternImpl(LET_BINDING_PATTERN)
+      PsiElement(LIDENT)('env')
+    PsiElement(EQ)('=')
+    ReScriptExprImpl(EXPR)
+      PsiElement(MODULE)('module')
+      PsiElement(LPAREN)('(')
+      PsiElement(UIDENT)('Env')
+      PsiElement(RPAREN)(')')

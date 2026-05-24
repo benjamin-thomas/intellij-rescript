@@ -41,11 +41,25 @@ class ReScriptParserTest : ParsingTestCase(
     }
 
     fun testLetBinding() = runParserTest("LetBinding.res", "LetBinding.out")
+    fun testLetFirstClassModuleExpression() =
+        runParserTest("LetFirstClassModuleExpression.res", "LetFirstClassModuleExpression.out")
+    fun testLetFirstClassModuleExpressionWithConstraint() =
+        runParserTest(
+            "LetFirstClassModuleExpressionWithConstraint.res",
+            "LetFirstClassModuleExpressionWithConstraint.out"
+        )
+    fun testLetFirstClassModuleParameter() =
+        runParserTest("LetFirstClassModuleParameter.res", "LetFirstClassModuleParameter.out")
+    fun testLetFirstClassModuleUnpack() =
+        runParserTest("LetFirstClassModuleUnpack.res", "LetFirstClassModuleUnpack.out")
     fun testModuleBinding() = runParserTest("ModuleBinding.res", "ModuleBinding.out")
     fun testModuleAlias() = runParserTest("ModuleAlias.res", "ModuleAlias.out")
     fun testMultipleDeclarations() = runParserTest("MultipleDeclarations.res", "MultipleDeclarations.out")
     fun testArrowFunction() = runParserTest("ArrowFunction.res", "ArrowFunction.out")
     fun testTypeWithParams() = runParserTest("TypeWithParams.res", "TypeWithParams.out")
+    fun testTypeFirstClassModule() = runParserTest("TypeFirstClassModule.res", "TypeFirstClassModule.out")
+    fun testTypeFirstClassModuleWithTypeEquations() =
+        runParserTest("TypeFirstClassModuleWithTypeEquations.res", "TypeFirstClassModuleWithTypeEquations.out")
     fun testNestedLetBindings() = runParserTest("NestedLetBindings.res", "NestedLetBindings.out")
     fun testNestedDelimiters() = runParserTest("NestedDelimiters.res", "NestedDelimiters.out")
     fun testExtensionPoint() = runParserTest("ExtensionPoint.res", "ExtensionPoint.out")
@@ -59,6 +73,11 @@ class ReScriptParserTest : ParsingTestCase(
     fun testEmptyFile() = runParserTest("EmptyFile.res", "EmptyFile.out")
     fun testStackedDecoratedDeclaration() =
         runParserTest("StackedDecoratedDeclaration.res", "StackedDecoratedDeclaration.out")
+    fun testStandaloneAttribute() = runParserTest("StandaloneAttribute.res", "StandaloneAttribute.out")
+    fun testStandaloneAttributeInModule() =
+        runParserTest("StandaloneAttributeInModule.res", "StandaloneAttributeInModule.out")
+    fun testStandaloneAttributeInModuleType() =
+        runParserTest("StandaloneAttributeInModuleType.res", "StandaloneAttributeInModuleType.out")
 
     fun testCommentsBetweenDeclarations() =
         runParserTest("CommentsBetweenDeclarations.res", "CommentsBetweenDeclarations.out")
@@ -79,6 +98,13 @@ class ReScriptParserTest : ParsingTestCase(
     fun testDecoratedExtensionPoint() = runParserTest("DecoratedExtensionPoint.res", "DecoratedExtensionPoint.out")
     fun testDecoratedExternalWithModule() =
         runParserTest("DecoratedExternalWithModule.res", "DecoratedExternalWithModule.out")
+    fun testTypeBodyDoesNotConsumeFollowingDecorator() =
+        runParserTest("TypeBodyDoesNotConsumeFollowingDecorator.res", "TypeBodyDoesNotConsumeFollowingDecorator.out")
+    fun testPrivateTypeBodyDoesNotConsumeFollowingDecorator() =
+        runParserTest(
+            "PrivateTypeBodyDoesNotConsumeFollowingDecorator.res",
+            "PrivateTypeBodyDoesNotConsumeFollowingDecorator.out"
+        )
     fun testRecordFieldAttribute() = runParserTest("RecordFieldAttribute.res", "RecordFieldAttribute.out")
     fun testVariantConstructorAttribute() =
         runParserTest("VariantConstructorAttribute.res", "VariantConstructorAttribute.out")
@@ -90,8 +116,12 @@ class ReScriptParserTest : ParsingTestCase(
     fun testStringLiteralWithEscape() = runParserTest("StringLiteralWithEscape.res", "StringLiteralWithEscape.out")
     fun testStringLiteralEmpty() = runParserTest("StringLiteralEmpty.res", "StringLiteralEmpty.out")
     fun testTemplateLiteral() = runParserTest("TemplateLiteral.res", "TemplateLiteral.out")
+    fun testTemplateLiteralWithEscapedBackticks() =
+        runParserTest("TemplateLiteralWithEscapedBackticks.res", "TemplateLiteralWithEscapedBackticks.out")
     fun testTemplateLiteralInterpolation() =
         runParserTest("TemplateLiteralInterpolation.res", "TemplateLiteralInterpolation.out")
+    fun testTemplateLiteralNestedInterpolation() =
+        runParserTest("TemplateLiteralNestedInterpolation.res", "TemplateLiteralNestedInterpolation.out")
     fun testTemplateLiteralEmpty() = runParserTest("TemplateLiteralEmpty.res", "TemplateLiteralEmpty.out")
     fun testTopLevelSwitch() = runParserTest("TopLevelSwitch.res", "TopLevelSwitch.out")
     fun testTopLevelExprThenLet() = runParserTest("TopLevelExprThenLet.res", "TopLevelExprThenLet.out")

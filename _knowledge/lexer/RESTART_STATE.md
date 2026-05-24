@@ -1,6 +1,6 @@
 ---
 summary: Template interpolation needs packed lexer restart state beyond raw JFlex lexical state
-updated: 2026-04-11
+updated: 2026-05-24
 relates: [architecture, parser]
 ---
 
@@ -51,7 +51,7 @@ But `YYINITIAL` is ambiguous:
 - code inside a template interpolation
 
 To disambiguate the closing `}` token, the lexer also tracks
-`templateInterpolationDepth`.
+`templateInterpolationContext`.
 
 Without that extra depth, restart near the end of:
 
@@ -94,28 +94,47 @@ IntelliJ's lexer API gives the lexer only a single `Int` restart state. The
 custom `ReScriptLexerAdapter` therefore packs three pieces of restart context
 into one integer:
 
-- bits `0..7`   — JFlex lexical state
-- bits `8..15`  — block-comment nesting depth
-- bits `16..23` — template-interpolation brace depth
+- bits `0..4`   — JFlex lexical state
+- bits `5..11`  — block-comment nesting depth
+- bits `12..31` — packed template-interpolation context
 
-Each field uses 8 bits, so each stored value ranges from `0` to `255`.
+The interpolation context is itself a small stack packed into the high bits.
+Each stack frame uses 5 bits and stores the brace depth for one active
+`${...}` interpolation. The low frame is the current interpolation. Higher
+frames remember enclosing interpolation depths when a nested backtick template
+starts another `${...}`.
 
 This is a pragmatic limit:
-- up to 255 nested block comments
-- up to 255 nested braces while lexing inside `${...}`
+- up to 127 nested block comments
+- up to 31 nested braces in one interpolation frame
+- up to four packed interpolation frames
 
 That limit is considered acceptable in practice.
 
+Nested template interpolation is why this needs to be a stack instead of one
+counter:
+
+```rescript
+let nested = `outer ${`inner ${value}`}`
+```
+
+When the lexer sees the inner `${`, it must remember that the outer
+interpolation is still active. Otherwise, after the inner template closes, the
+outer `}` is tokenized as plain `RBRACE` instead of
+`TEMPLATE_INTERPOLATION_END`.
+
 ## Encoding and decoding
 
-The lexer packs the restart state with left shifts and bitwise OR:
+The lexer packs the restart state with left shifts, bit masks, and bitwise OR:
 
 ```java
-private int packRestartState(int lexicalState, int commentDepth, int interpolationDepth) {
-    int packedLexicalState = lexicalState;
-    int packedCommentDepth = commentDepth << 8;
-    int packedInterpolationDepth = interpolationDepth << 16;
-    return packedLexicalState | packedCommentDepth | packedInterpolationDepth;
+private int packRestartState(int lexicalState, int commentDepth, int interpolationContext) {
+    int packedLexicalState = lexicalState & LEXICAL_STATE_MASK;
+    int packedCommentDepth = (commentDepth & COMMENT_DEPTH_MASK) << COMMENT_DEPTH_SHIFT;
+    int packedInterpolationContext =
+        (interpolationContext & TEMPLATE_INTERPOLATION_CONTEXT_MASK)
+            << TEMPLATE_INTERPOLATION_CONTEXT_SHIFT;
+    return packedLexicalState | packedCommentDepth | packedInterpolationContext;
 }
 ```
 
@@ -125,35 +144,65 @@ Suppose:
 
 - lexical state = `2`
 - comment depth = `3`
-- interpolation depth = `1`
+- interpolation context = `1`
 
 Then the packed value is built like this:
 
 ```text
 lexical state                 00000000 00000000 00000000 00000010
-comment depth << 8            00000000 00000000 00000011 00000000
-interpolation depth << 16     00000000 00000001 00000000 00000000
+comment depth << 5            00000000 00000000 00000000 01100000
+interpolation context << 12   00000000 00000000 00010000 00000000
 ----------------------------------------------------------------
-packed restart state          00000000 00000001 00000011 00000010
+packed restart state          00000000 00000000 00010000 01100010
 ```
 
 Decoding reverses that process:
 
-- shift right until the desired field is in the low 8 bits
-- mask with `0xFF` (`11111111`) to discard the rest
+- shift right until the desired field is in the low bits
+- mask to discard unrelated fields
 
 ```java
 private int unpackLexicalState(int packedState) {
-    return packedState & 0xFF;
+    return packedState & LEXICAL_STATE_MASK;
 }
 
 private int unpackCommentDepth(int packedState) {
-    return (packedState >> 8) & 0xFF;
+    return (packedState >>> COMMENT_DEPTH_SHIFT) & COMMENT_DEPTH_MASK;
 }
 
-private int unpackInterpolationDepth(int packedState) {
-    return (packedState >> 16) & 0xFF;
+private int unpackInterpolationContext(int packedState) {
+    return (packedState >>> TEMPLATE_INTERPOLATION_CONTEXT_SHIFT)
+        & TEMPLATE_INTERPOLATION_CONTEXT_MASK;
 }
+```
+
+### Packed interpolation stack
+
+Inside the interpolation context, each frame is 5 bits. The low frame is the
+current interpolation brace depth:
+
+```text
+context = 00000 00000 00000 00001
+                              ^ current depth = 1
+```
+
+For nested template interpolation, entering the inner `${` pushes the old frame
+left and creates a new frame with depth `1`:
+
+```text
+outer interpolation only       00000 00000 00000 00001
+after entering inner ${        00000 00000 00001 00001
+                                      outer ^     ^ inner/current
+```
+
+Closing the inner interpolation decrements the low frame to zero, then pops the
+stack by shifting right one frame. That restores the outer interpolation depth,
+so the later outer `}` is recognized correctly.
+
+For an interactive version of this model, run:
+
+```bash
+ruby _knowledge/lexer/scripts/packed_stack_demo.rb
 ```
 
 ## Who reads and writes the state
@@ -163,13 +212,13 @@ time are the underlying values:
 
 - `zzLexicalState` — JFlex's generated current lexical state
 - `commentDepth` — maintained by block-comment rules
-- `templateInterpolationDepth` — maintained by template interpolation rules
+- `templateInterpolationContext` — maintained by template interpolation rules
 
 ### Write path during normal lexing
 
 - JFlex updates `zzLexicalState` via `yybegin(...)`
 - comment rules increment/decrement `commentDepth`
-- interpolation rules increment/decrement `templateInterpolationDepth`
+- interpolation rules push/pop/increment/decrement `templateInterpolationContext`
 
 ### Save path for restart
 
@@ -192,7 +241,7 @@ lexer.start(buffer, restartOffset, endOffset, savedState)
 lexer's `resetWithPackedRestartState(...)`, which:
 
 1. unpacks comment depth
-2. unpacks interpolation depth
+2. unpacks interpolation context
 3. restores the raw JFlex lexical state
 4. calls the generated `reset(...)`, which re-enters the lexical state with
    `yybegin(...)`

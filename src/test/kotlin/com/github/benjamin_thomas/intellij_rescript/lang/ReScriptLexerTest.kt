@@ -107,6 +107,9 @@ class ReScriptLexerTest {
     fun testStringWithTab() = runLexerTest("StringWithTab.res", "StringWithTab.out")
 
     @Test
+    fun testStringMultiline() = runLexerTest("StringMultiline.res", "StringMultiline.out")
+
+    @Test
     fun testStringEmpty() = runLexerTest("StringEmpty.res", "StringEmpty.out")
 
     @Test
@@ -117,6 +120,10 @@ class ReScriptLexerTest {
 
     @Test
     fun testTemplateWithSpaces() = runLexerTest("TemplateWithSpaces.res", "TemplateWithSpaces.out")
+
+    @Test
+    fun testTemplateWithEscapedBackticks() =
+        runLexerTest("TemplateWithEscapedBackticks.res", "TemplateWithEscapedBackticks.out")
 
     @Test
     fun testTemplateInterpolationSimple() =
@@ -131,6 +138,10 @@ class ReScriptLexerTest {
         runLexerTest("TemplateInterpolationStringLiteral.res", "TemplateInterpolationStringLiteral.out")
 
     @Test
+    fun testTemplateInterpolationNestedTemplate() =
+        runLexerTest("TemplateInterpolationNestedTemplate.res", "TemplateInterpolationNestedTemplate.out")
+
+    @Test
     fun testTemplateEmpty() = runLexerTest("TemplateEmpty.res", "TemplateEmpty.out")
 
     @Test
@@ -140,11 +151,11 @@ class ReScriptLexerTest {
     fun testZeroStateForKeywordsAndIdentifiers() {
         val tokens = TokenSet.create(
             ReScriptTypes.LET, ReScriptTypes.TYPE,
-            ReScriptTypes.MODULE, ReScriptTypes.SWITCH,
+            ReScriptTypes.MODULE, ReScriptTypes.PRIVATE, ReScriptTypes.SWITCH,
             ReScriptTypes.IF, ReScriptTypes.ELSE,
             ReScriptTypes.LIDENT, ReScriptTypes.UIDENT,
         )
-        checkZeroState(ReScriptLexerAdapter(), "let x = if foo { 1 } else { 2 }", tokens)
+        checkZeroState(ReScriptLexerAdapter(), "type t = private { x: int }\nlet x = if foo { 1 } else { 2 }", tokens)
     }
 
     @Test
@@ -155,5 +166,10 @@ class ReScriptLexerTest {
     @Test
     fun testCorrectRestartWithTemplateInterpolation() {
         checkCorrectRestart(ReScriptLexerAdapter(), """let x = `hello ${DOLLAR}{name}`""")
+    }
+
+    @Test
+    fun testCorrectRestartWithNestedTemplateInterpolation() {
+        checkCorrectRestart(ReScriptLexerAdapter(), """let x = `outer ${DOLLAR}{`inner ${DOLLAR}{value}`}`""")
     }
 }
