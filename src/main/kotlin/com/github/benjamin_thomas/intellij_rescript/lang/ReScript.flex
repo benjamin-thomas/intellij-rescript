@@ -310,13 +310,22 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
 
 // Backtick template string state
 <IN_TEMPLATE> {
+    // A raw backtick closes the current template.
     `                   { yybegin(YYINITIAL); return track(ReScriptTypes.TEMPLATE_END); }
+
+    // `${` starts an interpolation: resume normal ReScript lexing until its matching `}`.
     "${"                {
                             startTemplateInterpolation();
                             yybegin(YYINITIAL);
                             return track(ReScriptTypes.TEMPLATE_INTERPOLATION_START);
                         }
-    [^$`]+              { return track(ReScriptTypes.TEMPLATE_CONTENT); }
+
+    // Template content is one or more ordinary chars or escaped chars.
+    // Ordinary chars exclude `$`, raw backtick, and backslash because those
+    // start interpolation, end the template, or start an escaped char.
+    ( [^$`\\] | "\\". )+ { return track(ReScriptTypes.TEMPLATE_CONTENT); }
+
+    // A lone `$` is content; only `${` starts interpolation.
     "$"                 { return track(ReScriptTypes.TEMPLATE_CONTENT); }
 }
 

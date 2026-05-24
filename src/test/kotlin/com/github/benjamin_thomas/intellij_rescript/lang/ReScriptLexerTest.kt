@@ -122,6 +122,10 @@ class ReScriptLexerTest {
     fun testTemplateWithSpaces() = runLexerTest("TemplateWithSpaces.res", "TemplateWithSpaces.out")
 
     @Test
+    fun testTemplateWithEscapedBackticks() =
+        runLexerTest("TemplateWithEscapedBackticks.res", "TemplateWithEscapedBackticks.out")
+
+    @Test
     fun testTemplateInterpolationSimple() =
         runLexerTest("TemplateInterpolationSimple.res", "TemplateInterpolationSimple.out")
 

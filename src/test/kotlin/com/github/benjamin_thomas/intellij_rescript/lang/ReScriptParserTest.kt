@@ -116,6 +116,8 @@ class ReScriptParserTest : ParsingTestCase(
     fun testStringLiteralWithEscape() = runParserTest("StringLiteralWithEscape.res", "StringLiteralWithEscape.out")
     fun testStringLiteralEmpty() = runParserTest("StringLiteralEmpty.res", "StringLiteralEmpty.out")
     fun testTemplateLiteral() = runParserTest("TemplateLiteral.res", "TemplateLiteral.out")
+    fun testTemplateLiteralWithEscapedBackticks() =
+        runParserTest("TemplateLiteralWithEscapedBackticks.res", "TemplateLiteralWithEscapedBackticks.out")
     fun testTemplateLiteralInterpolation() =
         runParserTest("TemplateLiteralInterpolation.res", "TemplateLiteralInterpolation.out")
     fun testTemplateLiteralNestedInterpolation() =
