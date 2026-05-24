@@ -73,6 +73,11 @@ class ReScriptParserTest : ParsingTestCase(
     fun testEmptyFile() = runParserTest("EmptyFile.res", "EmptyFile.out")
     fun testStackedDecoratedDeclaration() =
         runParserTest("StackedDecoratedDeclaration.res", "StackedDecoratedDeclaration.out")
+    fun testStandaloneAttribute() = runParserTest("StandaloneAttribute.res", "StandaloneAttribute.out")
+    fun testStandaloneAttributeInModule() =
+        runParserTest("StandaloneAttributeInModule.res", "StandaloneAttributeInModule.out")
+    fun testStandaloneAttributeInModuleType() =
+        runParserTest("StandaloneAttributeInModuleType.res", "StandaloneAttributeInModuleType.out")
 
     fun testCommentsBetweenDeclarations() =
         runParserTest("CommentsBetweenDeclarations.res", "CommentsBetweenDeclarations.out")

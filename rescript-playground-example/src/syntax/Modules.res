@@ -2,6 +2,8 @@
 // nested modules — structure-view shows the tree, breadcrumbs reflect depth.
 
 module type Counter = {
+  @@warning("-27")
+
   type t
   let make: int => t
   let value: t => int
@@ -9,6 +11,8 @@ module type Counter = {
 }
 
 module IntCounter: Counter = {
+  @@warning("-27")
+
   type t = int
   let make = n => n
   let value = n => n

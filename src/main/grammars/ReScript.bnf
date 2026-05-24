@@ -142,7 +142,7 @@
 File ::= structureItem*
 
 // All declaration types (change 1 of 2)
-private blockDeclaration ::= DecoratedDeclaration | bareDeclaration
+private blockDeclaration ::= StandaloneAttribute | DecoratedDeclaration | bareDeclaration
 
 // Declarations without decorator wrapper (used by DecoratedDeclaration)
 private bareDeclaration ::= LetBinding | ModuleTypeDeclaration | ModuleBinding | TypeDeclaration
@@ -223,6 +223,10 @@ ExceptionDeclaration ::= EXCEPTION opaqueBody* { pin = 1 }
 
 // Extension points (%%raw, %%private, etc.)
 ExtensionPoint  ::= PCT_PCT opaqueBody* { pin = 1 }
+
+// Standalone attributes (`@@warning("-27")`, `@@ocaml.warning("+9")`) are
+// declaration-like items in structure/signature contexts.
+StandaloneAttribute ::= AT AT decoratorName (DOT decoratorName)* parenBlock? { pin = 2 }
 
 // Decorators (@react.component, @module, @as, @val, etc.)
 // The ReScript compiler allows any keyword as a decorator name (res_core.ml: parse_attribute_id).

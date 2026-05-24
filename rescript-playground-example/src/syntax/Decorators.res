@@ -1,6 +1,8 @@
-// Exercises: stacked decorators on a declaration, decorators with paren args,
-// dotted decorator names — feeds the parser's DecoratedDeclaration rule and
-// the "Move Statement" code path for decorated bindings.
+// Exercises: standalone attributes, stacked decorators on a declaration,
+// decorators with paren args, dotted decorator names — feeds the parser's
+// attribute/decorator rules and Move Statement on decorated bindings.
+
+@@ocaml.warning("+9")
 
 @deprecated("use `next` instead")
 let old = () => 1
