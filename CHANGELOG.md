@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.6.0 — Parser & Lexer Coverage
+
+### Parser
+- **First-class modules** are now parsed: value-level `module(M)` and `module(M : T)` (including `let f = (m: module(T)) => ...` parameter shape and `let module M = unpack(...)` rebinding), plus type-level `type t = module(T)` and `module(T with type a = ...)` constraint forms. Previously these triggered parse errors at the `module` keyword inside expressions.
+- **Standalone attributes** at module scope — `@@warning("-26")`, `@@toplevel`, etc. — are now recognized as their own structure items rather than producing errors. Works at file scope and inside `module`/`module type` bodies.
+- **Type-body parsing** no longer leaks past the closing `}` into the following decorated declaration. Cases like `type t = { ... }` immediately followed by `@deriving let make = ...` were previously consuming the decorator into the type body. Also adds support for `type t = private { ... }`.
+
+### Lexer
+- **Nested template interpolation** (`` `outer ${`inner ${x}`}` ``) now lexes correctly — lifting the limitation documented in v0.5.0. The lexer's brace-depth tracking can now follow multiple active interpolations on a packed state stack.
+- **Escaped backticks inside backtick strings** (`` `a \` b` ``) are no longer mis-terminated.
+- **Multi-line double-quoted strings** (`"foo\nbar"` with a literal newline) are now accepted, matching actual ReScript behavior.
+
 ## v0.5.1 — Module Types & Attribute Parsing
 
 ### Parser
