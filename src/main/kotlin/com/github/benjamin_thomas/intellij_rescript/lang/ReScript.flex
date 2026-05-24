@@ -263,8 +263,8 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
     \\[\\\"ntbr0]       { return track(ReScriptTypes.STRING_ESCAPE); }
     \\x[0-9a-fA-F]{2}  { return track(ReScriptTypes.STRING_ESCAPE); }
     \\.                 { return track(ReScriptTypes.STRING_ESCAPE); }
-    \n                  { yybegin(YYINITIAL); return TokenType.WHITE_SPACE; }
-    [^\"\\\n]+          { return track(ReScriptTypes.STRING_CONTENT); }
+    // Consume ordinary string content; stop before `"` closes the string or `\` starts an escape.
+    [^\"\\]+            { return ReScriptTypes.STRING_CONTENT; }
 }
 
 // Backtick template string state

@@ -1,6 +1,6 @@
 ---
 summary: Design rationale for Elm-style lexer states for strings and templates
-updated: 2026-04-12
+updated: 2026-05-24
 relates: [architecture]
 ---
 
@@ -63,9 +63,9 @@ They are separate because:
 
 ## Unclosed string recovery
 
-- **Double-quoted strings**: a newline exits `IN_STRING` back to `YYINITIAL`.
-  The unclosed string produces `STRING_START` + `STRING_CONTENT` with no
-  `STRING_END`. This limits damage to one line.
+- **Double-quoted strings**: physical newlines are valid string content and stay
+  in `IN_STRING`. The lexer exits only on the closing `"`, or at EOF for an
+  unclosed string.
 - **Backtick templates**: no special recovery yet — the lexer stays in
   `IN_TEMPLATE` until it hits a closing backtick or EOF.
 

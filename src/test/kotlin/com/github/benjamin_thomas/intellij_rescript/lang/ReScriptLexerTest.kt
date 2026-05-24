@@ -107,6 +107,9 @@ class ReScriptLexerTest {
     fun testStringWithTab() = runLexerTest("StringWithTab.res", "StringWithTab.out")
 
     @Test
+    fun testStringMultiline() = runLexerTest("StringMultiline.res", "StringMultiline.out")
+
+    @Test
     fun testStringEmpty() = runLexerTest("StringEmpty.res", "StringEmpty.out")
 
     @Test

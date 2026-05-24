@@ -5,6 +5,8 @@
 let greeting = "hello, world\n"
 let withEscape = "tab:\there\ndouble-quote: \"x\""
 let pathish = "C:\\Users\\someone\\file.txt"
+let multilineDoubleQuoted = "first line
+second line"
 
 let name = "Benjamin"
 let count = 3
