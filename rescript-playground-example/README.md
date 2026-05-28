@@ -21,9 +21,11 @@ Parser fixtures live under
 
 ## Compile
 
-The project depends only on `rescript@^12.2.0`. ReScript 12 ships its
-standard library (`Console`, `Int`, `Array`, `Math`, `Promise`, …) without
-needing a separate `@rescript/core` dependency.
+The project depends on `rescript@^12.2.0` plus `@rescript/react` (with its
+`react`/`react-dom` peers) for the JSX example in `src/syntax/JsxComponents.res`.
+ReScript 12 ships its standard library (`Console`, `Int`, `Array`, `Math`,
+`Promise`, …) without needing a separate `@rescript/core` dependency. JSX is
+enabled via `"jsx": { "version": 4 }` in `rescript.json`.
 
 ```bash
 cd rescript-playground-example
@@ -49,6 +51,7 @@ npx rescript build -w
 | `src/syntax/AsyncAwait.res` | `async`/`await` keywords (v0.2.0), `try`/`catch` around `await`, pipe (`->`) into promise chains.                     |
 | `src/syntax/Decorators.res` | Stacked decorators on a binding — exercises `Move Statement` (v0.3.0) keeping decorator + decl together.              |
 | `src/syntax/MutualRecursion.res` | Mutually recursive `type … and …` and `let rec … and …`, plus a decorated `and` continuation — each member gets its own structure node. |
+| `src/syntax/JsxComponents.res` | JSX elements used as attribute values (`<Outer prop={<Inner attr="x" />} />`), including the nested two-level shape — the parser must not red-squiggle the file/tree. |
 | `src/navigation/UserCard.res` ↔ `tests/navigation/UserCardTest.res` | File-level Go-to-Test (planned: `src/Foo.res` ↔ `tests/FooTest.res`). |
 | `src/navigation/OrderService.res` ↔ `tests/navigation/OrderServiceTest.res` | Function-level Go-to-Test target: `test_<name>` pairs with `<name>` (planned). |
 | `src/app/Main.res`        | Top-level expression statements (v0.4.1), file nesting of `.res.mjs` output.                                            |
@@ -90,6 +93,10 @@ here should jump cleanly.
 10. **Error recovery** — temporarily corrupt a file (e.g., delete an `=` in
     a `let`) and confirm the parser keeps highlighting the surrounding
     declarations rather than red-squiggling the whole file.
+11. **JSX as attribute value** — open `src/syntax/JsxComponents.res` and confirm
+    neither the editor nor the project-tree node turns red. The shapes
+    `<Button icon={<Icon name="disk" />} />` and the nested `editCard` used to
+    mark the whole file as a parse error.
 
 ## Known plugin gaps
 
