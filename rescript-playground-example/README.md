@@ -48,6 +48,7 @@ npx rescript build -w
 | `src/syntax/Externals.res`| `@val`, `@module`, `@scope`, `@new`, `@send` decorated externals — the parser's decorator association path.            |
 | `src/syntax/AsyncAwait.res` | `async`/`await` keywords (v0.2.0), `try`/`catch` around `await`, pipe (`->`) into promise chains.                     |
 | `src/syntax/Decorators.res` | Stacked decorators on a binding — exercises `Move Statement` (v0.3.0) keeping decorator + decl together.              |
+| `src/syntax/MutualRecursion.res` | Mutually recursive `type … and …` and `let rec … and …`, plus a decorated `and` continuation — each member gets its own structure node. |
 | `src/navigation/UserCard.res` ↔ `tests/navigation/UserCardTest.res` | File-level Go-to-Test (planned: `src/Foo.res` ↔ `tests/FooTest.res`). |
 | `src/navigation/OrderService.res` ↔ `tests/navigation/OrderServiceTest.res` | Function-level Go-to-Test target: `test_<name>` pairs with `<name>` (planned). |
 | `src/app/Main.res`        | Top-level expression statements (v0.4.1), file nesting of `.res.mjs` output.                                            |

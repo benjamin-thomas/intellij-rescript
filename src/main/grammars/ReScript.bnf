@@ -153,7 +153,11 @@ private bareDeclaration ::= LetBinding | ModuleTypeDeclaration | ModuleBinding |
 DecoratedDeclaration ::= Decorator+ bareDeclaration { pin = 2 }
 
 // All declaration-starting keywords (change 2 of 2)
-private declKeyword ::= LET | MODULE | TYPE | OPEN | INCLUDE | EXTERNAL | EXCEPTION
+//
+// AND is a boundary, not a starter: it's here (so recovery stops at it) but not
+// in bareDeclaration. A continuation is folded into its parent (TypeDeclaration /
+// LetBinding) so the parser knows whether each `and` member is a type or binding.
+private declKeyword ::= LET | MODULE | TYPE | OPEN | INCLUDE | EXTERNAL | EXCEPTION | AND
 
 // Top-level item: a declaration or a top-level expression statement.
 // Boundary detection is the same for both: a structure item runs until
@@ -167,8 +171,17 @@ TopLevelExpr ::= exprAtom+
 
 // Bindings (bind a name to a value)
 // See _knowledge/parser/PSI_CUSTOMIZATION.md for how mixin + implements work.
-LetBinding      ::= LET REC? LetBindingPattern (EQ Expr)? {
+LetBinding      ::= LET REC? LetBindingPattern (EQ Expr)? AndLetBinding* {
     pin = 1
+    mixin="com.github.benjamin_thomas.intellij_rescript.lang.psi.impl.ReScriptLetBindingMixin"
+    implements="com.intellij.psi.PsiNameIdentifierOwner"
+}
+
+// Mutually-recursive binding continuation: `and g = …` (or `@live and g = …`).
+// Pinned on AND so speculative leading decorators that actually belong to the
+// next top-level declaration roll back cleanly.
+AndLetBinding   ::= Decorator* AND LetBindingPattern (EQ Expr)? {
+    pin = 2
     mixin="com.github.benjamin_thomas.intellij_rescript.lang.psi.impl.ReScriptLetBindingMixin"
     implements="com.intellij.psi.PsiNameIdentifierOwner"
 }
@@ -193,8 +206,17 @@ ModuleBody      ::= opaqueBody+
 ModuleTypeBody ::= EQ (bracedBlock | UIDENT (DOT UIDENT)*) { pin = 1 }
 
 // Declarations
-TypeDeclaration ::= TYPE REC? LIDENT TypeBody? {
+TypeDeclaration ::= TYPE REC? LIDENT TypeBody? AndTypeDeclaration* {
     pin = 1
+    mixin="com.github.benjamin_thomas.intellij_rescript.lang.psi.impl.ReScriptTypeDeclarationMixin"
+    implements="com.intellij.psi.PsiNameIdentifierOwner"
+}
+
+// Mutually-recursive type continuation: `and b = …` (or `@live and b = …`).
+// Pinned on AND so speculative leading decorators that actually belong to the
+// next top-level declaration roll back cleanly.
+AndTypeDeclaration ::= Decorator* AND LIDENT TypeBody? {
+    pin = 2
     mixin="com.github.benjamin_thomas.intellij_rescript.lang.psi.impl.ReScriptTypeDeclarationMixin"
     implements="com.intellij.psi.PsiNameIdentifierOwner"
 }
@@ -273,8 +295,10 @@ private parenContent ::= delimitedBlock | declKeyword | AT | PCT_PCT | nonDeclTo
 
 // All non-declaration-keyword, non-delimiter tokens
 private nonDeclToken ::= exprKeyword | LIDENT | UIDENT | literal | anyOperator | punctuation | comment
+// AND lives in declKeyword (not here) so RHS regions stop at a continuation
+// instead of absorbing it. Inside parens it's still a raw token via parenContent.
 private exprKeyword ::= REC | PRIVATE | TRUE | FALSE | SWITCH | IF | ELSE
-                      | ASYNC | AWAIT | TRY | CATCH | WHILE | FOR | AND | AS
+                      | ASYNC | AWAIT | TRY | CATCH | WHILE | FOR | AS
 private literal     ::= BIGINT | INT | FLOAT | StringLiteral | TemplateLiteral | REGEX
 private comparisonOperator  ::= EQEQ | EQEQEQ | BANGEQ | BANGEQEQ | LT | GT | LTEQ | GTEQ
 private logicalOperator     ::= AMPAMP | PIPEPIPE

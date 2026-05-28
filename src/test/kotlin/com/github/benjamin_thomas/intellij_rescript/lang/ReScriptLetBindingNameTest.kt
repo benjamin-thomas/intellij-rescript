@@ -1,5 +1,6 @@
 package com.github.benjamin_thomas.intellij_rescript.lang
 
+import com.github.benjamin_thomas.intellij_rescript.lang.psi.ReScriptAndLetBinding
 import com.github.benjamin_thomas.intellij_rescript.lang.psi.ReScriptLetBinding
 import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.util.PsiTreeUtil
@@ -11,6 +12,12 @@ class ReScriptLetBindingNameTest : BasePlatformTestCase() {
         val file = myFixture.configureByText("Test.res", code)
         return PsiTreeUtil.findChildOfType(file, ReScriptLetBinding::class.java)
             ?: error("No LetBinding found in: $code")
+    }
+
+    private fun findFirstAndLetBinding(code: String): ReScriptAndLetBinding {
+        val file = myFixture.configureByText("Test.res", code)
+        return PsiTreeUtil.findChildOfType(file, ReScriptAndLetBinding::class.java)
+            ?: error("No AndLetBinding found in: $code")
     }
 
     fun testSimpleBinding() {
@@ -52,5 +59,14 @@ class ReScriptLetBindingNameTest : BasePlatformTestCase() {
 
         // Assert — discard has no name
         assertNull(binding.name)
+    }
+
+    fun testMutuallyRecursiveContinuation() {
+        // Act — the `and g = …` continuation is its own named PSI node
+        val binding = findFirstAndLetBinding("let rec f = x => g(x)\nand g = x => f(x)")
+
+        // Assert
+        assertInstanceOf(binding, PsiNameIdentifierOwner::class.java)
+        assertEquals("g", binding.name)
     }
 }
