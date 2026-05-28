@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.6.1 — Parser & Lexer Fixes
+
+### Parser
+- **Mutually-recursive declarations** chained with `and` now parse correctly: `type … and …`, `let rec … and …`, and decorated continuations (`@deprecated and legacyProgram = …`). Previously a decorated continuation was a hard parse error, and a bare continuation parsed but was absorbed into the preceding declaration instead of getting its own PSI node — so structure view, breadcrumbs, and navigation didn't list each member as a sibling.
+
+### Lexer
+- **JSX elements used as attribute values** — `<Outer prop={<Inner attr="literal" />} />`, including nested forms — no longer turn the whole file red. The inner `/>` was lexed as the start of a regex literal, which then swallowed the surrounding `/>` and `}` and left braces unbalanced. The lexer now treats `}`, a string end, a template end, a bigint, and `true`/`false` as expression-ends, so a following `/` is division (or JSX close) rather than a regex start.
+
 ## v0.6.0 — Parser & Lexer Coverage
 
 ### Parser
