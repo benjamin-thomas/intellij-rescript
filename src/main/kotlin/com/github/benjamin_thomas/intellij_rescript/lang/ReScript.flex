@@ -64,6 +64,11 @@ import com.intellij.psi.TokenType;
      *   3.0 / 2.0      — FLOAT `/` → division
      *   arr[0] / 2     — RBRACKET `/` → division
      *   foo() / bar    — RPAREN `/` → division
+     *   {x} / y        — RBRACE `/` → division (blocks/records are expressions)
+     *   "s" / x        — STRING_END `/` → division
+     *   `t` / x        — TEMPLATE_END `/` → division
+     *   1n / 2n        — BIGINT `/` → division
+     *   true / x       — TRUE/FALSE `/` → division
      *
      * Regex examples (previous token is NOT expression-end):
      *   let re = /p/   — EQ `/` → regex
@@ -72,14 +77,28 @@ import com.intellij.psi.TokenType;
      *   x => /p/       — FAT_ARROW `/` → regex
      *   a && /p/       — AMPAMP `/` → regex
      *   start of file  — null → regex
+     *
+     * STRING_END / TEMPLATE_END / RBRACE matter for JSX: a self-closing element
+     * whose last attribute is a quoted literal (`<B c="d" />`) ends with
+     * `"`/`` ` `` immediately before the ` />`, and a JSX-element attribute value
+     * (`icon={<B ... />}`) ends with `}` immediately before the outer ` />`.
+     * Treating that `/` as a regex start would make the regex literal swallow the
+     * `/>` (and any following `}`), leaving the enclosing braces/JSX expression
+     * unbalanced — e.g. the nested shape `<A b={<C d={<E f="g" />} />} />`.
      */
     private boolean isStartRegexSlash() {
         return lastSignificantToken != ReScriptTypes.LIDENT       &&   // x / y
                lastSignificantToken != ReScriptTypes.UIDENT       &&   // Foo / bar
                lastSignificantToken != ReScriptTypes.INT          &&   // 10 / 2
                lastSignificantToken != ReScriptTypes.FLOAT        &&   // 3.0 / 2.0
+               lastSignificantToken != ReScriptTypes.BIGINT       &&   // 1n / 2n
+               lastSignificantToken != ReScriptTypes.TRUE         &&   // true / x
+               lastSignificantToken != ReScriptTypes.FALSE        &&   // false / x
                lastSignificantToken != ReScriptTypes.RPAREN       &&   // foo() / bar
-               lastSignificantToken != ReScriptTypes.RBRACKET;         // arr[0] / 2
+               lastSignificantToken != ReScriptTypes.RBRACKET     &&   // arr[0] / 2
+               lastSignificantToken != ReScriptTypes.RBRACE       &&   // {x} / y
+               lastSignificantToken != ReScriptTypes.STRING_END   &&   // "s" / x
+               lastSignificantToken != ReScriptTypes.TEMPLATE_END;     // `t` / x
     }
 
     private int currentTemplateInterpolationDepth() {

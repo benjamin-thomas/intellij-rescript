@@ -125,4 +125,23 @@ class ReScriptParserTest : ParsingTestCase(
     fun testTemplateLiteralEmpty() = runParserTest("TemplateLiteralEmpty.res", "TemplateLiteralEmpty.out")
     fun testTopLevelSwitch() = runParserTest("TopLevelSwitch.res", "TopLevelSwitch.out")
     fun testTopLevelExprThenLet() = runParserTest("TopLevelExprThenLet.res", "TopLevelExprThenLet.out")
+
+    // A JSX element used as a JSX attribute value, whose inner element carries a
+    // quoted-literal attribute, must parse without error. The trailing `/` of the
+    // inner `<B ... />` used to be lexed as a regex start (because STRING_END /
+    // TEMPLATE_END were not expression-end tokens), swallowing the `/>` and the
+    // enclosing `}` and leaving the JSX expression unbalanced.
+    fun testJsxElementAsAttributeValue() =
+        runParserTest("JsxElementAsAttributeValue.res", "JsxElementAsAttributeValue.out")
+    fun testJsxElementAsAttributeValueTemplateAttr() =
+        runParserTest("JsxElementAsAttributeValueTemplateAttr.res", "JsxElementAsAttributeValueTemplateAttr.out")
+    // Guard: the inner-element-without-attribute shape already parsed; keep it covered.
+    fun testJsxElementAsAttributeValueNoInnerAttr() =
+        runParserTest("JsxElementAsAttributeValueNoInnerAttr.res", "JsxElementAsAttributeValueNoInnerAttr.out")
+    // Two levels of JSX-as-attribute nesting. The middle `/>` follows a `}` (RBRACE),
+    // and the trailing `/>` provides a later `/` — so the middle slash would start a
+    // regex that swallows the `}` closing the outer attribute, unbalancing the braces.
+    // Guards that RBRACE is also treated as an expression-end token.
+    fun testJsxNestedElementAsAttributeValue() =
+        runParserTest("JsxNestedElementAsAttributeValue.res", "JsxNestedElementAsAttributeValue.out")
 }
