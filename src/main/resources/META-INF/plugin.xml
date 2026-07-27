@@ -85,6 +85,11 @@
                 language="ReScript"
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptInspectionSuppressor"/>
 
+        <targetElementEvaluator
+                language="ReScript"
+                implementationClass="com.redhat.devtools.lsp4ij.features.highlight.LSPTargetElementEvaluator"
+                order="first"/>
+
         <lang.elementManipulator
                 forClass="com.github.benjamin_thomas.intellij_rescript.lang.psi.ReScriptStringLiteral"
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.psi.ReScriptStringLiteralManipulator"/>
