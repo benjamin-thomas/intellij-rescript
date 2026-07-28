@@ -2,7 +2,7 @@
 
 require "io/console"
 
-# Interactive packed-stack demo for the ReScript lexer interpolation state.
+# Interactive packed-stack demo for the ReScript lexer context stack (v2).
 #
 # From the repo root, run:
 #
@@ -10,37 +10,65 @@ require "io/console"
 #
 # Then press a key. You do not need Enter when running in a terminal:
 #
-#   +  enter a nested template interpolation frame, like reading `${`
-#   -  close the current interpolation frame, like reading the matching `}`
-#   {  increment brace depth inside the current interpolation
-#   }  decrement brace depth, popping if the current frame reaches zero
+#   +  push a TEMPLATE frame, like reading `${` inside a backtick template
+#   a  push a JSX_ATTR frame, like reading `{` inside an opening tag
+#   c  push a JSX_CONTENT frame, like reading the `>` that opens children
+#   n  bump the content frame's child count, like a nested unbraced `<x>`
+#   {  increment brace depth inside the current frame
+#   }  decrement brace depth, popping TEMPLATE/JSX_ATTR frames at zero
+#   -  close: content frames lose one child (pop at zero), others act like `}`
 #   r  reset
 #   Ctrl-L clear the screen and reprint state
-#   q  quit
-#   Ctrl-D or Ctrl-C also quit
+#   q  quit (Ctrl-D or Ctrl-C also quit)
 #
 # Mental model:
 #
 # - IntelliJ gives the lexer only one integer to save restart state.
-# - We use part of that integer as a tiny fixed-size stack.
-# - Each stack "frame" is 5 bits wide.
-# - 5 bits can store values 0..31.
-# - The rightmost frame is the current interpolation depth.
-# - Higher/left frames remember outer template interpolations.
-# - The "source" line below is a toy string showing which characters each key
-#   appends; it is meant to illustrate lexer events, not produce a complete
-#   ReScript program at every intermediate step.
+# - Bits 8..31 of that integer are a tiny fixed-size stack: three 8-bit frames.
+# - Frame byte = 2-bit kind (high) + 6-bit payload.
+#     TEMPLATE (0):    2-bit return-state selector + 4-bit brace depth
+#     JSX_ATTR (1):    6-bit brace depth
+#     JSX_CONTENT (2): 3-bit child count + 3-bit brace depth
+# - The rightmost frame is the innermost open context.
+# - A live frame's byte is never zero (depth or count >= 1), so a 0x00 byte
+#   unambiguously means "empty slot".
+# - The "source" line below is a toy string illustrating lexer events, not a
+#   complete ReScript program at every intermediate step.
 
-FRAME_BITS = 5
-FRAME_MASK = 0b11111
-CONTEXT_BITS = 20
+FRAME_BITS = 8
+FRAME_MASK = 0xFF
+CONTEXT_BITS = 24
 CONTEXT_MASK = (1 << CONTEXT_BITS) - 1
+
+KIND_SHIFT = 6
+KIND_TEMPLATE = 0
+KIND_JSX_ATTR = 1
+KIND_JSX_CONTENT = 2
+
+TEMPLATE_DEPTH_MASK = 0xF
+ATTR_DEPTH_MASK = 0x3F
+CONTENT_DEPTH_MASK = 0x7
+CONTENT_COUNT_SHIFT = 3
+CONTENT_COUNT_MASK = 0x7
 
 def groups(context)
   context
     .to_s(2)
     .rjust(CONTEXT_BITS, "0")
-    .scan(/.{5}/)
+    .scan(/.{8}/)
+end
+
+def frame_desc(byte)
+  case byte >> KIND_SHIFT
+  when KIND_TEMPLATE
+    "TEMPLATE(sel=#{(byte >> 4) & 0x3}, depth=#{byte & TEMPLATE_DEPTH_MASK})"
+  when KIND_JSX_ATTR
+    "JSX_ATTR(depth=#{byte & ATTR_DEPTH_MASK})"
+  when KIND_JSX_CONTENT
+    "JSX_CONTENT(count=#{(byte >> CONTENT_COUNT_SHIFT) & CONTENT_COUNT_MASK}, depth=#{byte & CONTENT_DEPTH_MASK})"
+  else
+    "?(#{byte})"
+  end
 end
 
 def frames(context)
@@ -49,34 +77,47 @@ end
 
 def show(context, source, label = nil)
   prefix = label ? "#{label}: " : ""
-  puts "#{prefix}int=#{context}   binary=#{groups(context).join(" ")}   frames=#{frames(context).inspect}"
+  descs = frames(context).map { |b| frame_desc(b) }
+  puts "#{prefix}int=#{context}   binary=#{groups(context).join(" ")}"
+  puts "  frames(outer->inner)=#{descs.inspect}"
   puts "  source=#{source.inspect}"
   context
 end
 
-def current_depth(context)
+def top_kind(context)
+  (context & FRAME_MASK) >> KIND_SHIFT
+end
+
+def top_byte(context)
   context & FRAME_MASK
 end
 
-def push_frame(context, depth = 1)
-  unless (0..FRAME_MASK).cover?(depth)
-    raise ArgumentError, "depth must fit in #{FRAME_BITS} bits: 0..#{FRAME_MASK}"
+def depth_mask(context)
+  case top_kind(context)
+  when KIND_TEMPLATE then TEMPLATE_DEPTH_MASK
+  when KIND_JSX_CONTENT then CONTENT_DEPTH_MASK
+  else ATTR_DEPTH_MASK
   end
+end
 
-  ((context << FRAME_BITS) & CONTEXT_MASK) | depth
+def current_depth(context)
+  context & depth_mask(context)
+end
+
+def push_frame(context, kind, payload)
+  ((context << FRAME_BITS) & CONTEXT_MASK) | (kind << KIND_SHIFT) | payload
 end
 
 def increment_depth(context)
-  depth = current_depth(context)
-  raise "no active frame" if depth.zero?
-  raise "current frame is full" if depth == FRAME_MASK
+  raise "no active frame" if top_byte(context).zero?
+  raise "current frame's depth is full (saturates in the real lexer)" if current_depth(context) == depth_mask(context)
 
   context + 1
 end
 
 def decrement_depth(context)
-  depth = current_depth(context)
-  raise "no active frame" if depth.zero?
+  raise "no active frame" if top_byte(context).zero?
+  raise "depth already zero" if current_depth(context).zero?
 
   context - 1
 end
@@ -87,20 +128,38 @@ end
 
 def close_brace(context)
   context = decrement_depth(context)
-  current_depth(context).zero? ? pop_frame(context) : context
+  if current_depth(context).zero? && top_kind(context) != KIND_JSX_CONTENT
+    pop_frame(context)
+  else
+    context
+  end
+end
+
+def close_child(context)
+  if top_kind(context) == KIND_JSX_CONTENT
+    count = (top_byte(context) >> CONTENT_COUNT_SHIFT) & CONTENT_COUNT_MASK
+    raise "no open child element" if count.zero?
+
+    context -= (1 << CONTENT_COUNT_SHIFT)
+    count == 1 ? pop_frame(context) : context
+  else
+    close_brace(context)
+  end
 end
 
 def print_interactive_help
   puts
   puts "Keys:"
-  puts "  +  push frame: enter nested `${`"
-  puts "  -  close/pop current interpolation"
+  puts "  +  push TEMPLATE frame: enter `${`"
+  puts "  a  push JSX_ATTR frame: `{` in an opening tag"
+  puts "  c  push JSX_CONTENT frame: `>` opens children"
+  puts "  n  nested unbraced element: content count += 1"
   puts "  {  increment brace depth inside current frame"
-  puts "  }  decrement brace depth, popping at zero"
+  puts "  }  decrement brace depth (TEMPLATE/JSX_ATTR pop at zero)"
+  puts "  -  close: content child count -= 1 (pop at zero), else like `}`"
   puts "  r  reset"
   puts "  Ctrl-L clear screen"
-  puts "  q  quit"
-  puts "  Ctrl-D / Ctrl-C quit"
+  puts "  q  quit (Ctrl-D / Ctrl-C too)"
   puts
 end
 
@@ -121,18 +180,26 @@ def interactive
 
     break if input.nil? || input.empty?
 
-    command = input
-
     begin
-      case command
+      case input
       when "+"
         source << "${"
-        ctx = push_frame(ctx, 1)
+        ctx = push_frame(ctx, KIND_TEMPLATE, 1)
         show(ctx, source, "push +  read `${`")
-      when "-"
-        source << "}"
-        ctx = close_brace(ctx)
-        show(ctx, source, "close - read `}`")
+      when "a"
+        source << "={"
+        ctx = push_frame(ctx, KIND_JSX_ATTR, 1)
+        show(ctx, source, "push a  read `={`")
+      when "c"
+        source << "<x>"
+        ctx = push_frame(ctx, KIND_JSX_CONTENT, 1 << CONTENT_COUNT_SHIFT)
+        show(ctx, source, "push c  read `<x>`")
+      when "n"
+        source << "<y>"
+        raise "top frame is not JSX_CONTENT" unless top_kind(ctx) == KIND_JSX_CONTENT
+
+        ctx += (1 << CONTENT_COUNT_SHIFT)
+        show(ctx, source, "nest n  read `<y>`")
       when "{"
         source << "{"
         ctx = increment_depth(ctx)
@@ -141,6 +208,10 @@ def interactive
         source << "}"
         ctx = close_brace(ctx)
         show(ctx, source, "brace } read `}`")
+      when "-"
+        source << (top_kind(ctx) == KIND_JSX_CONTENT ? "</x>" : "}")
+        ctx = close_child(ctx)
+        show(ctx, source, "close -")
       when "r"
         ctx = 0
         source = ""
@@ -149,16 +220,14 @@ def interactive
         system("clear")
         print_interactive_help
         show(ctx, source, "current")
-      when "q"
-        break
-      when "\u0003", "\u0004"
+      when "q", "\u0003", "\u0004"
         break
       when "h", "?"
         print_interactive_help
       when "\n", "\r"
         next
       else
-        puts "unknown command: #{command.inspect}"
+        puts "unknown command: #{input.inspect}"
       end
     rescue StandardError => e
       puts "error: #{e.message}"

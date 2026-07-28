@@ -64,9 +64,61 @@ means different things depending on context — a `\n` inside a string is an
 escape sequence, but outside it's whitespace. States are declared with
 `%state NAME` in the `.flex` file, and transitions use `yybegin(STATE)`.
 
+The declared states (11 plus `YYINITIAL`):
+
+- `REGEX`, `IN_STRING`, `IN_TEMPLATE`, `IN_BLOCK_COMMENT` — the classics
+- `JSX_TAG` (inside `<name …`), `JSX_CHILDREN` (between `>` and `</`),
+  `JSX_CLOSE_TAG` (inside `</name …`)
+- context-return clones: `IN_TAG_STRING`/`IN_CHILD_STRING` and
+  `IN_TAG_TEMPLATE`/`IN_CHILD_TEMPLATE` — the same string/template rules, but
+  their closing quote returns to `JSX_TAG`/`JSX_CHILDREN` instead of
+  `YYINITIAL`. Bodies are shared via JFlex rule groups
+  (`<IN_STRING, IN_TAG_STRING, IN_CHILD_STRING> { … }`); only the exit rule
+  differs per state.
+
+`JSX_CHILDREN` shares `YYINITIAL`'s token bulk the same way
+(`<YYINITIAL, JSX_CHILDREN> { … }`) and overrides only the JSX-specific and
+context-entering rules. Invariant to preserve: an override must never have a
+same-length competitor in the shared block, because JFlex silently prefers
+whichever rule comes first in the file.
+
 Some states need auxiliary data: `IN_BLOCK_COMMENT` tracks a `commentDepth`
-counter for nesting, and `REGEX` uses `yypushback(1)` to re-consume the `/`
-after the regex-vs-division decision (see "Pushback technique" below).
+counter for nesting, brace regions (`${…}`, JSX `{attr}`/`{child}`) are
+tracked by a packed context-frame stack, and `REGEX` uses `yypushback(1)` to
+re-consume the `/` after the regex-vs-division decision (see "Pushback
+technique" below). All of it round-trips through the packed restart int —
+see `_knowledge/lexer/RESTART_STATE.md`.
+
+### Previous-token disambiguation (`/` and `<`)
+
+`track(...)` wraps every rule's return and records whether the token is an
+"expression end" (`isExpressionEnd()`: identifiers, literals, `)`, `]`, `}`,
+string/template ends, and `/>` — a completed element is a value) in the
+`prevIsExprEnd` boolean, which is packed into restart state (bit 7). The `>`
+finishing a closing tag is also an expression end, but shares `JSX_GT` with
+opening tags, so its rule sets the bit itself via `trackExprEnd(...)`:
+
+- `/` after an expression end is division; otherwise it starts a regex.
+- `<` after an expression end is comparison or a type parameter
+  (`a < b`, `list<int>`); otherwise — with a one-char lookahead requiring
+  `[A-Za-z_>/]` — it starts a JSX tag (`JSX_LT`), and `</` a closing tag
+  (`JSX_LT_SLASH`).
+
+**INVARIANT — expression end ⇒ operator.** After any value-producing token,
+`/` and `<` are always operators, with no exceptions — completed JSX
+elements included. This deliberately matches how Babel and TypeScript lex
+(`<A /> / b` divides, `<A /> < B` compares), so intuitions trained on the
+JS ecosystem transfer. Any future token-boundary disambiguation (e.g.
+ticket 010's regex internals) must consume `isExpressionEnd()` /
+`prevIsExprEnd` rather than invent a parallel rule.
+
+**CONSTRAINT — the four delimiters are the complete JSX vocabulary.**
+Never add tag-name or attribute-name token types. Names stay
+`LIDENT`/`UIDENT` so identifier-based features (find usages, rename,
+spellchecking) treat them uniformly; role classification — including
+tag/attr coloring — belongs exclusively to the JsxElement parser rules and
+annotator (ticket 060). A highlighting-only remap of in-tag identifiers was
+considered and declined in favor of waiting for the parser ticket.
 
 ### Pushback technique (`yypushback`)
 
@@ -215,8 +267,11 @@ re-lexing (when the user edits a file, IntelliJ re-lexes from a saved position
 rather than from the beginning):
 
 - **`checkZeroState`** — verifies that keywords and identifiers always leave the
-  lexer in state zero. Non-zero state on these tokens would break incremental
-  re-lexing.
+  lexer in state zero (a performance property: the classic highlighter only
+  restarts at state-0 tokens). It takes an `ignorableStateBits` mask for the
+  `prevIsExprEnd` bit, which legitimately makes tokens after an expression end
+  non-zero and self-corrects after restart. Ticket `grammar/050` (RestartableLexer)
+  would retire this check entirely.
 
 - **`checkCorrectRestart`** — lexes the full text, then restarts the lexer from
   every token boundary and verifies the remaining tokens match. Catches bugs in
@@ -235,8 +290,11 @@ registered, it shows individual tokens as `PsiElement(TOKEN_TYPE)` nodes.
 
 ## Current limitations (TODOs)
 
-- **v12 operators**: `&&&`, `|||`, `^^^`, `~~~`, `>>>`, `<<`, `>>`, `**`,
-  `===`, `!==`, `:>`, `..`.
+- **Block comments inside JSX regions**: `/* … */` between tags or inside an
+  opening tag mis-lexes (the comment states hard-exit to `YYINITIAL`;
+  tag/children would need `IN_TAG_BLOCK_COMMENT`/`IN_CHILD_BLOCK_COMMENT`
+  clones like the string/template ones). Line comments work.
+- **`RestartableLexer`**: see ticket `grammar/050_restartable-lexer`.
 
 ## Reference implementations
 

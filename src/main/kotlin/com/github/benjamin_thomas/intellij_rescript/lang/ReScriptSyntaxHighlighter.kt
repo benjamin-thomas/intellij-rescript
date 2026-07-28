@@ -25,6 +25,11 @@ class ReScriptSyntaxHighlighter : SyntaxHighlighterBase() {
         val DOT = createTextAttributesKey("RESCRIPT_DOT", DefaultLanguageHighlighterColors.DOT)
         val DECORATOR = createTextAttributesKey("RESCRIPT_DECORATOR", DefaultLanguageHighlighterColors.METADATA)
         val REGEX = createTextAttributesKey("RESCRIPT_REGEX", DefaultLanguageHighlighterColors.VALID_STRING_ESCAPE)
+        // Fallback to KEYWORD: every bundled theme styles it, unlike MARKUP_TAG
+        // which renders as plain text in the common dark themes. (The XML
+        // plugin's HTML_TAG_NAME would be semantically nicer but isn't on this
+        // plugin's classpath.) Users can still restyle via the key itself.
+        val JSX_PUNCTUATION = createTextAttributesKey("RESCRIPT_JSX_PUNCTUATION", DefaultLanguageHighlighterColors.KEYWORD)
     }
 
     override fun getHighlightingLexer(): Lexer = ReScriptLexerAdapter()
@@ -81,6 +86,9 @@ class ReScriptSyntaxHighlighter : SyntaxHighlighterBase() {
             ReScriptTypes.SEMICOLON -> SEMICOLON
             ReScriptTypes.DOT -> DOT
             ReScriptTypes.COLON -> OPERATOR
+
+            ReScriptTypes.JSX_LT, ReScriptTypes.JSX_LT_SLASH,
+            ReScriptTypes.JSX_SLASH_GT, ReScriptTypes.JSX_GT -> JSX_PUNCTUATION
 
             ReScriptTypes.AT -> DECORATOR
             ReScriptTypes.UNDERSCORE -> KEYWORD

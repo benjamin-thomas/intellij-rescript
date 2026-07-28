@@ -2,6 +2,13 @@
 
 ReScript language support for JetBrains IDEs (IntelliJ IDEA, WebStorm, etc.).
 
+[!NOTE]
+
+This project's development is heavily AI-assisted. I use an agent in a heavily directed fashion, in a tight TDD loop (manually).
+
+Since this is *also* a learning project, there are probably lots of places where the code is subpar though. If you know
+better, don't hesitate to show me a better way!
+
 ## What this is
 
 - **[GrammarKit](https://github.com/JetBrains/Grammar-Kit)** for parsing/PSI
@@ -79,8 +86,8 @@ both human and LLM readers understand the codebase.
 ## Contributions
 
 LLM-assisted contributions are welcome. This codebase already uses LLMs as learning and
-implementation tools, but changes are expected to be heavily human-directed, understood, reviewed,
-and tested.
+implementation tools, but any such changes are expected to be heavily human-directed, understood, reviewed, documented,
+and *tested*.
 
 In practice that means contributors should understand the change they're submitting and be able to
 discuss it during review.

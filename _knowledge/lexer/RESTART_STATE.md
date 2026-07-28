@@ -1,10 +1,10 @@
 ---
-summary: Template interpolation needs packed lexer restart state beyond raw JFlex lexical state
-updated: 2026-05-24
+summary: Packed lexer restart state (v2) — lexical state, prev-token bit, and a kinded context-frame stack in one int
+updated: 2026-07-28
 relates: [architecture, parser]
 ---
 
-# Lexer restart state for template interpolation
+# Lexer restart state
 
 ## Why this exists
 
@@ -20,184 +20,122 @@ This makes lexer restart state a **correctness requirement**, not a performance
 detail. If the saved state is incomplete, the lexer can produce a different
 token stream after restart than it produced during a full left-to-right lex.
 
-That exact bug occurs for template interpolation if restart state only stores
-JFlex's raw lexical state.
+Three constructs need context beyond JFlex's raw lexical state:
+
+- template interpolation (`` `a ${expr}` `` — the `}` must know it closes an
+  interpolation, and how many braces deep it is)
+- JSX (`<div>` tag/children states, `{attr}` and `{child}` brace regions)
+- previous-token classification (`/` is division after a value, regex start
+  otherwise; `<` is comparison after a value, JSX start otherwise)
+
+`checkCorrectRestart(...)` in `LexerTestUtils.kt` is the gate: it restarts the
+lexer at every token boundary and demands an identical token stream. It
+reproduced real bugs twice: the interpolation `}` mis-lex before packing
+existed, and `let a = x / y / z` re-lexing `/ y /` as a REGEX when the
+previous-token class was not packed (fixed by the `prevIsExprEnd` bit).
 
 ## What the default adapter does
 
 JetBrains' default `FlexAdapter` stores only the JFlex lexical state
-(`yystate()`) as the restart integer returned by `Lexer.getState()`.
+(`yystate()`) as the restart integer returned by `Lexer.getState()`. That is
+NOT sufficient here, which is why `ReScriptLexerAdapter` is a custom
+`LexerBase` that saves/restores a richer packed state (see
+"The role of the custom adapter" below).
 
-That is sufficient when the lexer's future behavior depends only on which JFlex
-state it is currently in (`YYINITIAL`, `IN_STRING`, `IN_TEMPLATE`, etc.).
+## The packed restart-state layout (v2)
 
-It is NOT sufficient when the lexer also depends on auxiliary counters such as
-nesting depth.
+IntelliJ's lexer API gives the lexer only a single `Int`. The generated lexer
+packs four fields into it:
 
-## Why template interpolation breaks raw lexical-state restart
+- bits `0..4`  — JFlex lexical state (11 states declared; even ids ≤ 22)
+- bits `5..6`  — block-comment nesting depth, saturating at 3
+- bit  `7`     — `prevIsExprEnd`: previous significant token is an
+  "expression end" (identifier, literal, closing delimiter, string/template
+  end, or the end of a completed JSX element — `/>` or a closing tag's `>`).
+  Drives `/` regex-vs-division and `<` JSX-vs-comparison. Public mask
+  `PREV_IS_EXPR_END_MASK` lets `checkZeroState` ignore it (the bit
+  self-corrects on the first significant token lexed after a restart).
+- bits `8..31` — context stack: three 8-bit frames, low frame = innermost
 
-Backtick templates use `IN_TEMPLATE` until the lexer sees `${`. At that point
-the lexer:
+### Context frames
 
-1. emits `TEMPLATE_INTERPOLATION_START`
-2. switches back to `YYINITIAL`
-3. lexes normal ReScript tokens inside the interpolation body
+A frame remembers why a `{` region was opened so the matching `}` can restore
+the right lexer state. Frame byte = 2-bit kind (high) + 6-bit payload:
 
-That means the raw lexical state inside `${ ... }` is just `YYINITIAL`.
+| Kind | Meaning | Payload | `}` at depth 0 returns to |
+|---|---|---|---|
+| `TEMPLATE` (0) | `${...}` interpolation | 2-bit return-state selector (bits 4..5: IN_TEMPLATE / IN_TAG_TEMPLATE / IN_CHILD_TEMPLATE) + 4-bit brace depth | the selected template state, emitting `TEMPLATE_INTERPOLATION_END` |
+| `JSX_ATTR` (1) | `{...}` attr expression or spread in an opening tag | 6-bit brace depth | `JSX_TAG` |
+| `JSX_CONTENT` (2) | one JSX children region | 3-bit count of consecutively nested unbraced elements (bits 3..5) + 3-bit `{child}` brace depth (bits 0..2) | `JSX_CHILDREN` while count > 0; frame pops to expression context on the outermost closing tag |
 
-But `YYINITIAL` is ambiguous:
+A live frame always has a non-zero payload (depth ≥ 1, or count ≥ 1), so a
+`0x00` byte unambiguously means "empty slot".
 
-- ordinary top-level code
-- code inside a template interpolation
+`JSX_CONTENT` counts consecutive unbraced nesting (`<div><ul><li>` = one frame,
+count 3) so a fresh frame is needed only per `{...}` alternation level. The
+flagship shape `table > {map > tr > {map > td > {expr}}}` uses exactly the
+three available frames (see `JsxNestedBracedElements` lexer fixture).
 
-To disambiguate the closing `}` token, the lexer also tracks
-`templateInterpolationContext`.
+### Saturation policy
 
-Without that extra depth, restart near the end of:
+All counters saturate at their field maximum, and the in-memory counters use
+the same limits, so full lexing and restarted lexing agree even past a limit:
 
-```rescript
-`hello ${name}`
+- comment nesting: 3
+- template interpolation depth: 15 per frame
+- JSX attr-expression brace depth: 63
+- JSX child-expression brace depth: 7; unbraced element nesting: 7 per frame
+- context frames: 3 (pushing onto a full stack drops the outermost frame)
+
+Past a limit the lexer mis-scopes a `}` or closing tag near the overflow
+point — local mis-highlighting the permissive parser swallows — but it never
+diverges between full lex and restart, which is the invariant that matters.
+
+## Encoding and decoding
+
+```java
+private int packRestartState(
+        int lexicalState, int commentDepth, boolean prevIsExprEnd, int contextStack) {
+    int packedLexicalState = lexicalState & LEXICAL_STATE_MASK;
+    int packedCommentDepth = (commentDepth & COMMENT_DEPTH_MASK) << COMMENT_DEPTH_SHIFT;
+    int packedPrevIsExprEnd = prevIsExprEnd ? PREV_IS_EXPR_END_MASK : 0;
+    int packedContextStack = (contextStack & CONTEXT_STACK_MASK) << CONTEXT_STACK_SHIFT;
+    return packedLexicalState | packedCommentDepth | packedPrevIsExprEnd | packedContextStack;
+}
 ```
 
-can mis-tokenize the final `}` as `RBRACE` instead of
-`TEMPLATE_INTERPOLATION_END`.
+Decoding shifts right and masks (`unpackLexicalState`, `unpackCommentDepth`,
+`unpackPrevIsExprEnd`, `unpackContextStack`).
 
-This is not theoretical. `checkCorrectRestart(...)` reproduced exactly that
-failure before the packed restart-state fix.
+### Bit layout example
 
-## Why a dedicated interpolation lexical state is not enough
+Lexing `let x = <div> {a` — inside a child brace region of one element, after
+an identifier:
 
-A natural alternative is to introduce a dedicated JFlex state for interpolation
-instead of reusing `YYINITIAL`.
-
-That could distinguish:
-
-- ordinary `YYINITIAL`
-- interpolation code
-
-But it still would not solve nested braces:
-
-```rescript
-`value: ${ {x: 1} }`
+```text
+lexical state (YYINITIAL = 0)     00000000 00000000 00000000 00000000
+prevIsExprEnd (after `a`)         00000000 00000000 00000000 10000000
+context stack << 8:
+  JSX_CONTENT, count 1, depth 1   00000000 00000000 10001001 00000000
+------------------------------------------------------------------
+packed restart state              00000000 00000000 10001001 10000000
 ```
 
-Near the inner or outer `}`, the lexer must know not just "I am in
-interpolation", but also **how many braces deep** it is. A dedicated
-interpolation state still needs an auxiliary depth counter.
+(The frame byte `10 001 001` reads: kind 2 = JSX_CONTENT, count 1, depth 1.)
 
-So once nested braces are in scope, restart state must preserve more than raw
-lexical state either way.
+### Stack behavior
 
-## The packed restart-state design
-
-IntelliJ's lexer API gives the lexer only a single `Int` restart state. The
-custom `ReScriptLexerAdapter` therefore packs three pieces of restart context
-into one integer:
-
-- bits `0..4`   — JFlex lexical state
-- bits `5..11`  — block-comment nesting depth
-- bits `12..31` — packed template-interpolation context
-
-The interpolation context is itself a small stack packed into the high bits.
-Each stack frame uses 5 bits and stores the brace depth for one active
-`${...}` interpolation. The low frame is the current interpolation. Higher
-frames remember enclosing interpolation depths when a nested backtick template
-starts another `${...}`.
-
-This is a pragmatic limit:
-- up to 127 nested block comments
-- up to 31 nested braces in one interpolation frame
-- up to four packed interpolation frames
-
-That limit is considered acceptable in practice.
-
-Nested template interpolation is why this needs to be a stack instead of one
-counter:
+Entering a nested context pushes the existing frames one byte left (the
+outermost frame falls off when all three slots are full); closing the
+innermost context pops one byte right. Nested template interpolation is the
+canonical example:
 
 ```rescript
 let nested = `outer ${`inner ${value}`}`
 ```
 
-When the lexer sees the inner `${`, it must remember that the outer
-interpolation is still active. Otherwise, after the inner template closes, the
-outer `}` is tokenized as plain `RBRACE` instead of
-`TEMPLATE_INTERPOLATION_END`.
-
-## Encoding and decoding
-
-The lexer packs the restart state with left shifts, bit masks, and bitwise OR:
-
-```java
-private int packRestartState(int lexicalState, int commentDepth, int interpolationContext) {
-    int packedLexicalState = lexicalState & LEXICAL_STATE_MASK;
-    int packedCommentDepth = (commentDepth & COMMENT_DEPTH_MASK) << COMMENT_DEPTH_SHIFT;
-    int packedInterpolationContext =
-        (interpolationContext & TEMPLATE_INTERPOLATION_CONTEXT_MASK)
-            << TEMPLATE_INTERPOLATION_CONTEXT_SHIFT;
-    return packedLexicalState | packedCommentDepth | packedInterpolationContext;
-}
-```
-
-### Bit layout example
-
-Suppose:
-
-- lexical state = `2`
-- comment depth = `3`
-- interpolation context = `1`
-
-Then the packed value is built like this:
-
-```text
-lexical state                 00000000 00000000 00000000 00000010
-comment depth << 5            00000000 00000000 00000000 01100000
-interpolation context << 12   00000000 00000000 00010000 00000000
-----------------------------------------------------------------
-packed restart state          00000000 00000000 00010000 01100010
-```
-
-Decoding reverses that process:
-
-- shift right until the desired field is in the low bits
-- mask to discard unrelated fields
-
-```java
-private int unpackLexicalState(int packedState) {
-    return packedState & LEXICAL_STATE_MASK;
-}
-
-private int unpackCommentDepth(int packedState) {
-    return (packedState >>> COMMENT_DEPTH_SHIFT) & COMMENT_DEPTH_MASK;
-}
-
-private int unpackInterpolationContext(int packedState) {
-    return (packedState >>> TEMPLATE_INTERPOLATION_CONTEXT_SHIFT)
-        & TEMPLATE_INTERPOLATION_CONTEXT_MASK;
-}
-```
-
-### Packed interpolation stack
-
-Inside the interpolation context, each frame is 5 bits. The low frame is the
-current interpolation brace depth:
-
-```text
-context = 00000 00000 00000 00001
-                              ^ current depth = 1
-```
-
-For nested template interpolation, entering the inner `${` pushes the old frame
-left and creates a new frame with depth `1`:
-
-```text
-outer interpolation only       00000 00000 00000 00001
-after entering inner ${        00000 00000 00001 00001
-                                      outer ^     ^ inner/current
-```
-
-Closing the inner interpolation decrements the low frame to zero, then pops the
-stack by shifting right one frame. That restores the outer interpolation depth,
-so the later outer `}` is recognized correctly.
+When the lexer sees the inner `${`, it must remember the outer interpolation
+is still active; otherwise the outer `}` becomes a plain `RBRACE`.
 
 For an interactive version of this model, run:
 
@@ -207,63 +145,44 @@ ruby _knowledge/lexer/scripts/packed_stack_demo.rb
 
 ## Who reads and writes the state
 
-The masks and shifts are constants; they are never "written". What changes over
-time are the underlying values:
+The changing values behind the constants:
 
-- `zzLexicalState` — JFlex's generated current lexical state
-- `commentDepth` — maintained by block-comment rules
-- `templateInterpolationContext` — maintained by template interpolation rules
-
-### Write path during normal lexing
-
-- JFlex updates `zzLexicalState` via `yybegin(...)`
-- comment rules increment/decrement `commentDepth`
-- interpolation rules push/pop/increment/decrement `templateInterpolationContext`
+- `zzLexicalState` — JFlex's current lexical state, via `yybegin(...)`
+- `commentDepth` — block-comment rules (saturating)
+- `prevIsExprEnd` — `track(...)` sets it from `isExpressionEnd(type)` on every
+  significant token; the closing-tag `>` rule forces it true via
+  `trackExprEnd(...)` (JSX_GT alone can't distinguish opening from closing)
+- `contextStack` — frame push/pop/increment/decrement helpers, called from the
+  `${`, `{`, `}`, `>`, `/>`, and closing-tag rules
 
 ### Save path for restart
 
-IntelliJ asks the adapter for `getState()`. The adapter asks the generated
-lexer for its packed restart state and stores that integer as the token's saved
-restart state.
-
-Kotlin property syntax can hide this call: `flex.packedRestartState` invokes the
-generated Java getter `getPackedRestartState()`.
+IntelliJ asks the adapter for `getState()`; the adapter returns
+`flex.packedRestartState` (Kotlin property syntax for the generated
+`getPackedRestartState()`), captured at each token start.
 
 ### Restore path on incremental re-lex
 
-When IntelliJ restarts lexing, it calls:
-
-```kotlin
-lexer.start(buffer, restartOffset, endOffset, savedState)
-```
-
-`ReScriptLexerAdapter.start(...)` passes that saved integer into the generated
-lexer's `resetWithPackedRestartState(...)`, which:
-
-1. unpacks comment depth
-2. unpacks interpolation context
-3. restores the raw JFlex lexical state
-4. calls the generated `reset(...)`, which re-enters the lexical state with
-   `yybegin(...)`
+`ReScriptLexerAdapter.start(...)` passes the saved integer into the generated
+lexer's `resetWithPackedRestartState(...)`, which restores `prevIsExprEnd`,
+`commentDepth`, and `contextStack`, then calls the generated `reset(...)` to
+re-enter the lexical state.
 
 ## The role of the custom adapter
 
 `ReScriptLexerAdapter` exists because the default `FlexAdapter` only persists
-raw JFlex lexical state.
+raw JFlex lexical state. The custom adapter wraps `_ReScriptLexer` directly:
+save packed state on `getState()`, restore on `start(...)`. This keeps
+restart correctness without changing IntelliJ's single-`Int` lexer API.
 
-The custom adapter wraps the generated `_ReScriptLexer` directly and exposes a
-richer restart-state contract to IntelliJ:
-
-- save packed restart state on `getState()`
-- restore packed restart state on `start(...)`
-
-This keeps interpolation restart-correct without changing IntelliJ's
-single-`Int` lexer API.
+A future alternative is the platform's `RestartableLexer` interface, which
+would let ANY packed state be a restart point and retire `checkZeroState`
+entirely — see ticket `grammar/050_restartable-lexer`.
 
 ## Relation to parser completeness
 
 This mechanism is independent of full expression parsing. The parser is still
-permissive in many places, but incremental lexing correctness for template
-interpolation is a lexer-level invariant. Even with an intentionally incomplete
-parser, the lexer must restart to the same token stream it would produce during
-a full lex.
+permissive (JSX is swallowed as token soup via `nonDeclToken`), but restart
+correctness is a lexer-level invariant: even with an intentionally incomplete
+parser, the lexer must restart to the same token stream it would produce
+during a full lex.

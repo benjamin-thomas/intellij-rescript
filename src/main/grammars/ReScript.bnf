@@ -94,6 +94,12 @@
         LT         = 'LT'
         GT         = 'GT'
 
+        // JSX delimiters (tag/attr names reuse LIDENT/UIDENT)
+        JSX_LT       = 'JSX_LT'        // <  opening a tag or fragment
+        JSX_LT_SLASH = 'JSX_LT_SLASH'  // </ closing a tag or fragment
+        JSX_SLASH_GT = 'JSX_SLASH_GT'  // /> self-closing end
+        JSX_GT       = 'JSX_GT'        // >  ending an opening or closing tag
+
         // Delimiters
         LPAREN     = 'LPAREN'
         RPAREN     = 'RPAREN'
@@ -294,7 +300,10 @@ private blockContent ::= blockDeclaration | parenContent
 private parenContent ::= delimitedBlock | declKeyword | AT | PCT_PCT | nonDeclToken
 
 // All non-declaration-keyword, non-delimiter tokens
-private nonDeclToken ::= exprKeyword | LIDENT | UIDENT | literal | anyOperator | punctuation | comment
+private nonDeclToken ::= exprKeyword | LIDENT | UIDENT | literal | anyOperator | punctuation | comment | jsxPunctuation
+// JSX stays token soup until the dedicated JsxElement parser rules land
+// (see _tickets: grammar/030 notes) — these just need to be swallowed.
+private jsxPunctuation ::= JSX_LT | JSX_LT_SLASH | JSX_SLASH_GT | JSX_GT
 // AND lives in declKeyword (not here) so RHS regions stop at a continuation
 // instead of absorbing it. Inside parens it's still a raw token via parenContent.
 private exprKeyword ::= REC | PRIVATE | TRUE | FALSE | SWITCH | IF | ELSE

@@ -42,3 +42,34 @@ let undoButton = <Button label="Undo" icon={<Icon name=`arrow` />} />
 // JSX-as-attribute value. The middle `/>` follows a `}`, which is the case
 // that needed RBRACE to count as an expression end.
 let editCard = <Card header={<Button label="Edit" icon={<Icon name="pencil" />} />} />
+
+// --- Structured JSX tokens (ticket grammar/030) ---------------------------
+// The shapes below exercise the dedicated JSX lexer states: children regions,
+// closing tags, fragments, and template interpolation in JSX positions.
+// Smoke check: `< </ /> >` should get the JSX punctuation color, `a < b`
+// below must stay a plain comparison, and nothing here may show red.
+
+// Template attribute and template child, both WITH interpolation — their
+// closing `}` must return to the right template state (frame selector).
+module Badge = {
+  @react.component
+  let make = (~label: string) =>
+    <span className=`badge ${label}` title=`t ${label} t`>
+      {React.string(`[${label}]`)}
+    </span>
+}
+
+// Children region: nested elements, braced expressions, bare children, and —
+// deliberately on ONE line — paired closing tags, which used to mis-lex as a
+// regex literal swallowing `/span></d`.
+let panel =
+  <section className="panel">
+    <header> {React.string("head")} </header>
+    <div><span> {React.string("inline")} </span></div>
+  </section>
+
+// Fragments are nameless tags.
+let badgePair = <> <Badge label="a" /> <Badge label="b" /> </>
+
+// Comparison stays comparison right next to JSX.
+let isSmall = (n: int) => n < 10

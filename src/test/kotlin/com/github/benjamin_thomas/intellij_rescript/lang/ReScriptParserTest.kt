@@ -149,4 +149,9 @@ class ReScriptParserTest : ParsingTestCase(
     // Guards that RBRACE is also treated as an expression-end token.
     fun testJsxNestedElementAsAttributeValue() =
         runParserTest("JsxNestedElementAsAttributeValue.res", "JsxNestedElementAsAttributeValue.out")
+    // Children shapes (nested element, braced expr, bare ident, bare string,
+    // paired open/close tags) must be swallowed by the permissive parser
+    // without error nodes now that the lexer emits structured JSX tokens.
+    fun testJsxChildrenElements() =
+        runParserTest("JsxChildrenElements.res", "JsxChildrenElements.out")
 }

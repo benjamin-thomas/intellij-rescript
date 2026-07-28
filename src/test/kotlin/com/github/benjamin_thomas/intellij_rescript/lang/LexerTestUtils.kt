@@ -27,11 +27,11 @@ fun runSnapshotTest(lexer: Lexer, inputFile: String, expectedOutputFile: String)
  * Important for incremental re-lexing: IntelliJ re-lexes from mid-file when
  * the user edits, and tokens in non-zero state can cause incorrect re-lexing.
  */
-fun checkZeroState(lexer: Lexer, text: String, tokenTypes: TokenSet) {
+fun checkZeroState(lexer: Lexer, text: String, tokenTypes: TokenSet, ignorableStateBits: Int = 0) {
     lexer.start(text)
     while (true) {
         val type = lexer.tokenType ?: break
-        if (tokenTypes.contains(type) && lexer.state != 0) {
+        if (tokenTypes.contains(type) && (lexer.state and ignorableStateBits.inv()) != 0) {
             fail(
                 "Non-zero lexer state on token \"${lexer.tokenText}\" ($type) at ${lexer.tokenStart}"
             )

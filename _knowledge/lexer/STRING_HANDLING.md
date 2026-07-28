@@ -110,3 +110,20 @@ This check happens in `YYINITIAL`. If regex, we use `yypushback(1)` to put the
 `/` back and switch to the `REGEX` state, which then re-consumes it as part of
 the full `/pattern/flags` match. Strings and templates don't need pushback
 because `"` and `` ` `` are unambiguous delimiters.
+
+## Strings and templates inside JSX (context-return clones)
+
+`IN_STRING`/`IN_TEMPLATE` hard-exit to `YYINITIAL` on their closing quote. A
+string or template opened as a JSX attribute value (`c="d"`, `t=`x``) or as a
+JSX child must instead return to `JSX_TAG` or `JSX_CHILDREN` — otherwise the
+lexer would leak out of the tag and, e.g., treat the `/` of a following `/>`
+as a regex start again.
+
+The solution is clone states that differ only in their exit rule:
+`IN_TAG_STRING`, `IN_CHILD_STRING`, `IN_TAG_TEMPLATE`, `IN_CHILD_TEMPLATE`.
+Their bodies (escapes, content runs, `${`) are shared with the originals via
+JFlex rule groups, so there is exactly one copy of the string grammar.
+
+Interpolation inside a tag/child template additionally records WHICH template
+state its closing `}` must return to — a 2-bit return-state selector in the
+TEMPLATE context frame (see `_knowledge/lexer/RESTART_STATE.md`).

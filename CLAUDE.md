@@ -1,6 +1,10 @@
 ## Development Tips
 - ABC: Always Be Compiling -> make sure to compile often!
 - Run `./gradlew verifyPluginProjectConfiguration` to catch plugin config issues
+- ALWAYS pass `--no-daemon` to every `./gradlew` invocation. A daemon started
+  from a sandboxed agent session has a private `/tmp`; when the IDE later reuses
+  that warm daemon, its init scripts (e.g. `/tmp/ijMapper1.gradle`) don't exist
+  in the daemon's namespace and IDE test runs fail.
 
 ## Knowledge base
 
@@ -18,5 +22,9 @@ a session to capture new learnings and correct existing ones.
 ## Testing
 
 Run tests: `./gradlew test`
+
+Commit (or separately stage) characterization/baseline fixtures BEFORE
+implementing the behavior change they guard — a reviewer must be able to
+verify from history that the baseline predates the change.
 
 Run IDE with plugin: `IDEA_PROJECT=~/path/to/rescript/project ./gradlew runIde`
