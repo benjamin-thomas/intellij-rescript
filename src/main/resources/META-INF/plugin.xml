@@ -43,6 +43,9 @@
         <lang.syntaxHighlighterFactory
                 language="ReScript"
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptSyntaxHighlighterFactory"/>
+        <annotator
+                language="ReScript"
+                implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptJsxAnnotator"/>
         <lang.parserDefinition
                 language="ReScript"
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptParserDefinition"/>

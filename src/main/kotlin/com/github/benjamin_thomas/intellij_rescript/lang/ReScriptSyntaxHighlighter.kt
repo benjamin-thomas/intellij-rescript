@@ -30,6 +30,15 @@ class ReScriptSyntaxHighlighter : SyntaxHighlighterBase() {
         // plugin's HTML_TAG_NAME would be semantically nicer but isn't on this
         // plugin's classpath.) Users can still restyle via the key itself.
         val JSX_PUNCTUATION = createTextAttributesKey("RESCRIPT_JSX_PUNCTUATION", DefaultLanguageHighlighterColors.KEYWORD)
+        // Same trade-off as JSX_PUNCTUATION: MARKUP_TAG / MARKUP_ATTRIBUTE render
+        // as plain text in the common dark themes, so components borrow the class
+        // color, intrinsic tags the keyword color, attribute names the field color.
+        val JSX_COMPONENT_NAME =
+            createTextAttributesKey("RESCRIPT_JSX_COMPONENT_NAME", DefaultLanguageHighlighterColors.CLASS_NAME)
+        val JSX_TAG_NAME =
+            createTextAttributesKey("RESCRIPT_JSX_TAG_NAME", DefaultLanguageHighlighterColors.KEYWORD)
+        val JSX_ATTRIBUTE_NAME =
+            createTextAttributesKey("RESCRIPT_JSX_ATTRIBUTE_NAME", DefaultLanguageHighlighterColors.INSTANCE_FIELD)
     }
 
     override fun getHighlightingLexer(): Lexer = ReScriptLexerAdapter()

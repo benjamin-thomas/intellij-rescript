@@ -140,7 +140,6 @@ class ReScriptParserTest : ParsingTestCase(
         runParserTest("JsxElementAsAttributeValue.res", "JsxElementAsAttributeValue.out")
     fun testJsxElementAsAttributeValueTemplateAttr() =
         runParserTest("JsxElementAsAttributeValueTemplateAttr.res", "JsxElementAsAttributeValueTemplateAttr.out")
-    // Guard: the inner-element-without-attribute shape already parsed; keep it covered.
     fun testJsxElementAsAttributeValueNoInnerAttr() =
         runParserTest("JsxElementAsAttributeValueNoInnerAttr.res", "JsxElementAsAttributeValueNoInnerAttr.out")
     // Two levels of JSX-as-attribute nesting. The middle `/>` follows a `}` (RBRACE),
@@ -149,9 +148,103 @@ class ReScriptParserTest : ParsingTestCase(
     // Guards that RBRACE is also treated as an expression-end token.
     fun testJsxNestedElementAsAttributeValue() =
         runParserTest("JsxNestedElementAsAttributeValue.res", "JsxNestedElementAsAttributeValue.out")
-    // Children shapes (nested element, braced expr, bare ident, bare string,
-    // paired open/close tags) must be swallowed by the permissive parser
-    // without error nodes now that the lexer emits structured JSX tokens.
     fun testJsxChildrenElements() =
         runParserTest("JsxChildrenElements.res", "JsxChildrenElements.out")
+    fun testJsxSelfClosingElement() =
+        runParserTest("JsxSelfClosingElement.res", "JsxSelfClosingElement.out")
+    fun testJsxStringAttribute() =
+        runParserTest("JsxStringAttribute.res", "JsxStringAttribute.out")
+    fun testJsxComponentTagName() =
+        runParserTest("JsxComponentTagName.res", "JsxComponentTagName.out")
+    fun testJsxDottedTagName() =
+        runParserTest("JsxDottedTagName.res", "JsxDottedTagName.out")
+    fun testJsxModuleValueTagName() =
+        runParserTest("JsxModuleValueTagName.res", "JsxModuleValueTagName.out")
+    fun testJsxDeepModuleValueTagName() =
+        runParserTest("JsxDeepModuleValueTagName.res", "JsxDeepModuleValueTagName.out")
+    // Malformed JSX must produce a localized error inside JSX_ELEMENT, not soup, not a cascade.
+    fun testJsxInvalidLowerDottedTagName() =
+        runParserTest("JsxInvalidLowerDottedTagName.res", "JsxInvalidLowerDottedTagName.out", hasParseErrors = true)
+    fun testJsxInvalidMidLowercaseTagName() =
+        runParserTest("JsxInvalidMidLowercaseTagName.res", "JsxInvalidMidLowercaseTagName.out", hasParseErrors = true)
+    fun testJsxAttributePunned() =
+        runParserTest("JsxAttributePunned.res", "JsxAttributePunned.out")
+    fun testJsxAttributeValueForms() =
+        runParserTest("JsxAttributeValueForms.res", "JsxAttributeValueForms.out")
+    fun testJsxSpreadAttribute() =
+        runParserTest("JsxSpreadAttribute.res", "JsxSpreadAttribute.out")
+    // A braced attribute without `...` is a syntax error, so it must not be
+    // structured as a spread.
+    fun testJsxInvalidBareBracedAttribute() =
+        runParserTest("JsxInvalidBareBracedAttribute.res", "JsxInvalidBareBracedAttribute.out", hasParseErrors = true)
+    fun testJsxEmptyChildren() =
+        runParserTest("JsxEmptyChildren.res", "JsxEmptyChildren.out")
+    fun testJsxElementChild() =
+        runParserTest("JsxElementChild.res", "JsxElementChild.out")
+    fun testJsxBracedChild() =
+        runParserTest("JsxBracedChild.res", "JsxBracedChild.out")
+    fun testJsxTextChild() =
+        runParserTest("JsxTextChild.res", "JsxTextChild.out")
+    fun testJsxNestedElements() =
+        runParserTest("JsxNestedElements.res", "JsxNestedElements.out")
+    // BNF cannot correlate tag names: a mismatch parses clean (the compiler rejects it).
+    fun testJsxMismatchedClosingTag() =
+        runParserTest("JsxMismatchedClosingTag.res", "JsxMismatchedClosingTag.out")
+    fun testJsxVariantChild() =
+        runParserTest("JsxVariantChild.res", "JsxVariantChild.out")
+    fun testJsxExtensionChild() =
+        runParserTest("JsxExtensionChild.res", "JsxExtensionChild.out")
+    fun testJsxFirstClassModuleChild() =
+        runParserTest("JsxFirstClassModuleChild.res", "JsxFirstClassModuleChild.out")
+    fun testJsxInvalidStandaloneDotChild() =
+        runParserTest("JsxInvalidStandaloneDotChild.res", "JsxInvalidStandaloneDotChild.out", hasParseErrors = true)
+    fun testJsxPathChildren() =
+        runParserTest("JsxPathChildren.res", "JsxPathChildren.out")
+    fun testJsxInvalidPathChildren() =
+        runParserTest("JsxInvalidPathChildren.res", "JsxInvalidPathChildren.out", hasParseErrors = true)
+    fun testJsxEmptyFragment() =
+        runParserTest("JsxEmptyFragment.res", "JsxEmptyFragment.out")
+    fun testJsxFragmentElementChild() =
+        runParserTest("JsxFragmentElementChild.res", "JsxFragmentElementChild.out")
+    fun testJsxFragmentBracedChild() =
+        runParserTest("JsxFragmentBracedChild.res", "JsxFragmentBracedChild.out")
+    fun testJsxNestedFragment() =
+        runParserTest("JsxNestedFragment.res", "JsxNestedFragment.out")
+    fun testJsxBracedElementChild() =
+        runParserTest("JsxBracedElementChild.res", "JsxBracedElementChild.out")
+    fun testJsxMissingClosingTag() =
+        runParserTest("JsxMissingClosingTag.res", "JsxMissingClosingTag.out", hasParseErrors = true)
+    fun testJsxUnterminatedClosingTag() =
+        runParserTest("JsxUnterminatedClosingTag.res", "JsxUnterminatedClosingTag.out", hasParseErrors = true)
+    // An unclosed brace captures what follows — the same behaviour as any unclosed block,
+    // and the lexer reads `</div>` there as comparison soup, not closing-tag tokens.
+    fun testJsxUnterminatedBracedChild() =
+        runParserTest("JsxUnterminatedBracedChild.res", "JsxUnterminatedBracedChild.out", hasParseErrors = true)
+    fun testJsxStrayClosingDelimiter() =
+        runParserTest("JsxStrayClosingDelimiter.res", "JsxStrayClosingDelimiter.out", hasParseErrors = true)
+    fun testJsxExcludedFromOpaqueBody() =
+        runParserTest("JsxExcludedFromOpaqueBody.res", "JsxExcludedFromOpaqueBody.out")
+    fun testJsxExcludedFromTypeBody() =
+        runParserTest("JsxExcludedFromTypeBody.res", "JsxExcludedFromTypeBody.out")
+    fun testJsxLiteralAttributeValues() =
+        runParserTest("JsxLiteralAttributeValues.res", "JsxLiteralAttributeValues.out")
+    // `true` stays LIDENT here: the JSX_TAG lexer state has no keyword rules.
+    fun testJsxIdentAttributeValues() =
+        runParserTest("JsxIdentAttributeValues.res", "JsxIdentAttributeValues.out")
+    fun testJsxHyphenatedTagNames() =
+        runParserTest("JsxHyphenatedTagNames.res", "JsxHyphenatedTagNames.out")
+    fun testJsxHyphenatedOpenClose() =
+        runParserTest("JsxHyphenatedOpenClose.res", "JsxHyphenatedOpenClose.out")
+    fun testJsxHyphenatedAttributeNames() =
+        runParserTest("JsxHyphenatedAttributeNames.res", "JsxHyphenatedAttributeNames.out")
+    fun testJsxInvalidHyphenPathStart() =
+        runParserTest("JsxInvalidHyphenPathStart.res", "JsxInvalidHyphenPathStart.out", hasParseErrors = true)
+    // `neg=-1` is a syntax error (bsc): the attribute must stay punned and no
+    // JSX_ATTRIBUTE_VALUE may form — JsxAttributeValue must never admit MINUS.
+    fun testJsxInvalidNegativeAttributeValue() =
+        runParserTest("JsxInvalidNegativeAttributeValue.res", "JsxInvalidNegativeAttributeValue.out", hasParseErrors = true)
+    fun testJsxTagNewlineRescue() =
+        runParserTest("JsxTagNewlineRescue.res", "JsxTagNewlineRescue.out", hasParseErrors = true)
+    fun testJsxComponentsPlayground() =
+        runParserTest("JsxComponents.res", "JsxComponents.out")
 }

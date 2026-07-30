@@ -77,6 +77,27 @@ class ReScriptLexerTest {
     fun testJsxAttributes() = runLexerTest("JsxAttributes.res", "JsxAttributes.out")
 
     @Test
+    fun testJsxAttributeLiteralValues() =
+        runLexerTest("JsxAttributeLiteralValues.res", "JsxAttributeLiteralValues.out")
+
+    // A hyphenated lowercase name is one LIDENT; a stray `-` in a tag is BAD_CHARACTER.
+    @Test
+    fun testJsxHyphenatedNames() =
+        runLexerTest("JsxHyphenatedNames.res", "JsxHyphenatedNames.out")
+
+    @Test
+    fun testJsxTagNewlineRescue() =
+        runLexerTest("JsxTagNewlineRescue.res", "JsxTagNewlineRescue.out")
+
+    @Test
+    fun testJsxTagNewlineRescueFramePop() =
+        runLexerTest("JsxTagNewlineRescueFramePop.res", "JsxTagNewlineRescueFramePop.out")
+
+    @Test
+    fun testJsxTagNewlineRescueInterpolation() =
+        runLexerTest("JsxTagNewlineRescueInterpolation.res", "JsxTagNewlineRescueInterpolation.out")
+
+    @Test
     fun testJsxChildren() = runLexerTest("JsxChildren.res", "JsxChildren.out")
 
     // Regression: two closing tags on one line used to enter the REGEX state
@@ -313,6 +334,29 @@ class ReScriptLexerTest {
         checkCorrectRestart(
             ReScriptLexerAdapter(),
             "let x = <a> {y1 ++ <b> {y2 ++ <c> {y3 ++ <d> {y4 ++ <e> {y5} </e>} </d>} </c>} </b>} </a>",
+        )
+    }
+
+    @Test
+    fun testCorrectRestartWithJsxTagNewlineRescue() {
+        checkCorrectRestart(
+            ReScriptLexerAdapter(),
+            "let x = <div\nlet y = 1\n\nlet a = <div\n  let b = 2\n\nlet c = <input\n  type=\"text\"\n/>",
+        )
+    }
+
+    @Test
+    fun testCorrectRestartWithJsxTagNewlineRescueFramePop() {
+        checkCorrectRestart(ReScriptLexerAdapter(), "let x = <outer><div\nlet y = {1}\nlet z = /ok/")
+    }
+
+    @Test
+    fun testCorrectRestartWithJsxTagNewlineRescueInterpolation() {
+        checkCorrectRestart(
+            ReScriptLexerAdapter(),
+            """let t = `before ${DOLLAR}{<outer>{<div
+let y = 1
+}</outer>} after`""",
         )
     }
 }

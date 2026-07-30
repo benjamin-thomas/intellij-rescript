@@ -30,6 +30,13 @@ class ReScriptFoldingBuilder : FoldingBuilderEx() {
                         descriptors.add(FoldingDescriptor(element.node, element.textRange))
                     }
                 }
+                ReScriptTypes.JSX_ELEMENT, ReScriptTypes.JSX_FRAGMENT -> {
+                    val startLine = document.getLineNumber(element.textRange.startOffset)
+                    val endLine = document.getLineNumber(element.textRange.endOffset)
+                    if (endLine > startLine) {
+                        descriptors.add(FoldingDescriptor(element.node, element.textRange))
+                    }
+                }
                 ReScriptTypes.LBRACE -> {
                     val rbrace = findMatchingRbrace(element)
                     if (rbrace != null) {
@@ -50,6 +57,10 @@ class ReScriptFoldingBuilder : FoldingBuilderEx() {
 
     override fun getPlaceholderText(node: ASTNode): String = when (node.elementType) {
         ReScriptTypes.BLOCK_COMMENT -> "/* ... */"
+        // The tag name can be absent on a mid-edit element with an error inside.
+        ReScriptTypes.JSX_ELEMENT ->
+            "<${node.findChildByType(ReScriptTypes.JSX_TAG_NAME)?.text ?: ""} ...>"
+        ReScriptTypes.JSX_FRAGMENT -> "<> ..."
         else -> "{...}"
     }
 

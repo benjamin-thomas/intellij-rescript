@@ -1,0 +1,17 @@
+ReScript File
+  ReScriptLetBindingImpl(LET_BINDING)
+    PsiElement(LET)('let')
+    ReScriptLetBindingPatternImpl(LET_BINDING_PATTERN)
+      PsiElement(LIDENT)('x')
+    PsiElement(EQ)('=')
+    ReScriptExprImpl(EXPR)
+      ReScriptJsxElementImpl(JSX_ELEMENT)
+        PsiElement(JSX_LT)('<')
+        ReScriptJsxTagNameImpl(JSX_TAG_NAME)
+          PsiElement(LIDENT)('x-y')
+        PsiErrorElement:<jsx attribute>, JSX_GT, JSX_SLASH_GT or LBRACE expected, got '.'
+          <empty list>
+      PsiElement(DOT)('.')
+      PsiElement(LIDENT)('z')
+  PsiErrorElement:<and let binding>, AMPAMP, AMPAMPAMP, ARROW, AS, ASYNC, AWAIT, BANG, BANGEQ, BANGEQEQ, BIGINT, BLOCK_COMMENT, CARETCARETCARET, CATCH, COLON, COLONGT, COMMA, DOT, DOTDOT, DOTDOTDOT, ELSE, EQ, EQEQ, EQEQEQ, FALSE, FAT_ARROW, FLOAT, FOR, GT, GTEQ, HASH, IF, INT, JSX_LT, LBRACE, LBRACKET, LIDENT, LINE_COMMENT, LPAREN, LT, LTEQ, MINUS, MINUS_DOT, MODULE, PCT, PIPE, PIPEPIPE, PIPEPIPEPIPE, PIPE_FORWARD, PLUS and ... expected, got '/>'
+    PsiElement(JSX_SLASH_GT)('/>')

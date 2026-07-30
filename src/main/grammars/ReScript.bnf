@@ -169,7 +169,7 @@ private declKeyword ::= LET | MODULE | TYPE | OPEN | INCLUDE | EXTERNAL | EXCEPT
 // Boundary detection is the same for both: a structure item runs until
 // the next declaration starter or EOF.
 private structureItem ::= (blockDeclaration | TopLevelExpr) { recoverWhile = structureItemRecover }
-private structureItemRecover ::= !(declKeyword | AT | PCT_PCT | <<eof>>)
+private structureItemRecover ::= !(declKeyword | AT | PCT_PCT | JSX_LT | <<eof>>)
 
 // Top-level expression statement: public node, opaque internals (same tokens as Expr).
 // Covers switch/if/for/while/try/function-call/etc. — anything that isn't a declaration.
@@ -297,13 +297,10 @@ private bracketBlock   ::= LBRACKET parenContent* RBRACKET { pin = 1 }
 private blockContent ::= blockDeclaration | parenContent
 
 // Inside parens/brackets: keywords are raw tokens, no declarations
-private parenContent ::= delimitedBlock | declKeyword | AT | PCT_PCT | nonDeclToken
+private parenContent ::= jsxValue | delimitedBlock | declKeyword | AT | PCT_PCT | nonDeclToken
 
 // All non-declaration-keyword, non-delimiter tokens
-private nonDeclToken ::= exprKeyword | LIDENT | UIDENT | literal | anyOperator | punctuation | comment | jsxPunctuation
-// JSX stays token soup until the dedicated JsxElement parser rules land
-// (see _tickets: grammar/030 notes) — these just need to be swallowed.
-private jsxPunctuation ::= JSX_LT | JSX_LT_SLASH | JSX_SLASH_GT | JSX_GT
+private nonDeclToken ::= exprKeyword | LIDENT | UIDENT | literal | anyOperator | punctuation | comment
 // AND lives in declKeyword (not here) so RHS regions stop at a continuation
 // instead of absorbing it. Inside parens it's still a raw token via parenContent.
 private exprKeyword ::= REC | PRIVATE | TRUE | FALSE | SWITCH | IF | ELSE
@@ -368,7 +365,33 @@ TemplateInterpolation ::= TEMPLATE_INTERPOLATION_START Expr TEMPLATE_INTERPOLATI
 
 // Expression: public node, opaque internals (same tokens as opaqueBody)
 Expr ::= exprAtom+
-private exprAtom ::= firstClassModuleExpr | delimitedBlock | nonDeclToken
+private exprAtom ::= jsxValue | firstClassModuleExpr | delimitedBlock | nonDeclToken
+private jsxValue ::= JsxFragment | JsxElement
+// Pinned at 2, not 1: on `<div…` the fragment must fail at token 2 and roll
+// back cleanly so JsxElement gets its turn.
+JsxFragment ::= JSX_LT JSX_GT jsxChild* JSX_LT_SLASH JSX_GT { pin = 2 }
+JsxElement ::= JSX_LT JsxTagName (JsxAttribute | JsxSpreadAttribute)*
+               (JSX_SLASH_GT | jsxOpenTail) { pin = 1 }
+// Pinned on JSX_GT: without it a missing closing tag fails this whole
+// alternative, un-consuming the children, and the error escapes to Expr level
+// instead of staying inside the element.
+private jsxOpenTail ::= JSX_GT jsxChild* JsxClosingTag { pin = 1 }
+// Lowercase path segment legal only in final position (<Mod.sub />); earlier ones are a syntax error.
+JsxTagName ::= UIDENT (DOT UIDENT)* (DOT LIDENT)? | LIDENT
+JsxAttribute ::= QUESTION LIDENT | LIDENT (EQ QUESTION? JsxAttributeValue)?
+JsxAttributeValue ::= literal | bracedBlock | jsxVariantChild | jsxPathChild
+JsxSpreadAttribute ::= LBRACE DOTDOTDOT blockContent* RBRACE
+JsxClosingTag ::= JSX_LT_SLASH JsxTagName JSX_GT { pin = 1 }
+// Deliberately not nonDeclToken: operators are invalid child syntax, and declaration
+// keywords stay excluded so an unclosed element cannot absorb the next declaration.
+private jsxChild ::= jsxValue | firstClassModuleExpr | delimitedBlock | literal | comment
+                   | jsxPathChild | jsxVariantChild | jsxExtensionChild | TRUE | FALSE
+// Unlike JsxTagName, a lowercase segment may continue the path (foo.bar.baz is
+// field access), but the case within one path may not mix: foo.Bar and
+// Foo.bar.Baz are syntax errors.
+private jsxPathChild ::= UIDENT (DOT UIDENT)* (DOT LIDENT)? | LIDENT (DOT LIDENT)*
+private jsxVariantChild ::= HASH (LIDENT | UIDENT | INT) parenBlock?
+private jsxExtensionChild ::= PCT LIDENT parenBlock?
 // First-class module packing, e.g. `module(Env)`.
 // Pin after the `module(...)` shape so `module Env = ...` remains a declaration.
 private firstClassModuleExpr ::= MODULE parenBlock { pin = 2 }

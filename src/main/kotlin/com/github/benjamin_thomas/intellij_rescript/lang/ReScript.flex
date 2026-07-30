@@ -287,7 +287,18 @@ import com.intellij.psi.TokenType;
 WHITE_SPACE = [ \t\n\r]+
 LINE_COMMENT = "//" [^\n]*
 LOWER_IDENT = [a-z_][a-zA-Z0-9_]*
+// Hyphenated web-component names (model-viewer, data-testid). Lowercase first
+// segment only: uppercase names never hyphenate, and a segment cannot start
+// with a digit.
+JSX_HYPHEN_IDENT = [a-z_][a-zA-Z0-9_]* ("-" [a-zA-Z_][a-zA-Z0-9_]*)+
 UPPER_IDENT = [A-Z][a-zA-Z0-9_]*
+// What may follow the keyword on a declaration-shaped line. The shape — not the
+// keyword — is what keeps `type="text"` and punned `open` from firing the rescue.
+JSX_DECL_RESCUE = ("let"|"and") [ \t]+ [a-z_({]
+                | ("type"|"external") [ \t]+ [a-z_]
+                | "module" [ \t]+ ("type" [ \t]+)? [A-Z]
+                | ("open"|"include"|"exception") [ \t]+ [A-Z]
+                | "@" | "%%"
 HEX_INT = 0[xX][0-9a-fA-F][0-9a-fA-F_]*
 OCT_INT = 0[oO][0-7][0-7_]*
 BIN_INT = 0[bB][01][01_]*
@@ -498,12 +509,30 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
 // attribute names deliberately stay LIDENT/UIDENT — structural roles are the
 // parser's job (follow-up ticket); this state only owns the delimiters.
 <JSX_TAG> {
+    // Unclosed-tag rescue: a declaration-shaped next line ends the tag mid-edit.
+    // The lookahead is unconsumed, so the keyword re-lexes in YYINITIAL. The
+    // depth guard pops only an abandoned children frame, never a live `${...}` one.
+    [\r\n]+ [ \t]* / {JSX_DECL_RESCUE} {
+                            if (topIsJsxContent() && jsxContentBraceDepth() == 0) popFrame();
+                            yybegin(YYINITIAL);
+                            return TokenType.WHITE_SPACE;
+                        }
+    // ONE token, deliberately not LIDENT MINUS LIDENT: `-` stays unlexable in
+    // tag states, so a non-value like `neg=-1` cannot form by construction.
+    {JSX_HYPHEN_IDENT}  { return track(ReScriptTypes.LIDENT); }
     {WHITE_SPACE}       { return TokenType.WHITE_SPACE; }
+    {FLOAT}             { return track(ReScriptTypes.FLOAT); }
+    {HEX_INT}           { return track(ReScriptTypes.INT); }
+    {OCT_INT}           { return track(ReScriptTypes.INT); }
+    {BIN_INT}           { return track(ReScriptTypes.INT); }
+    {BIGINT}            { return track(ReScriptTypes.BIGINT); }
+    {INT}               { return track(ReScriptTypes.INT); }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }
     {UPPER_IDENT}       { return track(ReScriptTypes.UIDENT); }
     "."                 { return track(ReScriptTypes.DOT); }
     "="                 { return track(ReScriptTypes.EQ); }
     "?"                 { return track(ReScriptTypes.QUESTION); }
+    "#"                 { return track(ReScriptTypes.HASH); }
     \"                  { yybegin(IN_TAG_STRING); return track(ReScriptTypes.STRING_START); }
     `                   { yybegin(IN_TAG_TEMPLATE); return track(ReScriptTypes.TEMPLATE_START); }
     // Attribute expression (`b={expr}`) or spread (`{...props}`): resume
@@ -542,6 +571,7 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
 // bails back to children so mid-edit text on the next line lexes normally
 // (mirrors the REGEX end-of-line rescue).
 <JSX_CLOSE_TAG> {
+    {JSX_HYPHEN_IDENT}  { return track(ReScriptTypes.LIDENT); }
     [ \t]+              { return TokenType.WHITE_SPACE; }
     [\r\n]+             { yybegin(JSX_CHILDREN); return TokenType.WHITE_SPACE; }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }

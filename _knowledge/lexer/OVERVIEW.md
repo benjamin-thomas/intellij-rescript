@@ -307,3 +307,45 @@ registered, it shows individual tokens as `PsiElement(TOKEN_TYPE)` nodes.
 - **Rust plugin** (`tmp/intellij-rust/`): Comprehensive lexer tests including
   a fuzzy test that feeds 10,000 random strings to verify no crashes. Good
   model for test coverage.
+
+## Verifying ReScript syntax — ask the compiler
+
+There is a real ReScript compiler in the repo:
+
+```
+rescript-playground-example/node_modules/.bin/bsc -only-parse file.res
+```
+
+**Check the exit status, not the visible output.** `bsc` prints a leading blank line before
+a syntax error, so a harness that samples the first line (or uses a `${out:-LEGAL}`
+fallback) reports errors as legal. That mistake put a compiler-invalid form
+(`<Foo neg=-1 />`) into a specification during `grammar/060` before it was caught.
+
+Inferring syntax from the manual or from reasoning has been wrong repeatedly. The manual
+also disagrees with the compiler in at least one place: it says JSX prop names cannot
+contain hyphens, but `bsc` accepts them.
+
+## JSX lexer states — traps found in `grammar/060`
+
+`<JSX_TAG>` had no newline bailout while `WHITE_SPACE = [ \t\n\r]+`, so an unclosed `<div`
+swallowed every following declaration as attribute soup. The rescue is a first-position rule
+with an UNCONSUMED trailing context, so the keyword re-lexes properly in `YYINITIAL`:
+
+```
+[\r\n]+ [ \t]* / {JSX_DECL_RESCUE} { ...popFrame guard...; yybegin(YYINITIAL); return WHITE_SPACE; }
+```
+
+- The discriminator is the SHAPE AFTER the keyword, not the keyword. `type` and `open` are
+  legal attribute names, so `type="text"` (followed by `=`) must not fire.
+- Indentation must be allowed — declarations nest inside modules and function bodies, which
+  is exactly where JSX lives.
+- `{WHITE_SPACE}` already matches `"\n  "`. A rule matching only `"\n"` silently never fires
+  when the next line is indented.
+- Never use JFlex's `^` anchor here: `yyreset` sets `zzAtBOL = true`, so an incremental
+  restart mid-line would fire where a full lex would not, breaking `checkCorrectRestart`.
+- Pop an abandoned `JSX_CONTENT` frame, but guard on `jsxContentBraceDepth() == 0` so a live
+  `${…}` interpolation's return state survives.
+
+Hyphenated web-component names lex as ONE token via a macro, deliberately not
+`LIDENT MINUS LIDENT`. Keeping `-` unlexable in the tag states means the invalid
+`<Foo neg=-1 />` cannot form by construction rather than by a grammar guard.
