@@ -1,5 +1,42 @@
 # Changelog
 
+## v0.7.0 — JSX
+
+### Parser
+- **JSX elements and fragments** are now parsed into real PSI nodes instead of being
+  swallowed as anonymous token soup. Covers self-closing (`<Icon name="disk" />`) and
+  paired (`<div>…</div>`) elements, fragments (`<>…</>`), dotted component paths
+  (`<Mod.Component />`, `<Mod.sub />`), punned and optional attributes (`label`,
+  `?icon`, `label=?x`), spread attributes (`{...props}`), and children — nested
+  elements, braced expressions, bare paths, polymorphic variants (`#tag`) and
+  extensions (`%raw(…)`).
+- **Hyphenated names** — web components (`<model-viewer />`) and hyphenated props
+  (`data-testid="x"`) — parse as single names. The ReScript manual says prop names
+  can't contain hyphens; the compiler accepts them, and the plugin follows the
+  compiler.
+- Known limitation: **mismatched closing tags** (`<div></span>`) still parse clean.
+  A BNF grammar can't compare names — catching this needs a semantic inspection.
+
+### Editor features
+- **JSX syntax coloring**: component names, intrinsic tag names, attribute names, and
+  the `<` `</` `/>` `>` delimiters each get their own color, distinguishing a tag name
+  from a plain identifier.
+- **Code folding** for multi-line JSX elements and fragments, collapsing to `<Tag ...>`
+  and `<> ...`. Single-line elements aren't offered a fold.
+
+### Lexer
+- An **unclosed tag** mid-edit no longer eats the rest of the file. `<div` followed by
+  a declaration-shaped line (`let x = …`, `module M = …`, `@decorator`, …) now bails
+  out of the tag state instead of lexing every following declaration as attribute
+  soup. The discriminator is the shape *after* the keyword, so legal attribute names
+  like `type="text"` are unaffected.
+- Numeric and polymorphic-variant attribute values (`count=3`, `size=#large`) now lex
+  correctly inside tags.
+
+### Navigation
+- **Find Usages** now targets the symbol under the caret rather than the enclosing
+  declaration.
+
 ## v0.6.1 — Parser & Lexer Fixes
 
 ### Parser
