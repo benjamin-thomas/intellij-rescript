@@ -1,5 +1,75 @@
 # Changelog
 
+## [Unreleased]
+
+### Parser
+- **Applied and container attribute values now parse.** `<Modal
+  onCancel=Action(onClose)>`, `<A b=f(x) />`, `<A b=#tag(x) />`, `<A b=[1, 2] />`
+  and `<A b=(a, b) />` are all valid ReScript, and none of them worked: `(`, `)`,
+  `[` and `]` had no rules inside a tag, so they became `BAD_CHARACTER`. The
+  applied forms errored at the `(`; the bracket and paren forms produced no error
+  at all and silently dropped the attribute's value. An unbraced attribute value
+  is a ReScript *primary* expression, and the grammar now says so.
+- A malformed attribute value now reports **at the value**. Previously the whole
+  `= value` group rolled back, the attribute silently became punned, and the rest
+  of the tag turned into soup with no error anywhere.
+- Known gaps, all deliberate: `b=list{1, 2}` and `b=dict{…}` (a braced suffix on
+  a path is indistinguishable from the commoner `<A b=x {...p} />` without
+  whitespace sensitivity), `b=<C />` (a bare element as an unbraced value), and
+  `` b=f`x` `` (tagged template). The grammar is also whitespace-insensitive, so
+  it accepts `b=f` ⏎ `(x)`, which the compiler rejects.
+
+### Lexer
+- **Nested JSX regions are no longer capped.** The lexer's context-frame stack
+  lived entirely in the 32-bit restart state, three frames deep, and pushing a
+  fourth silently dropped the outermost one — so ordinary markup like
+  `<ul> {<li> <span className={`x ${y}`} /> </li>} </ul>` lost its outer element
+  and reported the error at the closing tag, far from the cause. The stack is
+  now an ordinary unbounded array; the restart int keeps a truncated copy as a
+  hint, which is safe because the platform only ever restarts where the state is
+  the initial one, and any live frame makes it non-zero.
+- The same cap applied to **consecutively nested unbraced elements**, which
+  shared one frame with a 3-bit count. Nine levels — reached by real ReScript —
+  popped a live frame and unravelled the outermost element. Also lifted.
+- **Block comments nested more than three deep** (`/* a /* b /* c /* d */ */ */
+  */`) closed one `*/` early and leaked the last one into the token stream as
+  `*` `/`. The depth counter saturated at the width of its restart-state field;
+  it is now a plain counter, clamped only on the way into that field.
+- A stray closing tag inside a `{child}` brace no longer decrements the
+  **enclosing** region's element count, which could pop a frame that was still
+  live. The closing-tag rule now carries the same brace-depth guard as its
+  opening-tag twin.
+- **JSX in statement position** now parses. An element returned by a block after
+  another statement — the ordinary `@react.component let make` shape, where the
+  element follows a `let` ending in `}` — was lexed as the comparison operator,
+  because a `<` after any value-producing token was unconditionally an operator.
+  A `<` glued to a name now starts a tag once a line break separates it from the
+  previous token, matching how the ReScript compiler disambiguates. Same-line
+  `a<b` and `a < b` stay comparisons, a lone CR is not a break, a break hidden
+  inside a block comment still counts, and a leading `/` still never starts a
+  regex after a value.
+- A **completed regex literal now counts as an expression end**, like any other
+  literal: `/a/<b` compares and `/a/ / 2` divides, where the `<` previously
+  opened a JSX tag. Pre-existing, found while reviewing the above.
+- **Comments inside JSX now parse.** A `//` line comment inside an opening tag —
+  the ordinary way to document the attribute below it — lexed as two
+  `BAD_CHARACTER`s, and the prose after it was read as attributes. Block
+  comments were worse: they could not be entered from any JSX state at all, and
+  their closing `*/` always returned to expression context. Comments are now
+  legal wherever the compiler allows them: opening tags, closing tags, and
+  between children. The parser needed no change — both comment types are already
+  in `getCommentTokens()`, so the builder skips them everywhere.
+- A **newline inside a closing tag** (`</A` ⏎ `>`) is legal and did not parse:
+  the mid-edit bail there fired on any newline, not just a declaration-shaped
+  one, so the `>` was left to lex as a comparison. Guarded the same way the
+  opening tag's bail already was. Found while adding comment support; it
+  predates it.
+- Known limitation: a **type application wrapped so that `<` opens a line**
+  (`let xs: array` ⏎ `<int>`, and the same shape in return-type annotations and
+  module bodies) is now read as JSX. The two are the same token sequence and
+  only a parser knows which is which; `rescript format` collapses the shape, and
+  the error stays inside that one declaration.
+
 ## v0.7.0 — JSX
 
 ### Parser

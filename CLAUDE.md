@@ -20,6 +20,32 @@ Delete on sight, including in code you are only passing through:
 Keep only what a reader could not derive: a non-obvious language constraint, a
 trap, or the reason something is deliberately NOT done the obvious way.
 
+## Founding principle: prefer over-accepting
+
+An IDE plugin is not a compiler. Its two failure directions cost wildly
+different amounts:
+
+- **over-accept** (plugin fine, `bsc` errors) — the user sees nothing; the
+  compiler reports it anyway.
+- **under-accept** (plugin errors, `bsc` fine) — a red squiggle on valid code,
+  with no second opinion in the editor.
+
+So when the two conflict, over-accept. Narrowing a rule to match the compiler
+exactly is NOT automatically an improvement — check the gold file, because a
+tighter rule that ends a value early produces looser PSI and usually reports
+nothing extra.
+
+Each layer's job:
+- **lexer** — segmentation only. Rejects nothing, never throws, contains damage
+  on half-typed code.
+- **parser (BNF)** — build a usable tree from broken input. Only context-free
+  violations, and only as a side effect.
+- **annotator / inspection** — where rejection belongs. Anything needing name
+  comparison or case rules (`<div></span>`) goes here, not in the grammar.
+
+Full reasoning and the measurements behind it:
+`_knowledge/architecture/RESPONSIBILITIES.md`.
+
 ## ReScript syntax questions
 
 Never infer what the language accepts — ask the compiler:

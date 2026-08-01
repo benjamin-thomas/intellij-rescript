@@ -76,6 +76,17 @@ The declared states (11 plus `YYINITIAL`):
   (`<IN_STRING, IN_TAG_STRING, IN_CHILD_STRING> { … }`); only the exit rule
   differs per state.
 
+**`IN_BLOCK_COMMENT` deliberately has NO such clones**, though it is entered
+from four states and must return to the right one. It uses a live
+`blockCommentReturn` field instead, because unlike a string or template it emits
+no token until its terminating `*/` — the whole nested comment is consumed
+inside one `advance()`, so no token boundary can land inside it and the field is
+always written before it is read. Cloning would have spent three of the four
+remaining lexical-state ids to insure against that. `ReScriptLexerTest.
+testBlockCommentStateIsNeverObservable` pins the property; if a future change
+makes the comment state emit tokens, the return state has to move into the
+packed restart int and that test says so.
+
 `JSX_CHILDREN` shares `YYINITIAL`'s token bulk the same way
 (`<YYINITIAL, JSX_CHILDREN> { … }`) and overrides only the JSX-specific and
 context-entering rules. Invariant to preserve: an override must never have a
@@ -84,10 +95,13 @@ whichever rule comes first in the file.
 
 Some states need auxiliary data: `IN_BLOCK_COMMENT` tracks a `commentDepth`
 counter for nesting, brace regions (`${…}`, JSX `{attr}`/`{child}`) are
-tracked by a packed context-frame stack, and `REGEX` uses `yypushback(1)` to
+tracked by an unbounded context-frame stack (packed into the restart int only
+as a lossy hint — see `RESTART_STATE.md`), and `REGEX` uses `yypushback(1)` to
 re-consume the `/` after the regex-vs-division decision (see "Pushback
-technique" below). All of it round-trips through the packed restart int —
-see `_knowledge/lexer/RESTART_STATE.md`.
+technique" below). The comment depth and both decision bits round-trip through
+the packed restart int; the frame stack only fits it up to three frames, and
+past that the packed form is knowingly lossy — see
+`_knowledge/lexer/RESTART_STATE.md`.
 
 ### Previous-token disambiguation (`/` and `<`)
 
@@ -103,16 +117,84 @@ opening tags, so its rule sets the bit itself via `trackExprEnd(...)`:
   (`a < b`, `list<int>`); otherwise — with a one-char lookahead requiring
   `[A-Za-z_>/]` — it starts a JSX tag (`JSX_LT`), and `</` a closing tag
   (`JSX_LT_SLASH`).
+- **…unless a line break intervenes** (`sawLineBreak`), in which case it starts
+  a tag regardless. This is what makes an element in statement position parse —
+  a `@react.component let make` body returns one right after a `let` ending in
+  `}`.
 
-**INVARIANT — expression end ⇒ operator.** After any value-producing token,
-`/` and `<` are always operators, with no exceptions — completed JSX
-elements included. This deliberately matches how Babel and TypeScript lex
-(`<A /> / b` divides, `<A /> < B` compares), so intuitions trained on the
-JS ecosystem transfer. Any future token-boundary disambiguation (e.g.
-ticket 010's regex internals) must consume `isExpressionEnd()` /
-`prevIsExprEnd` rather than invent a parallel rule.
+**The rule, exactly.** An LF occurring after the end of the last significant
+token and before the `<`. Measured against `bsc -dparsetree`, not guessed:
 
-**CONSTRAINT — the four delimiters are the complete JSX vocabulary.**
+| input | bsc |
+| --- | --- |
+| `a<b`, `a <b` | comparison |
+| `a` ⏎ `<b` | JSX element |
+| `a` CR `<b` (lone CR) | comparison — a bare CR is not a break |
+| `1` ⏎ `/* c */ <div />` | JSX — a comment between break and `<` is transparent |
+| `1 /* c` ⏎ `*/ <div />` | JSX — **the break may live inside the comment** |
+| `a /* c */ <b` | comparison — no break anywhere |
+| `"a` ⏎ `b" <div />` | comparison — a break inside the previous *token* does not count |
+
+`sawLineBreak` is set by every rule that consumes a newline (whitespace runs in
+each state, and block-comment interiors) and cleared by `track()` on each
+significant token, which reproduces that table exactly.
+
+**INVARIANT — expression end ⇒ operator, absent a line break.** After any
+value-producing token, `/` and `<` are operators — completed JSX elements
+included. This deliberately matches how Babel and TypeScript lex (`<A /> / b`
+divides, `<A /> < B` compares), so intuitions trained on the JS ecosystem
+transfer. Any future token-boundary disambiguation (e.g. ticket 010's regex
+internals) must consume `isExpressionEnd()` / `prevIsExprEnd` rather than
+invent a parallel rule.
+
+**`/` does NOT get the line-break exemption.** Only `<` does. ReScript's
+formatter trails binary operators (`a /` ⏎ `b`), so a leading `/` is rare, and
+letting one start a regex would swallow the rest of the file.
+
+**Unbraced attribute values are ReScript *primary* expressions** — an atomic
+expression followed by call/index postfixes. That is literally what the compiler
+does: its JSX parser calls `parse_primary_expr ~operand:(parse_atomic_expr p)`.
+`(` and `[` in `JSX_TAG` therefore open a region (frame kind `JSX_VALUE`) whose
+interior lexes as ordinary expression text, so `b=Some(-1)` and `b=f(x/2)` work
+while `b=-1` stays impossible — the `-` exclusion guards where a value *starts*,
+not what a region contains.
+
+**KNOWN GAPS in that rule**, all measured against bsc:
+- `b=list{1, 2}` and `b=dict{"k": v}` are legal and not supported. A braced
+  suffix on a path cannot be distinguished from `<A b=x {...p} />` — also legal,
+  and far commoner — without whitespace sensitivity. This one is permanent
+  absent a lexer-level "no space before `{`" rule.
+- `b=<C />` (a bare element as an unbraced value) is legal and not supported;
+  `<` in a tag is still `BAD_CHARACTER`. A scope cut, not an impossibility — the
+  JSX_VALUE frame could carry a 1-bit elem/paren flag in its payload.
+- `` b=f`x` `` (tagged template) is legal and not supported.
+- **Over-acceptance:** the grammar is whitespace-insensitive, so `b=f` ⏎ `(x)`
+  parses here and bsc rejects it — a postfix call must stay on its line.
+- An unclosed value region (`<A b=f(`) is bounded by `jsxValueContent`, which
+  omits `declKeyword`, so it stops at the next `let`/`type`/`module`. The
+  lexer-side `JSX_DECL_RESCUE` only covers `let`/`and`, so the lexer itself does
+  not bail before a `type`/`module` — pre-existing, newly reachable.
+
+**KNOWN DIVERGENCE — wrapped type applications.** `let xs: array` ⏎ `<int>` is
+a type application to bsc and a JSX element to this lexer; the two are the same
+token sequence and only parser context separates them. The whole family is
+affected — `type` bodies, return-type annotations, module bodies — anywhere a
+type application wraps before its `<`. Accepted: the formatter collapses the
+shape, the damage stays inside the one declaration, and the alternative is
+losing statement-position JSX. Pinned by the parser fixture
+`JsxStatementPositionTypeClash`.
+
+**Why a tracked bit and not a backward buffer scan.** A scan cannot see a break
+inside a block comment (row 5 of the table), and scanning backwards *over* a
+comment is not implementable — `"a */" <div />` shows the closer may be string
+content, and telling those apart is what forward lexing is for. The bit also
+keeps the signal inside the restart int, which is what stops the editor
+highlighter converging early on an unchanged whitespace token (see
+`RESTART_STATE.md`).
+
+**CONSTRAINT — no JSX-specific token types beyond the four delimiters.**
+`JSX_TAG` does lex `(`/`[` (they open an unbraced attribute value's region),
+but as the ordinary `LPAREN`/`LBRACKET`, not JSX variants.
 Never add tag-name or attribute-name token types. Names stay
 `LIDENT`/`UIDENT` so identifier-based features (find usages, rename,
 spellchecking) treat them uniformly; role classification — including
@@ -268,9 +350,10 @@ rather than from the beginning):
 
 - **`checkZeroState`** — verifies that keywords and identifiers always leave the
   lexer in state zero (a performance property: the classic highlighter only
-  restarts at state-0 tokens). It takes an `ignorableStateBits` mask for the
-  `prevIsExprEnd` bit, which legitimately makes tokens after an expression end
-  non-zero and self-corrects after restart. Ticket `grammar/050` (RestartableLexer)
+  restarts at state-0 tokens). It takes an `ignorableStateBits` mask for the two
+  decision bits (`prevIsExprEnd`, `sawLineBreak`), which legitimately make
+  ordinary tokens non-zero without placing the lexer inside a lexical region —
+  the first token of every line carries the line-break bit. Ticket `grammar/050` (RestartableLexer)
   would retire this check entirely.
 
 - **`checkCorrectRestart`** — lexes the full text, then restarts the lexer from
@@ -290,23 +373,20 @@ registered, it shows individual tokens as `PsiElement(TOKEN_TYPE)` nodes.
 
 ## Current limitations (TODOs)
 
-- **Block comments inside JSX regions**: `/* … */` between tags or inside an
-  opening tag mis-lexes (the comment states hard-exit to `YYINITIAL`;
-  tag/children would need `IN_TAG_BLOCK_COMMENT`/`IN_CHILD_BLOCK_COMMENT`
-  clones like the string/template ones). Line comments work.
 - **`RestartableLexer`**: see ticket `grammar/050_restartable-lexer`.
 
 ## Reference implementations
 
-- **Haskell plugin** (`tmp/intellij-haskell-lsp/`): Uses JFlex states for nested
-  block comments (`NCOMMENT` with `commentDepth`), Haddock docs, quasi-quotes,
-  and GHC pragmas. Good reference for stateful lexing.
-- **Elm plugin** (`tmp/intellij-elm/`): Has a layout lexer (`ElmLayoutLexer`)
-  that injects virtual tokens for Elm's offside rule. Not needed for ReScript
-  (uses braces), but interesting architecture.
-- **Rust plugin** (`tmp/intellij-rust/`): Comprehensive lexer tests including
-  a fuzzy test that feeds 10,000 random strings to verify no crashes. Good
-  model for test coverage.
+Not vendored — clone from GitHub when one is needed.
+
+- **Haskell plugin**: Uses JFlex states for nested block comments (`NCOMMENT`
+  with `commentDepth`), Haddock docs, quasi-quotes, and GHC pragmas. Good
+  reference for stateful lexing.
+- **Elm plugin**: Has a layout lexer (`ElmLayoutLexer`) that injects virtual
+  tokens for Elm's offside rule. Not needed for ReScript (uses braces), but
+  interesting architecture.
+- **Rust plugin**: Comprehensive lexer tests including a fuzzy test that feeds
+  10,000 random strings to verify no crashes. Good model for test coverage.
 
 ## Verifying ReScript syntax — ask the compiler
 
@@ -319,13 +399,13 @@ rescript-playground-example/node_modules/.bin/bsc -only-parse file.res
 **Check the exit status, not the visible output.** `bsc` prints a leading blank line before
 a syntax error, so a harness that samples the first line (or uses a `${out:-LEGAL}`
 fallback) reports errors as legal. That mistake put a compiler-invalid form
-(`<Foo neg=-1 />`) into a specification during `grammar/060` before it was caught.
+(`<Foo neg=-1 />`) into a specification once before it was caught.
 
 Inferring syntax from the manual or from reasoning has been wrong repeatedly. The manual
 also disagrees with the compiler in at least one place: it says JSX prop names cannot
 contain hyphens, but `bsc` accepts them.
 
-## JSX lexer states — traps found in `grammar/060`
+## JSX lexer states — traps
 
 `<JSX_TAG>` had no newline bailout while `WHITE_SPACE = [ \t\n\r]+`, so an unclosed `<div`
 swallowed every following declaration as attribute soup. The rescue is a first-position rule
@@ -335,8 +415,10 @@ with an UNCONSUMED trailing context, so the keyword re-lexes properly in `YYINIT
 [\r\n]+ [ \t]* / {JSX_DECL_RESCUE} { ...popFrame guard...; yybegin(YYINITIAL); return WHITE_SPACE; }
 ```
 
-- The discriminator is the SHAPE AFTER the keyword, not the keyword. `type` and `open` are
-  legal attribute names, so `type="text"` (followed by `=`) must not fire.
+- The discriminator is the SHAPE AFTER the keyword, not the keyword. `<A b=` ⏎ `module(M) />`
+  is legal — a first-class module is an unbraced value — so `module(` must not fire, while
+  `module M = …` must. (Declaration keywords are NOT legal attribute names: `bsc` rejects
+  `<input type="text" />`.)
 - Indentation must be allowed — declarations nest inside modules and function bodies, which
   is exactly where JSX lives.
 - `{WHITE_SPACE}` already matches `"\n  "`. A rule matching only `"\n"` silently never fires

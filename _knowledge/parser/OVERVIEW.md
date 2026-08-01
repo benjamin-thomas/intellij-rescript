@@ -371,7 +371,9 @@ We should adopt this split when we build the real parser.
 
 ## Reference implementations
 
-### Elm plugin (`tmp/intellij-elm/`)
+Not vendored — clone from GitHub when one is needed.
+
+### Elm plugin
 
 - ~95 rules, 522 lines
 - `generate = [ psi = "no" ]` — hand-written PSI classes
@@ -380,7 +382,7 @@ We should adopt this split when we build the real parser.
 - `pin` + `recoverWhile` on all declarations
 - `elementTypeFactory` for stub-backed PSI on key declarations
 
-### Rust plugin (`tmp/intellij-rust/`)
+### Rust plugin
 
 - ~365 rules (195 public, 170 private/fake/meta)
 - Full PSI generation with `mixin` and `stubClass`

@@ -1,6 +1,6 @@
 # JSX — grammar shape and the decisions behind it
 
-Built in `grammar/060`. The rules are small; the reasoning is not obvious from them.
+The rules are small; the reasoning is not obvious from them.
 
 ## The rules
 

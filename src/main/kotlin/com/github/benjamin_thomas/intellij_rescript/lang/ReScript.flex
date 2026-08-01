@@ -14,26 +14,39 @@ import com.intellij.psi.TokenType;
 
 %{
     // IntelliJ gives the lexer a single int for restart state, so we pack our
-    // restart context into bit fields inside that int (layout v2):
-    //   bits 0..4    = JFlex lexical state
-    //   bits 5..6    = block-comment nesting depth (saturating at 3)
+    // restart context into bit fields inside that int (layout v3):
+    //   bits 0..3    = JFlex lexical state, halved (see LEXICAL_STATE_MASK)
+    //   bit  4       = a line break separates us from the last significant token
+    //   bits 5..6    = block-comment nesting depth, clamped at 3
     //   bit  7       = previous significant token is an "expression end"
     //   bits 8..31   = context stack: three 8-bit frames, low frame = innermost
+    //
+    // Every bit is spoken for. A new signal has to shrink a field first — which
+    // is how bit 4 was won: JFlex numbers lexical states in steps of two, so
+    // halving the state loses nothing and buys room for 16 of them.
     //
     // A context frame remembers why a `{` region was opened, so the matching
     // `}` can restore the right lexer state. Frame = 2-bit kind (high bits)
     // + 6-bit brace depth. Depth is >= 1 while a frame is live, so a live
     // frame's byte is never zero and 0x00 unambiguously means "empty slot".
     //
-    // All depth counters saturate at their field maximum: pathological
-    // nesting closes regions early, but full lexing and restarted lexing
-    // agree on that (wrong) answer — which is the property incremental
-    // lexing needs. Pushing onto a full stack drops the outermost frame:
-    // same trade, mis-scoping stays local to the overflow point.
-    private static final int LEXICAL_STATE_MASK = 0x1F;
+    // The context stack is NOT stored here — see the `frames` field. Only a
+    // truncated copy of it rides in bits 8..31, as a hint nothing reads back.
+    //
+    // Nothing saturates while lexing. Every counter here is a clamp applied on
+    // the way into the int and nowhere else, so the widths above bound what a
+    // restart can describe, never what the lexer can read.
+
+    // Holds a HALVED lexical state: JFlex allocates two DFA slots per declared
+    // state, so `yybegin` only ever sees even ids (0, 2, ... 22 for today's 12
+    // states). packRestartState asserts that rather than trusting it.
+    // Public so a test can assert the block-comment state is never observable
+    // at a token boundary — the property the blockCommentReturn field rests on.
+    public static final int LEXICAL_STATE_MASK = 0xF;
     private static final int COMMENT_DEPTH_MASK = 0x3;
     private static final int CONTEXT_STACK_MASK = 0xFFFFFF;
 
+    private static final int SAW_LINE_BREAK_SHIFT = 4;
     private static final int COMMENT_DEPTH_SHIFT = 5;
     private static final int PREV_IS_EXPR_END_SHIFT = 7;
     private static final int CONTEXT_STACK_SHIFT = 8;
@@ -42,6 +55,12 @@ import com.intellij.psi.TokenType;
     // boundaries: the bit is set by ordinary tokens (any identifier or literal
     // sets it) and self-corrects on the first significant token after restart.
     public static final int PREV_IS_EXPR_END_MASK = 1 << PREV_IS_EXPR_END_SHIFT;
+
+    // Also public for that assertion, but for the opposite reason: this bit does
+    // NOT self-correct — a restart landing on the `<` it governs would decide the
+    // token wrongly without it, which is exactly why it is packed. It is
+    // ignorable only for the zero-state check, which asks about lexical regions.
+    public static final int SAW_LINE_BREAK_MASK = 1 << SAW_LINE_BREAK_SHIFT;
 
     private static final int CONTEXT_FRAME_BITS = 8;
     private static final int CONTEXT_FRAME_MASK = 0xFF;
@@ -59,6 +78,17 @@ import com.intellij.psi.TokenType;
     private static final int FRAME_KIND_TEMPLATE = 0;
     private static final int FRAME_KIND_JSX_ATTR = 1;
     private static final int FRAME_KIND_JSX_CONTENT = 2;
+    // A `(` or `[` opening an UNBRACED attribute value (`b=f(x)`, `b=[1, 2]`).
+    // Same shape as JSX_ATTR — the interior is ordinary expression text and the
+    // closer that brings the depth to zero returns to JSX_TAG — but a distinct
+    // kind, so only these regions make `)`/`]` region-closing rather than plain
+    // operators. Closers are counted against one depth, never matched to their
+    // opener, so `b=f(1]` closes the region too — mis-scoping only input that is
+    // already invalid.
+    //
+    // This exhausts the packed 2-bit kind field. A fifth kind needs a layout
+    // change, not another constant.
+    private static final int FRAME_KIND_JSX_VALUE = 3;
 
     // TEMPLATE frame payload: 2-bit return-state selector (bits 4..5) over a
     // 4-bit brace depth (bits 0..3). The selector remembers which template
@@ -74,7 +104,6 @@ import com.intellij.psi.TokenType;
     private static final int JSX_CONTENT_DEPTH_MASK = 0x7;
     private static final int JSX_CONTENT_COUNT_SHIFT = 3;
     private static final int JSX_CONTENT_COUNT_MASK = 0x7;
-    private static final int JSX_CONTENT_ONE_CHILD = 1 << JSX_CONTENT_COUNT_SHIFT;
 
     // Whether the previous significant token is an "expression end" — drives
     // regex-vs-division disambiguation for `/` and JSX-vs-comparison for `<`.
@@ -82,47 +111,146 @@ import com.intellij.psi.TokenType;
     // `x / y / z` still knows the `/` follows a value and must be division,
     // not a regex start.
     private boolean prevIsExprEnd = false;
+
+    // Whether a line break has been passed since the last significant token.
+    // ReScript disambiguates `<` on exactly this, and the break may hide inside
+    // a block comment (`x /* c` NEWLINE `*/ <div />` is JSX to bsc) — so
+    // whitespace runs and comment interiors report here. String and template
+    // interiors deliberately do not: a newline inside the previous *token* is
+    // not a break (`"a` NEWLINE `b" <c` is a comparison to bsc), and their END
+    // tokens clear the flag through track() anyway.
+    private boolean sawLineBreak = false;
     private int commentDepth = 0;
-    private int contextStack = 0;
+
+    // Which state a block comment returns to. Live only, never packed, and that
+    // is sound rather than lucky: no rule active in IN_BLOCK_COMMENT returns a
+    // token except the terminating `*/`, which leaves the state in the same
+    // action — so an entire nested comment is consumed inside one advance() and
+    // no token boundary can land inside one. A restart only ever lands on a
+    // token boundary, so this field is always written before it is read.
+    //
+    // Note the invariant also rests on file layout: the catch-all
+    // `[^] { return BAD_CHARACTER; }` at the very bottom is active in every
+    // state, and only loses the tie with IN_BLOCK_COMMENT's own `[^]` because
+    // JFlex breaks equal-length matches by rule order. Moving it above that
+    // block would make every comment character a token — loudly, but it would
+    // also invalidate the reasoning above.
+    //
+    // Strings and templates could NOT do this: they emit tokens mid-state
+    // (STRING_START, STRING_CONTENT, …), so their boundaries are observable and
+    // their return state really does have to survive a restart — which is why
+    // IN_TAG_STRING / IN_CHILD_STRING exist and no such clones are needed here.
+    private int blockCommentReturn = YYINITIAL;
+
+    // The frame stack, and the source of truth for forward lexing. It is NOT
+    // bounded by what the restart int can hold: the packed form carries only
+    // the innermost PACKED_FRAMES frames, each counter clamped to the width it
+    // has there (see packContextStack).
+    //
+    // Truncating the packed form is safe because nothing reads it back. Any
+    // live frame makes the restart int non-zero; the platform only restarts
+    // where the state equals the lexer's initial state (0); and for a
+    // non-RestartableLexer `LexerEditorHighlighter` stores just the sign of a
+    // token index — `ShortBasedStorage.unpackStateFromData` throws. So a state
+    // that cannot be represented exactly is a state nothing can restart into.
+    // `isRestartStateExact()` reports the difference and the lexer tests assert
+    // that an inexact boundary is always non-zero.
+    //
+    // Frames are full-width here, which is what removes the caps that broke
+    // valid code: three live regions, and seven consecutively nested unbraced
+    // elements (real ReScript reaches nine).
+    private int[] frames = new int[16];
+    private int frameCount = 0;
+
+    // In-memory frame layout. Deliberately wider than the packed one and laid
+    // out differently, so the two cannot be confused: lowerFrame / raiseFrame
+    // are the only translation between them.
+    private static final int LIVE_KIND_SHIFT = 28;
+    private static final int LIVE_DEPTH_MASK = 0x3FFF;          // bits 0..13
+    private static final int LIVE_COUNT_SHIFT = 14;             // bits 14..27
+    private static final int LIVE_COUNT_MASK = 0x3FFF;
+    private static final int LIVE_ONE_CHILD = 1 << LIVE_COUNT_SHIFT;
+    private static final int LIVE_TEMPLATE_RETURN_SHIFT = 14;   // templates carry no count
+
+    private static final int PACKED_FRAMES = 3;
 
     private boolean hasFrame() {
-        return (contextStack & CONTEXT_FRAME_MASK) != 0;
+        return frameCount > 0;
+    }
+
+    private int topFrame() {
+        return frames[frameCount - 1];
+    }
+
+    private void setTopFrame(int frame) {
+        frames[frameCount - 1] = frame;
     }
 
     private int topFrameKind() {
-        return (contextStack & CONTEXT_FRAME_MASK) >>> FRAME_KIND_SHIFT;
+        return topFrame() >>> LIVE_KIND_SHIFT;
     }
 
     // Depth of the top TEMPLATE or JSX_ATTR frame (JSX_CONTENT frames have a
     // split payload and their own accessors below).
     private int topFrameDepth() {
-        int mask = topFrameKind() == FRAME_KIND_TEMPLATE ? TEMPLATE_DEPTH_MASK : FRAME_DEPTH_MASK;
-        return contextStack & mask;
+        return topFrame() & LIVE_DEPTH_MASK;
     }
 
     private int topTemplateReturnState() {
-        int selector = (contextStack >>> TEMPLATE_RETURN_SHIFT) & TEMPLATE_RETURN_MASK;
+        int selector = (topFrame() >>> LIVE_TEMPLATE_RETURN_SHIFT) & TEMPLATE_RETURN_MASK;
         if (selector == TEMPLATE_RETURN_TAG) return IN_TAG_TEMPLATE;
         if (selector == TEMPLATE_RETURN_CHILD) return IN_CHILD_TEMPLATE;
         return IN_TEMPLATE;
     }
 
-    private void pushFrame(int kind, int payload) {
-        contextStack = ((contextStack << CONTEXT_FRAME_BITS) & CONTEXT_STACK_MASK)
-            | (kind << FRAME_KIND_SHIFT) | (payload & FRAME_DEPTH_MASK);
+    private void pushLiveFrame(int frame) {
+        if (frameCount == frames.length) {
+            frames = java.util.Arrays.copyOf(frames, frames.length * 2);
+        }
+        frames[frameCount++] = frame;
+    }
+
+    private void pushTemplateFrame(int returnSelector) {
+        pushLiveFrame((FRAME_KIND_TEMPLATE << LIVE_KIND_SHIFT)
+            | (returnSelector << LIVE_TEMPLATE_RETURN_SHIFT) | 1);
+    }
+
+    private void pushJsxAttrFrame() {
+        pushLiveFrame((FRAME_KIND_JSX_ATTR << LIVE_KIND_SHIFT) | 1);
+    }
+
+    private void pushJsxContentFrame() {
+        pushLiveFrame((FRAME_KIND_JSX_CONTENT << LIVE_KIND_SHIFT) | LIVE_ONE_CHILD);
+    }
+
+    private void pushJsxValueFrame() {
+        pushLiveFrame((FRAME_KIND_JSX_VALUE << LIVE_KIND_SHIFT) | 1);
+    }
+
+    private boolean topIsJsxValue() {
+        return hasFrame() && topFrameKind() == FRAME_KIND_JSX_VALUE;
+    }
+
+    /** Closes an unbraced attribute value's region when its depth reaches zero. */
+    private void closeJsxValueDelimiter() {
+        if (!topIsJsxValue()) return;
+        decrementTopFrameDepth();
+        if (topFrameDepth() == 0) {
+            popFrame();
+            yybegin(JSX_TAG);
+        }
     }
 
     private void popFrame() {
-        contextStack >>>= CONTEXT_FRAME_BITS;
+        if (frameCount > 0) frameCount--;
     }
 
     private void incrementTopFrameDepth() {
-        int max = topFrameKind() == FRAME_KIND_TEMPLATE ? TEMPLATE_DEPTH_MASK : FRAME_DEPTH_MASK;
-        if (topFrameDepth() < max) contextStack++;
+        if (topFrameDepth() < LIVE_DEPTH_MASK) setTopFrame(topFrame() + 1);
     }
 
     private void decrementTopFrameDepth() {
-        if (topFrameDepth() > 0) contextStack--;
+        if (topFrameDepth() > 0) setTopFrame(topFrame() - 1);
     }
 
     private boolean topIsJsxContent() {
@@ -130,27 +258,116 @@ import com.intellij.psi.TokenType;
     }
 
     private int jsxContentBraceDepth() {
-        return contextStack & JSX_CONTENT_DEPTH_MASK;
+        return topFrame() & LIVE_DEPTH_MASK;
     }
 
     private int jsxContentChildCount() {
-        return (contextStack >>> JSX_CONTENT_COUNT_SHIFT) & JSX_CONTENT_COUNT_MASK;
+        return (topFrame() >>> LIVE_COUNT_SHIFT) & LIVE_COUNT_MASK;
     }
 
     private void incrementJsxContentBraceDepth() {
-        if (jsxContentBraceDepth() < JSX_CONTENT_DEPTH_MASK) contextStack++;
+        if (jsxContentBraceDepth() < LIVE_DEPTH_MASK) setTopFrame(topFrame() + 1);
     }
 
     private void decrementJsxContentBraceDepth() {
-        if (jsxContentBraceDepth() > 0) contextStack--;
+        if (jsxContentBraceDepth() > 0) setTopFrame(topFrame() - 1);
     }
 
     private void incrementJsxContentChildCount() {
-        if (jsxContentChildCount() < JSX_CONTENT_COUNT_MASK) contextStack += JSX_CONTENT_ONE_CHILD;
+        if (jsxContentChildCount() < LIVE_COUNT_MASK) setTopFrame(topFrame() + LIVE_ONE_CHILD);
     }
 
     private void decrementJsxContentChildCount() {
-        if (jsxContentChildCount() > 0) contextStack -= JSX_CONTENT_ONE_CHILD;
+        if (jsxContentChildCount() > 0) setTopFrame(topFrame() - LIVE_ONE_CHILD);
+    }
+
+    /** One live frame in the packed byte layout, each counter clamped to fit. */
+    private int lowerFrame(int frame) {
+        int kind = frame >>> LIVE_KIND_SHIFT;
+        int depth = frame & LIVE_DEPTH_MASK;
+        if (kind == FRAME_KIND_TEMPLATE) {
+            int selector = (frame >>> LIVE_TEMPLATE_RETURN_SHIFT) & TEMPLATE_RETURN_MASK;
+            return (kind << FRAME_KIND_SHIFT)
+                | (selector << TEMPLATE_RETURN_SHIFT)
+                | Math.min(depth, TEMPLATE_DEPTH_MASK);
+        }
+        if (kind == FRAME_KIND_JSX_CONTENT) {
+            int count = (frame >>> LIVE_COUNT_SHIFT) & LIVE_COUNT_MASK;
+            return (kind << FRAME_KIND_SHIFT)
+                | (Math.min(count, JSX_CONTENT_COUNT_MASK) << JSX_CONTENT_COUNT_SHIFT)
+                | Math.min(depth, JSX_CONTENT_DEPTH_MASK);
+        }
+        return (kind << FRAME_KIND_SHIFT) | Math.min(depth, FRAME_DEPTH_MASK);
+    }
+
+    /** Inverse of lowerFrame for a frame that fit; a clamped one raises differently. */
+    private int raiseFrame(int packedFrame) {
+        int kind = (packedFrame & CONTEXT_FRAME_MASK) >>> FRAME_KIND_SHIFT;
+        if (kind == FRAME_KIND_TEMPLATE) {
+            int selector = (packedFrame >>> TEMPLATE_RETURN_SHIFT) & TEMPLATE_RETURN_MASK;
+            return (kind << LIVE_KIND_SHIFT)
+                | (selector << LIVE_TEMPLATE_RETURN_SHIFT)
+                | (packedFrame & TEMPLATE_DEPTH_MASK);
+        }
+        if (kind == FRAME_KIND_JSX_CONTENT) {
+            int count = (packedFrame >>> JSX_CONTENT_COUNT_SHIFT) & JSX_CONTENT_COUNT_MASK;
+            return (kind << LIVE_KIND_SHIFT)
+                | (count << LIVE_COUNT_SHIFT)
+                | (packedFrame & JSX_CONTENT_DEPTH_MASK);
+        }
+        return (kind << LIVE_KIND_SHIFT) | (packedFrame & FRAME_DEPTH_MASK);
+    }
+
+    private int packContextStack() {
+        int packed = 0;
+        int packable = Math.min(frameCount, PACKED_FRAMES);
+        for (int i = 0; i < packable; i++) {
+            int lowered = lowerFrame(frames[frameCount - 1 - i]) & CONTEXT_FRAME_MASK;
+            packed |= lowered << (i * CONTEXT_FRAME_BITS);
+        }
+        return packed;
+    }
+
+    private void unpackContextStackInto(int packedStack) {
+        frameCount = 0;
+        // Outermost slot first, so the innermost frame ends up on top. A zero
+        // byte is an empty slot; live frames are contiguous from the low byte.
+        for (int i = PACKED_FRAMES - 1; i >= 0; i--) {
+            int slot = (packedStack >>> (i * CONTEXT_FRAME_BITS)) & CONTEXT_FRAME_MASK;
+            if (slot != 0) pushLiveFrame(raiseFrame(slot));
+        }
+    }
+
+    /**
+     * Whether the packed restart int describes the frame stack exactly. False
+     * when the stack is deeper than PACKED_FRAMES, when a counter had to be
+     * clamped, or when a frame lowered to an all-zero byte.
+     *
+     * Deliberately the round trip of the whole STACK, not of each frame in
+     * isolation. Two things can be lost, and only one of them is visible per
+     * frame: a clamped counter (which a depth test would miss) and a frame that
+     * lowers to 0x00, which unpackContextStackInto reads as an empty slot and
+     * drops — even though its bits round-trip perfectly. Today no live frame
+     * can lower to zero (a TEMPLATE or JSX_ATTR frame is popped in the same
+     * action that takes its depth to 0, and the other kinds carry a kind bit),
+     * but that is an invariant of the rules, not of this method, and if it ever
+     * broke the packed state would read as 0 — which the platform treats as
+     * restartable, the one thing the design must never allow.
+     */
+    public boolean isRestartStateExact() {
+        // Never actually false today — a nested comment is consumed inside a
+        // single advance(), so the depth is zero at every token boundary — but
+        // the clamp above is real, so the predicate accounts for it rather than
+        // relying on that.
+        if (commentDepth > COMMENT_DEPTH_MASK) return false;
+        if (frameCount > PACKED_FRAMES) return false;
+        int packed = packContextStack();
+        for (int i = 0; i < frameCount; i++) {
+            int slot = (packed >>> (i * CONTEXT_FRAME_BITS)) & CONTEXT_FRAME_MASK;
+            if (slot == 0) return false;
+            if (raiseFrame(slot) != frames[frameCount - 1 - i]) return false;
+        }
+        return true;
     }
 
     private boolean isSignificant(IElementType type) {
@@ -160,7 +377,10 @@ import com.intellij.psi.TokenType;
     }
 
     private IElementType track(IElementType type) {
-        if (isSignificant(type)) prevIsExprEnd = isExpressionEnd(type);
+        if (isSignificant(type)) {
+            prevIsExprEnd = isExpressionEnd(type);
+            sawLineBreak = false;
+        }
         return type;
     }
 
@@ -169,7 +389,27 @@ import com.intellij.psi.TokenType;
     // which must NOT count — see isExpressionEnd).
     private IElementType trackExprEnd(IElementType type) {
         prevIsExprEnd = true;
+        sawLineBreak = false;
         return type;
+    }
+
+    // Newlines are only ever passed over, never returned as part of a
+    // significant token, so noticing them here covers every path: whitespace
+    // runs in each state, and block-comment interiors.
+    private void noteLineBreak(int start, int end) {
+        for (int i = start; i < end; i++) {
+            // LF only. bsc does not treat a lone CR as a break (`a` CR `<b` is
+            // a comparison), and a CRLF run contains the LF anyway.
+            if (zzBuffer.charAt(i) == '\n') {
+                sawLineBreak = true;
+                return;
+            }
+        }
+    }
+
+    private IElementType whiteSpace() {
+        noteLineBreak(zzStartRead, zzMarkedPos);
+        return TokenType.WHITE_SPACE;
     }
 
     /**
@@ -192,6 +432,7 @@ import com.intellij.psi.TokenType;
                type == ReScriptTypes.RBRACE       ||   // {x}
                type == ReScriptTypes.STRING_END   ||   // "s"
                type == ReScriptTypes.TEMPLATE_END ||   // `t`
+               type == ReScriptTypes.REGEX        ||   // /p/g
                type == ReScriptTypes.JSX_SLASH_GT;     // <A />
     }
 
@@ -211,6 +452,7 @@ import com.intellij.psi.TokenType;
      *   {x} / y        — RBRACE `/` → division (blocks/records are expressions)
      *   "s" / x        — STRING_END `/` → division
      *   `t` / x        — TEMPLATE_END `/` → division
+     *   /p/ / x        — REGEX `/` → division (a completed literal is a value)
      *   1n / 2n        — BIGINT `/` → division
      *   true / x       — TRUE/FALSE `/` → division
      *
@@ -235,16 +477,34 @@ import com.intellij.psi.TokenType;
     }
 
     private int packRestartState(
-            int lexicalState, int commentDepth, boolean prevIsExprEnd, int contextStack) {
-        int packedLexicalState = lexicalState & LEXICAL_STATE_MASK;
-        int packedCommentDepth = (commentDepth & COMMENT_DEPTH_MASK) << COMMENT_DEPTH_SHIFT;
+            int lexicalState, int commentDepth, boolean prevIsExprEnd,
+            boolean sawLineBreak, int contextStack) {
+        // Guards the halving that freed bit 4. Both halves matter: an odd id
+        // would lose its low bit, and a 17th state would not fit at all.
+        // The tripwire is the test suite: this runs per token, so adding a
+        // %state reddens every lexer test. In the IDE the adapter catches it
+        // and degrades the file to BAD_CHARACTER plus a log warning.
+        if ((lexicalState & 1) != 0 || (lexicalState >>> 1) > LEXICAL_STATE_MASK) {
+            throw new IllegalStateException(
+                "lexical state " + lexicalState + " does not fit the 4-bit restart field"
+                    + " — rework the packed layout before adding states");
+        }
+        int packedLexicalState = (lexicalState >>> 1) & LEXICAL_STATE_MASK;
+        int packedSawLineBreak = sawLineBreak ? SAW_LINE_BREAK_MASK : 0;
+        int packedCommentDepth =
+            Math.min(commentDepth, COMMENT_DEPTH_MASK) << COMMENT_DEPTH_SHIFT;
         int packedPrevIsExprEnd = prevIsExprEnd ? PREV_IS_EXPR_END_MASK : 0;
         int packedContextStack = (contextStack & CONTEXT_STACK_MASK) << CONTEXT_STACK_SHIFT;
-        return packedLexicalState | packedCommentDepth | packedPrevIsExprEnd | packedContextStack;
+        return packedLexicalState | packedSawLineBreak | packedCommentDepth
+            | packedPrevIsExprEnd | packedContextStack;
     }
 
     private int unpackLexicalState(int packedState) {
-        return packedState & LEXICAL_STATE_MASK;
+        return (packedState & LEXICAL_STATE_MASK) << 1;
+    }
+
+    private boolean unpackSawLineBreak(int packedState) {
+        return (packedState & SAW_LINE_BREAK_MASK) != 0;
     }
 
     private int unpackCommentDepth(int packedState) {
@@ -260,13 +520,18 @@ import com.intellij.psi.TokenType;
     }
 
     public int getPackedRestartState() {
-        return packRestartState(zzLexicalState, commentDepth, prevIsExprEnd, contextStack);
+        return packRestartState(
+            zzLexicalState, commentDepth, prevIsExprEnd, sawLineBreak, packContextStack());
     }
 
     public void resetWithPackedRestartState(CharSequence buffer, int start, int end, int packedState) {
         prevIsExprEnd = unpackPrevIsExprEnd(packedState);
+        // Never live across a restart (see the field's declaration); reset so
+        // that is stated in code rather than merely true.
+        blockCommentReturn = YYINITIAL;
+        sawLineBreak = unpackSawLineBreak(packedState);
         commentDepth = unpackCommentDepth(packedState);
-        contextStack = unpackContextStack(packedState);
+        unpackContextStackInto(unpackContextStack(packedState));
         reset(buffer, start, end, unpackLexicalState(packedState));
     }
 
@@ -293,7 +558,8 @@ LOWER_IDENT = [a-z_][a-zA-Z0-9_]*
 JSX_HYPHEN_IDENT = [a-z_][a-zA-Z0-9_]* ("-" [a-zA-Z_][a-zA-Z0-9_]*)+
 UPPER_IDENT = [A-Z][a-zA-Z0-9_]*
 // What may follow the keyword on a declaration-shaped line. The shape — not the
-// keyword — is what keeps `type="text"` and punned `open` from firing the rescue.
+// keyword — is what decides: `<A b=` NEWLINE `module(M) />` is legal, a first-class
+// module being an unbraced value, so `module(` must not fire where `module M = …` must.
 JSX_DECL_RESCUE = ("let"|"and") [ \t]+ [a-z_({]
                 | ("type"|"external") [ \t]+ [a-z_]
                 | "module" [ \t]+ ("type" [ \t]+)? [A-Z]
@@ -314,13 +580,19 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
 // Invariant: no rule here may have a same-length competitor in the shared
 // block — first-match-wins would silently prefer whichever comes first.
 <YYINITIAL> {
-    "/*"                { commentDepth = 1; yybegin(IN_BLOCK_COMMENT); }
+    "/*"                { commentDepth = 1; blockCommentReturn = YYINITIAL;
+                          yybegin(IN_BLOCK_COMMENT); }
     \"                  { yybegin(IN_STRING); return track(ReScriptTypes.STRING_START); }
     `                   { yybegin(IN_TEMPLATE); return track(ReScriptTypes.TEMPLATE_START); }
 
     // Closing tag in expression position: mid-edit recovery for text like
     // `<div> {x </div>`. After an expression end this is `a < /re/`
     // territory instead — push the slash back and let the regex rule decide.
+    //
+    // Deliberately NOT given the line-break exemption that `<` gets below: a
+    // line-opening `</` only occurs in input bsc rejects outright, so there is
+    // no correct reading to match, and the fallback here already stays local
+    // (the regex attempt dies at the line end rather than eating the file).
     "</"                { if (!prevIsExprEnd) {
                               yybegin(JSX_CLOSE_TAG);
                               return track(ReScriptTypes.JSX_LT_SLASH);
@@ -335,7 +607,12 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
     // or a type parameter list (`a < b`, `list<int>`). The lookahead keeps
     // bare operator soup like `== != < >` out of JSX mode: a tag's `<` is
     // always glued to a name, `>`, or `/`.
-    "<" / [A-Za-z_>/]   { if (!prevIsExprEnd) {
+    //
+    // A `<` separated from the previous token by a line break is a tag even
+    // after an expression end, which is how an element in statement position
+    // parses — the `@react.component let make` body returns one right after a
+    // `let` ending in `}`. bsc draws the line in the same place.
+    "<" / [A-Za-z_>/]   { if (!prevIsExprEnd || sawLineBreak) {
                               yybegin(JSX_TAG);
                               return track(ReScriptTypes.JSX_LT);
                           } else {
@@ -377,7 +654,12 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
                             yybegin(YYINITIAL);
                             return track(ReScriptTypes.LBRACE);
                         }
-    // `/` never starts a regex between tags.
+    // Longest match beats the `/` rule below.
+    "/*"                { commentDepth = 1; blockCommentReturn = JSX_CHILDREN;
+                          yybegin(IN_BLOCK_COMMENT); }
+    // Always SLASH — a deliberate divergence: bsc accepts a bare regex child
+    // (`<div> /a/ </div>`), but letting `/` open one here would let it swallow
+    // the `</` this state exists to see. The braced form `{/a/}` lexes correctly.
     "/"                 { return track(ReScriptTypes.SLASH); }
     // A `<` not glued to a name/`>`/`/` is a mid-edit stray, not a tag.
     "<"                 { return track(ReScriptTypes.LT); }
@@ -389,7 +671,7 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
 // identifiers, literals, operators, punctuation. Children of an element are
 // ordinary ReScript atoms, so both states lex these identically.
 <YYINITIAL, JSX_CHILDREN> {
-    {WHITE_SPACE}       { return TokenType.WHITE_SPACE; }
+    {WHITE_SPACE}       { return whiteSpace(); }
     {LINE_COMMENT}      { return track(ReScriptTypes.LINE_COMMENT); }
 
     "let"               { return track(ReScriptTypes.LET); }
@@ -455,8 +737,14 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
     "*"                 { return track(ReScriptTypes.STAR); }
     ">"                 { return track(ReScriptTypes.GT); }
 
-    "("                 { return track(ReScriptTypes.LPAREN); }
-    ")"                 { return track(ReScriptTypes.RPAREN); }
+    "("                 {
+                            if (topIsJsxValue()) incrementTopFrameDepth();
+                            return track(ReScriptTypes.LPAREN);
+                        }
+    ")"                 {
+                            closeJsxValueDelimiter();
+                            return track(ReScriptTypes.RPAREN);
+                        }
     "}"                 {
                             if (topIsJsxContent()) {
                                 // Closing a `{child expr}` brace (or a stray `}`
@@ -477,16 +765,23 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
                                         yybegin(templateReturn);
                                         return track(ReScriptTypes.TEMPLATE_INTERPOLATION_END);
                                     }
-                                    // FRAME_KIND_JSX_ATTR: `}` closes an attribute
-                                    // expression, back into the enclosing tag.
+                                    // FRAME_KIND_JSX_ATTR or FRAME_KIND_JSX_VALUE:
+                                    // `}` closes an attribute expression or an
+                                    // unbraced value's region, back into the tag.
                                     yybegin(JSX_TAG);
                                     return track(ReScriptTypes.RBRACE);
                                 }
                             }
                             return track(ReScriptTypes.RBRACE);
                         }
-    "["                 { return track(ReScriptTypes.LBRACKET); }
-    "]"                 { return track(ReScriptTypes.RBRACKET); }
+    "["                 {
+                            if (topIsJsxValue()) incrementTopFrameDepth();
+                            return track(ReScriptTypes.LBRACKET);
+                        }
+    "]"                 {
+                            closeJsxValueDelimiter();
+                            return track(ReScriptTypes.RBRACKET);
+                        }
     ","                 { return track(ReScriptTypes.COMMA); }
     ";"                 { return track(ReScriptTypes.SEMICOLON); }
     ":>"                { return track(ReScriptTypes.COLONGT); }
@@ -515,12 +810,12 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
     [\r\n]+ [ \t]* / {JSX_DECL_RESCUE} {
                             if (topIsJsxContent() && jsxContentBraceDepth() == 0) popFrame();
                             yybegin(YYINITIAL);
-                            return TokenType.WHITE_SPACE;
+                            return whiteSpace();
                         }
     // ONE token, deliberately not LIDENT MINUS LIDENT: `-` stays unlexable in
     // tag states, so a non-value like `neg=-1` cannot form by construction.
     {JSX_HYPHEN_IDENT}  { return track(ReScriptTypes.LIDENT); }
-    {WHITE_SPACE}       { return TokenType.WHITE_SPACE; }
+    {WHITE_SPACE}       { return whiteSpace(); }
     {FLOAT}             { return track(ReScriptTypes.FLOAT); }
     {HEX_INT}           { return track(ReScriptTypes.INT); }
     {OCT_INT}           { return track(ReScriptTypes.INT); }
@@ -533,12 +828,40 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
     "="                 { return track(ReScriptTypes.EQ); }
     "?"                 { return track(ReScriptTypes.QUESTION); }
     "#"                 { return track(ReScriptTypes.HASH); }
+    // `b=%raw("x")` — an extension is a legal unbraced value. Safe to lex here
+    // for the same reason `(` is: it cannot begin anything the tag rejects.
+    "%"                 { return track(ReScriptTypes.PCT); }
+    // Comments are legal at every inter-token position in a tag. The parser
+    // skips them for free — they are in getCommentTokens() — so nothing in the
+    // grammar has to admit them.
+    {LINE_COMMENT}      { return track(ReScriptTypes.LINE_COMMENT); }
+    "/*"                { commentDepth = 1; blockCommentReturn = JSX_TAG;
+                          yybegin(IN_BLOCK_COMMENT); }
     \"                  { yybegin(IN_TAG_STRING); return track(ReScriptTypes.STRING_START); }
     `                   { yybegin(IN_TAG_TEMPLATE); return track(ReScriptTypes.TEMPLATE_START); }
+    // Unbraced applied or container value: `b=f(x)`, `b=Some(1)`, `b=#tag(x)`,
+    // `b=[1, 2]`, `b=(a, b)`, `b=x[0]`. ReScript allows any *primary*
+    // expression here, so the interior is ordinary expression text — same
+    // treatment as `{` below; the closer that brings the depth to zero returns
+    // to this tag.
+    //
+    // This does NOT weaken the rule that `-` is unlexable in a tag: the
+    // exclusion guards where a value STARTS, so `b=-1` still cannot form, while
+    // `b=Some(-1)` — which the compiler accepts — lexes inside the region.
+    "("                 {
+                            pushJsxValueFrame();
+                            yybegin(YYINITIAL);
+                            return track(ReScriptTypes.LPAREN);
+                        }
+    "["                 {
+                            pushJsxValueFrame();
+                            yybegin(YYINITIAL);
+                            return track(ReScriptTypes.LBRACKET);
+                        }
     // Attribute expression (`b={expr}`) or spread (`{...props}`): resume
     // normal lexing until the matching `}` returns to this tag.
     "{"                 {
-                            pushFrame(FRAME_KIND_JSX_ATTR, 1);
+                            pushJsxAttrFrame();
                             yybegin(YYINITIAL);
                             return track(ReScriptTypes.LBRACE);
                         }
@@ -550,7 +873,7 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
                             if (topIsJsxContent() && jsxContentBraceDepth() == 0) {
                                 incrementJsxContentChildCount();
                             } else {
-                                pushFrame(FRAME_KIND_JSX_CONTENT, JSX_CONTENT_ONE_CHILD);
+                                pushJsxContentFrame();
                             }
                             yybegin(JSX_CHILDREN);
                             return track(ReScriptTypes.JSX_GT);
@@ -572,8 +895,18 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
 // (mirrors the REGEX end-of-line rescue).
 <JSX_CLOSE_TAG> {
     {JSX_HYPHEN_IDENT}  { return track(ReScriptTypes.LIDENT); }
+    {LINE_COMMENT}      { return track(ReScriptTypes.LINE_COMMENT); }
+    "/*"                { commentDepth = 1; blockCommentReturn = JSX_CLOSE_TAG;
+                          yybegin(IN_BLOCK_COMMENT); }
     [ \t]+              { return TokenType.WHITE_SPACE; }
-    [\r\n]+             { yybegin(JSX_CHILDREN); return TokenType.WHITE_SPACE; }
+    // Mid-edit bail, guarded exactly like JSX_TAG's. An unguarded bail (any
+    // newline) breaks the legal `</A` NEWLINE `>`: it drops to children and
+    // lexes the `>` as a comparison, leaving the tag unclosed.
+    [\r\n]+ [ \t]* / {JSX_DECL_RESCUE} {
+                            yybegin(JSX_CHILDREN);
+                            return whiteSpace();
+                        }
+    [\r\n]+             { return whiteSpace(); }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }
     {UPPER_IDENT}       { return track(ReScriptTypes.UIDENT); }
     "."                 { return track(ReScriptTypes.DOT); }
@@ -583,7 +916,12 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
     // never a depth-0 children region). The finished element is a value, so
     // this `>` is an expression end (trackExprEnd, not track).
     ">"                 {
-                            if (topIsJsxContent()) {
+                            // The `jsxContentBraceDepth() == 0` half mirrors the
+                            // opening tag's guard. Without it a stray `</li>`
+                            // inside a `{child}` brace decrements the ENCLOSING
+                            // region's count and can pop a frame that is still
+                            // live, taking the outer element down with it.
+                            if (topIsJsxContent() && jsxContentBraceDepth() == 0) {
                                 decrementJsxContentChildCount();
                                 if (jsxContentChildCount() == 0) {
                                     popFrame();
@@ -640,7 +978,7 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
     // `${` starts an interpolation: resume normal ReScript lexing until its
     // matching `}` returns to this template state (via the frame's selector).
     "${"                {
-                            pushFrame(FRAME_KIND_TEMPLATE, (TEMPLATE_RETURN_TOP << TEMPLATE_RETURN_SHIFT) | 1);
+                            pushTemplateFrame(TEMPLATE_RETURN_TOP);
                             yybegin(YYINITIAL);
                             return track(ReScriptTypes.TEMPLATE_INTERPOLATION_START);
                         }
@@ -648,7 +986,7 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
 <IN_TAG_TEMPLATE> {
     `                   { yybegin(JSX_TAG); return track(ReScriptTypes.TEMPLATE_END); }
     "${"                {
-                            pushFrame(FRAME_KIND_TEMPLATE, (TEMPLATE_RETURN_TAG << TEMPLATE_RETURN_SHIFT) | 1);
+                            pushTemplateFrame(TEMPLATE_RETURN_TAG);
                             yybegin(YYINITIAL);
                             return track(ReScriptTypes.TEMPLATE_INTERPOLATION_START);
                         }
@@ -656,7 +994,7 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
 <IN_CHILD_TEMPLATE> {
     `                   { yybegin(JSX_CHILDREN); return track(ReScriptTypes.TEMPLATE_END); }
     "${"                {
-                            pushFrame(FRAME_KIND_TEMPLATE, (TEMPLATE_RETURN_CHILD << TEMPLATE_RETURN_SHIFT) | 1);
+                            pushTemplateFrame(TEMPLATE_RETURN_CHILD);
                             yybegin(YYINITIAL);
                             return track(ReScriptTypes.TEMPLATE_INTERPOLATION_START);
                         }
@@ -673,11 +1011,17 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
 
 // Nested block comment state: /* /* */ */
 <IN_BLOCK_COMMENT> {
-    // Saturate at the packed field's maximum so the in-memory depth is always
-    // exactly what a restart would restore (see COMMENT_DEPTH_MASK).
-    "/*"                { if (commentDepth < COMMENT_DEPTH_MASK) commentDepth++; }
-    "*/"                { commentDepth--; if (commentDepth == 0) { yybegin(YYINITIAL); return track(ReScriptTypes.BLOCK_COMMENT); } }
-    [^]                 { /* consume */ }
+    // Full width, like the frame stack: the packed copy clamps (see
+    // packRestartState), the live counter does not. A saturating counter here
+    // loses the increment outright: `/* a /* b /* c /* d */ */ */ */` closes
+    // one `*/` early and leaks the last one into the token stream.
+    "/*"                { commentDepth++; }
+    "*/"                { commentDepth--;
+                          if (commentDepth == 0) {
+                              yybegin(blockCommentReturn);
+                              return track(ReScriptTypes.BLOCK_COMMENT);
+                          } }
+    [^]                 { noteLineBreak(zzStartRead, zzMarkedPos); }
 }
 
 [^]                     { return TokenType.BAD_CHARACTER; }

@@ -378,8 +378,42 @@ JsxElement ::= JSX_LT JsxTagName (JsxAttribute | JsxSpreadAttribute)*
 private jsxOpenTail ::= JSX_GT jsxChild* JsxClosingTag { pin = 1 }
 // Lowercase path segment legal only in final position (<Mod.sub />); earlier ones are a syntax error.
 JsxTagName ::= UIDENT (DOT UIDENT)* (DOT LIDENT)? | LIDENT
-JsxAttribute ::= QUESTION LIDENT | LIDENT (EQ QUESTION? JsxAttributeValue)?
-JsxAttributeValue ::= literal | bracedBlock | jsxVariantChild | jsxPathChild
+JsxAttribute ::= QUESTION LIDENT | LIDENT jsxAttributeAssign?
+// Pinned on EQ: without it a value this rule cannot match rolls the whole group
+// back, the attribute silently becomes punned, and the rest of the tag turns to
+// soup with no error anywhere. Pinned, the error lands on the value.
+private jsxAttributeAssign ::= EQ QUESTION? JsxAttributeValue { pin = 1 }
+// An unbraced value is a ReScript *primary* expression: an atomic expression
+// followed by call / index / field postfixes. That is literally what the
+// compiler does — its JSX parser calls
+// `parse_primary_expr ~operand:(parse_atomic_expr p)`.
+JsxAttributeValue ::= jsxValueAtom jsxValuePostfix*
+private jsxValueAtom ::= literal | TRUE | FALSE | bracedBlock | jsxVariantValue
+                       | firstClassModuleExpr | jsxExtensionValue | jsxPathChild
+                       | jsxValueParen | jsxValueBracket
+// Field access is a postfix too, so `f(x).y` and `Ctor(x).y` parse — both legal.
+// UIDENT is admitted deliberately, though a field must end lowercase to the
+// compiler (`f(x).Bar` is a syntax error, `f(x).A.name` is not). Narrowing this
+// to `DOT (UIDENT DOT)* LIDENT` alone makes things worse, not better: the value
+// ends early and the `.`, the `Bar` and the element's own `/>` fall out of the
+// JsxElement as loose siblings, with no error reported anywhere. Reporting the
+// error needs the precise suffix PLUS a pinned uppercase-ending recovery branch
+// — which works, but buys a diagnostic bsc already gives, so it stays unbuilt.
+private jsxValuePostfix ::= jsxValueParen | jsxValueBracket | DOT (LIDENT | UIDENT)
+// Same as jsxVariantChild but with the payload spelled by the rules below, so a
+// `#tag(x)` payload is bounded the same way an application's arguments are.
+private jsxVariantValue ::= HASH (LIDENT | UIDENT | INT | StringLiteral) jsxValueParen?
+private jsxExtensionValue ::= PCT LIDENT jsxValueParen?
+private jsxValueParen ::= LPAREN jsxValueContent* RPAREN { pin = 1 }
+private jsxValueBracket ::= LBRACKET jsxValueContent* RBRACKET { pin = 1 }
+// Deliberately NOT parenContent: that admits declKeyword, so an unclosed `(`
+// mid-edit would run to end of file. Dropping declaration keywords stops it at
+// the next `let`/`type`/`module`, the same boundary structureItemRecover uses.
+private jsxValueContent ::= jsxValue | jsxFirstClassModuleValue
+                          | delimitedBlock | AT | PCT_PCT | nonDeclToken
+// `f(module(M))`. Deliberately not firstClassModuleExpr: that spells its payload
+// with parenBlock, which admits declKeyword and so reopens the hole above.
+private jsxFirstClassModuleValue ::= MODULE jsxValueParen { pin = 2 }
 JsxSpreadAttribute ::= LBRACE DOTDOTDOT blockContent* RBRACE
 JsxClosingTag ::= JSX_LT_SLASH JsxTagName JSX_GT { pin = 1 }
 // Deliberately not nonDeclToken: operators are invalid child syntax, and declaration

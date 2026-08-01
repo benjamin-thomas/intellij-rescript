@@ -1,8 +1,9 @@
 package com.github.benjamin_thomas.intellij_rescript.lang
 
+import com.github.benjamin_thomas.intellij_rescript.ReScriptLanguage
+import com.intellij.lang.LanguageBraceMatching
 import com.intellij.testFramework.ParsingTestCase
-
-private val noop: () -> Unit = {}
+import java.io.File
 
 class ReScriptParserTest : ParsingTestCase(
     "com/github/benjamin_thomas/intellij_rescript/parser/fixtures",
@@ -11,6 +12,18 @@ class ReScriptParserTest : ParsingTestCase(
     ReScriptParserDefinition()
 ) {
     override fun getTestDataPath() = System.getProperty("user.dir") + "/src/test/resources"
+
+    // GeneratedParserUtilBase queries LanguageBraceMatching on every parse. Under
+    // ParsingTestCase's mock application that query finds nothing and caches the
+    // empty result in KeyedExtensionCollector's JVM-wide static, which nothing
+    // invalidates — so a BasePlatformTestCase running later in the same JVM finds
+    // no brace matcher and typing `{` stops auto-closing. Registering the real one
+    // here also purges that cache, since addExplicitExtension and its teardown both
+    // call clearCacheForLanguage. Any future ParsingTestCase subclass needs this too.
+    override fun setUp() {
+        super.setUp()
+        addExplicitExtension(LanguageBraceMatching.INSTANCE, ReScriptLanguage, ReScriptBraceMatcher())
+    }
 
     /**
      * @param hasParseErrors skip the "no PsiErrorElement" assertion (for intentionally broken input)
@@ -23,16 +36,19 @@ class ReScriptParserTest : ParsingTestCase(
         hasParseErrors: Boolean = false,
         skipSpaces: Boolean = true,
         printRanges: Boolean = false,
-    ) =
-        createParserTest(
-            createAndSetPsiFile = { file ->
-                val name = file.removeSuffix(".res")
-                createPsiFile(name, loadFile(file)).also { myFile = it }
-            },
-            ensureNoErrorElements = if (hasParseErrors) noop else ::ensureNoErrorElements,
-            toParseTreeText = { toParseTreeText(it, skipSpaces, printRanges) },
-            fullDataPath = myFullDataPath,
-        )(inputFile, expectedOutputFile)
+    ) {
+        // parseFile, not createPsiFile: it adds the platform's sanity checks —
+        // text/document/PSI consistency, full expansion, range consistency, and
+        // ensureCorrectReparse, which re-lexes from scratch and requires the result
+        // to be byte-identical. That last one is the incremental contract this
+        // lexer's packed restart state exists to satisfy.
+        val psiFile = parseFile(inputFile.removeSuffix(".res"), loadFile(inputFile))
+        if (!hasParseErrors) ensureNoErrorElements()
+        assertSameLinesWithFile(
+            File(myFullDataPath, expectedOutputFile).canonicalPath,
+            toParseTreeText(psiFile, skipSpaces, printRanges),
+        )
+    }
 
     /** Verify that the parser doesn't crash on the given input (no gold file comparison). */
     private fun assertParserDoesNotCrash(inputFile: String) {
@@ -132,9 +148,9 @@ class ReScriptParserTest : ParsingTestCase(
     fun testTopLevelExprThenLet() = runParserTest("TopLevelExprThenLet.res", "TopLevelExprThenLet.out")
 
     // A JSX element used as a JSX attribute value, whose inner element carries a
-    // quoted-literal attribute, must parse without error. The trailing `/` of the
-    // inner `<B ... />` used to be lexed as a regex start (because STRING_END /
-    // TEMPLATE_END were not expression-end tokens), swallowing the `/>` and the
+    // quoted-literal attribute, must parse without error. Guards that STRING_END /
+    // TEMPLATE_END are expression-end tokens: otherwise the trailing `/` of the
+    // inner `<B ... />` lexes as a regex start, swallowing the `/>` and the
     // enclosing `}` and leaving the JSX expression unbalanced.
     fun testJsxElementAsAttributeValue() =
         runParserTest("JsxElementAsAttributeValue.res", "JsxElementAsAttributeValue.out")
@@ -239,12 +255,43 @@ class ReScriptParserTest : ParsingTestCase(
         runParserTest("JsxHyphenatedAttributeNames.res", "JsxHyphenatedAttributeNames.out")
     fun testJsxInvalidHyphenPathStart() =
         runParserTest("JsxInvalidHyphenPathStart.res", "JsxInvalidHyphenPathStart.out", hasParseErrors = true)
-    // `neg=-1` is a syntax error (bsc): the attribute must stay punned and no
-    // JSX_ATTRIBUTE_VALUE may form — JsxAttributeValue must never admit MINUS.
+    // `neg=-1` is a syntax error (bsc), and no JSX_ATTRIBUTE_VALUE may form —
+    // `-` is unlexable in a tag, so the value rule can never admit it. A
+    // regression sentinel: if widening JsxAttributeValue ever makes a value
+    // node appear here, it overreached.
+    // The error sits on the `-` because jsxAttributeAssign pins EQ; the
+    // trailing `/>` still escapes the element, which would take a recoverWhile
+    // on JsxAttribute — deliberately not added.
     fun testJsxInvalidNegativeAttributeValue() =
         runParserTest("JsxInvalidNegativeAttributeValue.res", "JsxInvalidNegativeAttributeValue.out", hasParseErrors = true)
     fun testJsxTagNewlineRescue() =
         runParserTest("JsxTagNewlineRescue.res", "JsxTagNewlineRescue.out", hasParseErrors = true)
     fun testJsxComponentsPlayground() =
         runParserTest("JsxComponents.res", "JsxComponents.out")
+    fun testJsxNestedRegionOverflow() =
+        runParserTest("JsxNestedRegionOverflow.res", "JsxNestedRegionOverflow.out")
+    // The whole class of unbraced attribute values ReScript allows — a primary
+    // expression. One line still errors on purpose (`list{…}`); the fixture says
+    // which and why.
+    fun testJsxAttributeValueApplication() =
+        runParserTest(
+            "JsxAttributeValueApplication.res",
+            "JsxAttributeValueApplication.out",
+            hasParseErrors = true,
+        )
+    fun testJsxComments() = runParserTest("JsxComments.res", "JsxComments.out")
+    // A newline inside a closing tag is legal; JSX_CLOSE_TAG's bail must fire
+    // only on a declaration-shaped line, or the `>` lexes as a comparison.
+    fun testJsxClosingTagNewline() =
+        runParserTest("JsxClosingTagNewline.res", "JsxClosingTagNewline.out")
+    fun testJsxStatementPosition() =
+        runParserTest("JsxStatementPosition.res", "JsxStatementPosition.out")
+    // Characterizes the accepted cost of the line-break rule: a wrapped type
+    // parameter list is lexed as JSX. Valid ReScript, two error elements.
+    fun testJsxStatementPositionTypeClash() =
+        runParserTest(
+            "JsxStatementPositionTypeClash.res",
+            "JsxStatementPositionTypeClash.out",
+            hasParseErrors = true,
+        )
 }

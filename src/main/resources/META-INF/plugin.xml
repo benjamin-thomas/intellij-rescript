@@ -6,25 +6,54 @@
     <depends>com.redhat.devtools.lsp4ij</depends>
 
     <description><![CDATA[
-        <p>ReScript language support for JetBrains IDEs via LSP.</p>
-        <p>Provides syntax highlighting, code folding, and full IDE intelligence
-        (completion, hover, go-to-definition, references, rename, diagnostics,
-        formatting) by integrating with the ReScript language server.</p>
-        <h3>Requirements</h3>
+        <p>
+            A ReScript plugin for JetBrains IDEs.
+            It leans heavily on the official ReScript language server + adds a small native parser to enable extra behavior.
+        </p>
+
+        <p>
+            The goal is to give a nice and stable editing experience to a working ReScript programmer.
+        </p>
+
+
+        <h3>Setup</h3>
+        <p>
+            <b>The server expects an already compiled project.</b>, so keep the watcher running alongside your IDE via
+            <code>npx rescript watch</code> (v12+).
+        </p>
+
+
+        <h3>Working today</h3>
         <ul>
-            <li>Install <code>@rescript/language-server</code> globally:
-                <code>npm install -g @rescript/language-server</code></li>
-            <li>Set its executable path in <code>Languages &amp; Frameworks &gt; ReScript</code></li>
-            <li>Run the ReScript compiler in watch mode in your project terminal:
-                <code>npx rescript watch</code> (v12+) or
-                <code>npx rescript build -w</code> (older versions)</li>
-            <li>LSP4IJ plugin must be installed (required dependency)</li>
+            <li><b>Via the language server:</b> completion, type hovers,
+                go-to-definition, find usages, rename, formatting, diagnostics and
+                the structure view.</li>
+            <li><b>Native to the plugin:</b> syntax highlighting — JSX and
+                <code>${...}</code> interpolation included — plus code folding,
+                brace matching, comment toggling, breadcrumbs, spellchecking, and
+                jumping between a module and its test file.</li>
         </ul>
-        <p><strong>Alpha quality.</strong> Core features work well but some constructs
-        (template string interpolation, JSX) are not yet fully parsed.
-        Found something that doesn't work and is not listed in the
-        <a href="https://github.com/benjamin-thomas/intellij-rescript/tree/master/_tickets/todo">roadmap</a>?
-        Please <a href="https://github.com/benjamin-thomas/intellij-rescript/issues">report it on GitHub</a>.</p>
+
+
+        <h3>About the project</h3>
+        <p>The codebase is expected to stay small and heavily documented - it's also a learning project.
+
+        So I want to favour a modest feature set that works well over many features that increase maintenance burden and possibly instabilities.</p>
+
+        <p>Consider this plugin to be of <b>Alpha quality</b> and under active development.
+
+        <br/>
+        <br/>
+
+        Everyday ReScript should parse properly and most features should work reliably though.
+
+        If you find something broken though, please
+        <a href="https://github.com/benjamin-thomas/intellij-rescript/issues">open an issue</a>.
+
+        <p>
+                <em>Disclaimer:</em> this plugin is developed with AI assistance — mostly
+                test-driven, in a manually directed tight loop.
+        </p>
     ]]></description>
 
     <extensions defaultExtensionNs="com.intellij">
@@ -66,17 +95,18 @@
         <lang.psiStructureViewFactory
                 language="ReScript"
                 implementationClass="com.redhat.devtools.lsp4ij.features.documentSymbol.LSPDocumentSymbolStructureViewFactory"/>
-        <!-- LSP4IJ's built-in handler truncates the signature (drops closing paren + return type).
-             Our handler renders the complete label from the LSP signatureHelp response. -->
+        <!-- LSP4IJ's built-in handler truncates the signature (drops closing paren + return
+        type).
+     Our handler renders the complete label from the LSP signatureHelp response. -->
         <codeInsight.parameterInfo
                 language="ReScript"
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.lsp.ReScriptParameterInfoHandler"/>
         <!-- ReScript LSP server does not support callHierarchyProvider
-        <callHierarchyProvider
-                language="ReScript"
-                implementationClass="com.redhat.devtools.lsp4ij.features.callHierarchy.LSPCallHierarchyProvider"/>
-        -->
-        
+<callHierarchyProvider
+        language="ReScript"
+        implementationClass="com.redhat.devtools.lsp4ij.features.callHierarchy.LSPCallHierarchyProvider"/>
+-->
+
         <spellchecker.support
                 language="ReScript"
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptSpellcheckingStrategy"/>
@@ -106,7 +136,8 @@
         <projectViewNestingRulesProvider
                 implementation="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptFileNestingProvider"/>
 
-        <!--suppress PluginXmlI18n -->
+        <!--suppress
+        PluginXmlI18n -->
         <notificationGroup id="ReScript"
                            displayType="BALLOON"/>
 
@@ -115,7 +146,8 @@
                 displayName="ReScript"
                 groupId="language"
                 instance="com.github.benjamin_thomas.intellij_rescript.lsp.ReScriptLspConfigurable"/>
-        <postStartupActivity implementation="com.github.benjamin_thomas.intellij_rescript.lsp.ReScriptLspStartupActivity"/>
+        <postStartupActivity
+                implementation="com.github.benjamin_thomas.intellij_rescript.lsp.ReScriptLspStartupActivity"/>
     </extensions>
 
     <extensions defaultExtensionNs="com.redhat.devtools.lsp4ij">
@@ -136,7 +168,8 @@
                 class="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptCreateFileAction"
                 text="ReScript File"
                 description="Create a new ReScript file">
-            <add-to-group group-id="NewGroup" anchor="before" relative-to-action="NewFile"/>
+            <add-to-group group-id="NewGroup" anchor="before"
+                          relative-to-action="NewFile"/>
         </action>
     </actions>
 </idea-plugin>

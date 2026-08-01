@@ -1,6 +1,6 @@
 ---
-summary: Packed lexer restart state (v2) — lexical state, prev-token bit, and a kinded context-frame stack in one int
-updated: 2026-07-28
+summary: Packed lexer restart state (v3) — halved lexical state, two decision bits, and a kinded context-frame stack in one int
+updated: 2026-07-31
 relates: [architecture, parser]
 ---
 
@@ -20,13 +20,15 @@ This makes lexer restart state a **correctness requirement**, not a performance
 detail. If the saved state is incomplete, the lexer can produce a different
 token stream after restart than it produced during a full left-to-right lex.
 
-Three constructs need context beyond JFlex's raw lexical state:
+Four constructs need context beyond JFlex's raw lexical state:
 
 - template interpolation (`` `a ${expr}` `` — the `}` must know it closes an
   interpolation, and how many braces deep it is)
 - JSX (`<div>` tag/children states, `{attr}` and `{child}` brace regions)
 - previous-token classification (`/` is division after a value, regex start
   otherwise; `<` is comparison after a value, JSX start otherwise)
+- whether a line break separates us from that previous token (`<` is a JSX tag
+  after a value too, once a newline intervenes)
 
 `checkCorrectRestart(...)` in `LexerTestUtils.kt` is the gate: it restarts the
 lexer at every token boundary and demands an identical token stream. It
@@ -42,12 +44,50 @@ NOT sufficient here, which is why `ReScriptLexerAdapter` is a custom
 `LexerBase` that saves/restores a richer packed state (see
 "The role of the custom adapter" below).
 
-## The packed restart-state layout (v2)
+## The frame stack is NOT in the int
+
+The context frames are a plain `int[]` on the lexer, unbounded. Only their
+*packed form* — bits 8..31, three bytes — is limited, and that form is a hint
+nothing reads back:
+
+- for a non-RestartableLexer, `LexerEditorHighlighter` passes `myInitialState`
+  at every `start(...)` site, and `createStorage()` returns `ShortBasedStorage`,
+  whose `packData` is `isRestartableState ? idx : -idx` and whose
+  `unpackStateFromData` throws. The int's **content is never stored**;
+- `PsiBuilderImpl` always lexes from offset 0 with state 0;
+- so any state with a live frame is non-zero, is never a restart point, and its
+  truncation is unobservable.
+
+`isRestartStateExact()` reports whether the packed form round-trips —
+`raiseFrame(lowerFrame(f)) == f` for every frame, not merely "depth <= 3", since
+a clamped counter is as inexact as a dropped frame. The lexer tests turn that
+into a four-part contract; see `LexerTestUtils.checkCorrectRestart` and
+`ReScriptLexerTest`'s "packed restart-state contract" block.
+
+Before this, the stack lived entirely in the int and `pushFrame` shifted the
+outermost frame out. Four live regions is ordinary React markup
+(`<ul> {<li> <span className={`x ${y}`} /> </li>} </ul>`), so the outermost
+element lost its frame and unravelled at its closing tag — an error far from its
+cause. The unbraced child count had the same shape at nine levels, which a
+survey of ~4,000 ReScript files found in the wild.
+
+## The packed restart-state layout (v3)
 
 IntelliJ's lexer API gives the lexer only a single `Int`. The generated lexer
-packs four fields into it:
+packs five fields into it:
 
-- bits `0..4`  — JFlex lexical state (11 states declared; even ids ≤ 22)
+- bits `0..3`  — JFlex lexical state, **halved**. JFlex allocates two DFA slots
+  per declared state, so `yybegin` only ever sees even ids (0, 2, … 22 for
+  today's 12 states); storing `state >>> 1` costs nothing and leaves room for
+  16. `packRestartState` throws on an odd or oversized id rather than trusting
+  the convention. It runs per token, so declaring a 17th state reddens every
+  lexer test; in the IDE the adapter catches the throw and degrades the file to
+  `BAD_CHARACTER` plus a log warning rather than corrupting restarts silently.
+- bit  `4`     — `sawLineBreak`: an LF has been passed since the last
+  significant token. Drives `<` JSX-vs-comparison together with bit 7 (see
+  `_knowledge/lexer/OVERVIEW.md`). Unlike bit 7 this one does **not**
+  self-correct after a restart — a restart landing on the `<` it governs would
+  decide that token wrongly without it, which is exactly why it is packed.
 - bits `5..6`  — block-comment nesting depth, saturating at 3
 - bit  `7`     — `prevIsExprEnd`: previous significant token is an
   "expression end" (identifier, literal, closing delimiter, string/template
@@ -56,6 +96,47 @@ packs four fields into it:
   `PREV_IS_EXPR_END_MASK` lets `checkZeroState` ignore it (the bit
   self-corrects on the first significant token lexed after a restart).
 - bits `8..31` — context stack: three 8-bit frames, low frame = innermost
+
+All 32 bits are assigned; there is no spare. A sixth signal has to shrink a
+field first — which is how bit 4 was won.
+
+### Why the line-break signal must live here
+
+It is tempting to recover "did a line break precede this `<`" by scanning the
+buffer backwards from `zzStartRead` instead of spending a bit. That was the
+first implementation and it is wrong twice over.
+
+**It cannot see the break.** bsc counts a newline inside a block comment
+(`1 /* c` ⏎ `*/ <div />` is JSX), and scanning backwards *over* a comment is not
+implementable: in `"a */" <div />` the `*/` is string content, and separating
+those two readings is precisely what forward lexing does.
+
+**It makes the token stream depend on text outside the lexing range.** A scan
+reads below `zzStartRead`, so the tokens depend on `buffer[0..startOffset)` as
+well as on the declared range. With bit 4 nothing reads below `zzStartRead` at
+all and the stream is a pure function of `(buffer[start..end], packedState)` —
+which is what an incremental lexer is supposed to be, and what makes the
+question of who passes which buffer stop mattering. (The scan also had to guess
+when it ran off the front of the buffer, and guessed "line start", which is the
+JSX-opening answer — failing open on precisely the input it knew least about.)
+
+A third argument is tempting and **wrong**, so it is recorded here to stop
+anyone re-deriving it: that without the bit, `LexerEditorHighlighter` could
+converge on an unchanged `WHITE_SPACE` token and leave a stale `<`. It cannot.
+Convergence requires `tokenStart >= newEndOffset`, and changing the newline
+before a `<` puts the edit inside that whitespace token, so it starts strictly
+before `newEndOffset` and is never a candidate. The default `ShortBasedStorage`
+does not store state bits in the segment data either — the state enters only via
+`canRestart`. The two reasons above are the real ones.
+
+**Cost, accepted deliberately.** `canRestart` is `state == 0`, so the first
+token after a line break is no longer a restart point where it was in v2 (the
+`|` opening a line inside a `switch`, for example). It is bounded — the
+whitespace token before the break still has state 0, so the walk-back moves one
+segment. Masking bit 4 by bit 7 would recover those points, since the `<` rule
+short-circuits when bit 7 is clear; that is not done, because it would make bit
+4 mean "line break **and** expression end" and silently mislead the next rule
+that reads it.
 
 ### Context frames
 
@@ -76,36 +157,54 @@ count 3) so a fresh frame is needed only per `{...}` alternation level. The
 flagship shape `table > {map > tr > {map > td > {expr}}}` uses exactly the
 three available frames (see `JsxNestedBracedElements` lexer fixture).
 
-### Saturation policy
+### Clamping policy
 
-All counters saturate at their field maximum, and the in-memory counters use
-the same limits, so full lexing and restarted lexing agree even past a limit:
+No counter saturates while lexing any more. The live counters are full width —
+14 bits for every frame payload, an unbounded array for the frames themselves,
+a plain `int` for comment nesting — and clamping happens only on the way into
+the restart int:
 
-- comment nesting: 3
-- template interpolation depth: 15 per frame
-- JSX attr-expression brace depth: 63
-- JSX child-expression brace depth: 7; unbraced element nesting: 7 per frame
-- context frames: 3 (pushing onto a full stack drops the outermost frame)
+- comment nesting: clamped at 3
+- template interpolation depth: clamped at 15 per frame
+- JSX attr-expression brace depth: clamped at 63
+- JSX child-expression brace depth: clamped at 7; unbraced element nesting:
+  clamped at 7 per frame
+- context frames: the innermost 3
 
-Past a limit the lexer mis-scopes a `}` or closing tag near the overflow
-point — local mis-highlighting the permissive parser swallows — but it never
-diverges between full lex and restart, which is the invariant that matters.
+Every one of these clamps used to be a lexing limit, and each broke valid
+ReScript at its threshold. `isRestartStateExact()` reports when any of them
+bites, and the tests assert such a boundary is never state 0.
+
+These are *packed* limits, not lexing limits. Forward lexing reads the live
+stack and counters — 14 bits per payload, an unbounded array of frames — so it
+stays correct past every threshold above, and real source never reaches one.
+What a clamp costs is the ability to rebuild that context from the int: a
+restart from a clamped value would diverge, which is why an inexact boundary
+must never read as state 0.
 
 ## Encoding and decoding
 
 ```java
 private int packRestartState(
-        int lexicalState, int commentDepth, boolean prevIsExprEnd, int contextStack) {
-    int packedLexicalState = lexicalState & LEXICAL_STATE_MASK;
-    int packedCommentDepth = (commentDepth & COMMENT_DEPTH_MASK) << COMMENT_DEPTH_SHIFT;
+        int lexicalState, int commentDepth, boolean prevIsExprEnd,
+        boolean sawLineBreak, int contextStack) {
+    if ((lexicalState & 1) != 0 || (lexicalState >>> 1) > LEXICAL_STATE_MASK) {
+        throw new IllegalStateException(/* a 17th state needs a new layout */);
+    }
+    int packedLexicalState = (lexicalState >>> 1) & LEXICAL_STATE_MASK;
+    int packedSawLineBreak = sawLineBreak ? SAW_LINE_BREAK_MASK : 0;
+    int packedCommentDepth =
+        Math.min(commentDepth, COMMENT_DEPTH_MASK) << COMMENT_DEPTH_SHIFT;
     int packedPrevIsExprEnd = prevIsExprEnd ? PREV_IS_EXPR_END_MASK : 0;
     int packedContextStack = (contextStack & CONTEXT_STACK_MASK) << CONTEXT_STACK_SHIFT;
-    return packedLexicalState | packedCommentDepth | packedPrevIsExprEnd | packedContextStack;
+    return packedLexicalState | packedSawLineBreak | packedCommentDepth
+        | packedPrevIsExprEnd | packedContextStack;
 }
 ```
 
-Decoding shifts right and masks (`unpackLexicalState`, `unpackCommentDepth`,
-`unpackPrevIsExprEnd`, `unpackContextStack`).
+Decoding shifts right and masks (`unpackLexicalState` shifts back **left**;
+`unpackSawLineBreak`, `unpackCommentDepth`, `unpackPrevIsExprEnd`,
+`unpackContextStack`).
 
 ### Bit layout example
 
@@ -137,7 +236,9 @@ let nested = `outer ${`inner ${value}`}`
 When the lexer sees the inner `${`, it must remember the outer interpolation
 is still active; otherwise the outer `}` becomes a plain `RBRACE`.
 
-For an interactive version of this model, run:
+For an interactive demo of the packed copy's byte mechanics — written when the
+packed form *was* the stack, so it shows bits 8..31 as the whole context rather
+than as a lossy hint; the byte mechanics themselves are unchanged — run:
 
 ```bash
 ruby _knowledge/lexer/scripts/packed_stack_demo.rb

@@ -11,7 +11,9 @@ ReScript File
           PsiElement(UIDENT)('Foo')
         ReScriptJsxAttributeImpl(JSX_ATTRIBUTE)
           PsiElement(LIDENT)('neg')
-      PsiElement(EQ)('=')
+          PsiElement(EQ)('=')
+          PsiErrorElement:<jsx attribute value> or QUESTION expected, got '-'
+            <empty list>
   PsiElement(BAD_CHARACTER)('-')
   PsiElement(INT)('1')
   PsiElement(JSX_SLASH_GT)('/>')

@@ -8,3 +8,4 @@
 - **LANGUAGE_INJECTION.md** — Dual PSI trees, PsiLanguageInjectionHost, StringLiteral vs TemplateLiteral design
 - **INSPECTION_SUPPRESSOR.md** — The `// noinspection` comment mechanism: 4-step flow, what we test
 - **ANNOTATOR.md** — Semantic highlighting the SyntaxHighlighter cannot do; the PsiElement.children gotcha; designing PSI so the annotator needs no heuristics
+- **TEST_FRAMEWORK_LEAKS.md** — ParsingTestCase's mock app poisoning JVM-wide extension caches for later BasePlatformTestCase runs; why to call `parseFile` rather than `createPsiFile`

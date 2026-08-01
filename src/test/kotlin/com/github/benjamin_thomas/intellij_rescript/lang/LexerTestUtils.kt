@@ -8,6 +8,7 @@ import com.intellij.testFramework.LexerTestCase
 import com.intellij.testFramework.UsefulTestCase.assertSameLinesWithFile
 import java.io.File
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.fail
 
 private val FIXTURES_DIR = System.getProperty("user.dir") + "/src/test/resources/com/github/benjamin_thomas/intellij_rescript/lexer/fixtures"
@@ -21,6 +22,9 @@ fun runSnapshotTest(lexer: Lexer, inputFile: String, expectedOutputFile: String)
     val result = LexerTestCase.printTokens(text, 0, lexer)
     assertSameLinesWithFile(gold.canonicalPath, result)
 }
+
+/** Token dump for assertions a snapshot cannot make — `runSnapshotTest` normalizes line endings. */
+fun lexTokens(lexer: Lexer, text: String): String = LexerTestCase.printTokens(text, 0, lexer)
 
 /**
  * Verifies that certain token types always leave the lexer in state zero.
@@ -48,7 +52,10 @@ fun checkZeroState(lexer: Lexer, text: String, tokenTypes: TokenSet, ignorableSt
  */
 fun checkCorrectRestart(lexer: Lexer, text: String) {
     // First pass: collect all tokens
-    data class TokenInfo(val type: String, val start: Int, val end: Int, val text: String, val state: Int)
+    data class TokenInfo(
+        val type: String, val start: Int, val end: Int, val text: String,
+        val state: Int, val exact: Boolean,
+    )
 
     val tokens = mutableListOf<TokenInfo>()
     lexer.start(text)
@@ -59,7 +66,8 @@ fun checkCorrectRestart(lexer: Lexer, text: String) {
                 start = lexer.tokenStart,
                 end = lexer.tokenEnd,
                 text = lexer.tokenText,
-                state = lexer.state
+                state = lexer.state,
+                exact = (lexer as? ReScriptLexerAdapter)?.isStateExact() ?: true,
             )
         )
         lexer.advance()
@@ -68,6 +76,21 @@ fun checkCorrectRestart(lexer: Lexer, text: String) {
     // Second pass: restart from each token's position and verify the remaining tokens match
     for (i in tokens.indices) {
         val token = tokens[i]
+
+        if (!token.exact) {
+            // The restart int cannot describe a context this deep, so restarting
+            // here would not reproduce the stream. That is only safe because the
+            // platform never picks such a boundary — it restarts where the state
+            // equals the lexer's initial state. Assert exactly that, so the skip
+            // can never hide a state that looks restartable.
+            assertNotEquals(
+                0, token.state,
+                "Inexact restart state at ${token.start} (token $i) reported the initial state, " +
+                    "so the platform could restart into it",
+            )
+            continue
+        }
+
         lexer.start(text, token.start, text.length, token.state)
 
         for (j in i until tokens.size) {
@@ -84,4 +107,16 @@ fun checkCorrectRestart(lexer: Lexer, text: String) {
             lexer.advance()
         }
     }
+}
+
+/** Offsets whose restart state the packed int cannot describe exactly. */
+fun inexactRestartOffsets(text: String): List<Int> {
+    val lexer = ReScriptLexerAdapter()
+    val offsets = mutableListOf<Int>()
+    lexer.start(text)
+    while (lexer.tokenType != null) {
+        if (!lexer.isStateExact()) offsets.add(lexer.tokenStart)
+        lexer.advance()
+    }
+    return offsets
 }

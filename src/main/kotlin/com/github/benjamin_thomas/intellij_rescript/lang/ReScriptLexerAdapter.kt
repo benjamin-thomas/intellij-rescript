@@ -15,6 +15,7 @@ class ReScriptLexerAdapter : LexerBase() {
     private var bufferEnd = 0
     private var tokenType: IElementType? = null
     private var state = 0
+    private var stateExact = true
     private var failed = false
 
     override fun start(buffer: CharSequence, startOffset: Int, endOffset: Int, initialState: Int) {
@@ -30,6 +31,17 @@ class ReScriptLexerAdapter : LexerBase() {
     override fun getState(): Int {
         locateToken()
         return state
+    }
+
+    /**
+     * Whether [getState] describes the lexer's context exactly, or had to drop
+     * frames / clamp counters to fit the int. Inexact states are never restart
+     * points — they are always non-zero — so this exists for the tests, which
+     * assert exactly that. See `_ReScriptLexer.isRestartStateExact`.
+     */
+    fun isStateExact(): Boolean {
+        locateToken()
+        return stateExact
     }
 
     override fun getTokenType(): IElementType? {
@@ -64,6 +76,7 @@ class ReScriptLexerAdapter : LexerBase() {
 
         try {
             state = flex.packedRestartState
+            stateExact = flex.isRestartStateExact()
             tokenType = flex.advance()
             tokenEnd = flex.tokenEnd
         } catch (e: ProcessCanceledException) {
