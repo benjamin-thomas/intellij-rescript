@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## v0.7.1 — JSX Fixes
 
 ### Parser
 - **Applied and container attribute values now parse.** `<Modal
