@@ -142,6 +142,17 @@ import com.intellij.psi.TokenType;
     // IN_TAG_STRING / IN_CHILD_STRING exist and no such clones are needed here.
     private int blockCommentReturn = YYINITIAL;
 
+    // Every `/*` rule does the same three things. yystate() is the origin state
+    // here because the read happens before the yybegin below — which is what
+    // lets one helper serve all four entry points instead of each naming its
+    // own state. A `/*` rule added to a MULTI-state block would still be
+    // correct: it would record whichever of those states it was entered from.
+    private void beginBlockComment() {
+        commentDepth = 1;
+        blockCommentReturn = yystate();
+        yybegin(IN_BLOCK_COMMENT);
+    }
+
     // The frame stack, and the source of truth for forward lexing. It is NOT
     // bounded by what the restart int can hold: the packed form carries only
     // the innermost PACKED_FRAMES frames, each counter clamped to the width it
@@ -279,6 +290,74 @@ import com.intellij.psi.TokenType;
 
     private void decrementJsxContentChildCount() {
         if (jsxContentChildCount() > 0) setTopFrame(topFrame() - LIVE_ONE_CHILD);
+    }
+
+    // Directly between tags: the top frame is a children region AND no
+    // `{child expr}` brace is open inside it. Only here do tag opens and closes
+    // belong to the region's child count — inside a child brace the same tokens
+    // belong to the nested expression. Without the depth half, a stray `</li>`
+    // in a `{child}` brace would decrement the ENCLOSING region's count and
+    // could pop a frame that is still live, taking the outer element with it.
+    //
+    // Not the same predicate as a bare topIsJsxContent(), which asks only
+    // whether a children region is on top, at any brace depth — that is the
+    // right question for maintaining the depth itself.
+    private boolean directlyInJsxChildren() {
+        return topIsJsxContent() && jsxContentBraceDepth() == 0;
+    }
+
+    // --- JSX element lifecycle ---------------------------------------------
+    // One JSX_CONTENT frame covers a run of consecutively nested unbraced
+    // elements, its child count saying how many are open. These four methods
+    // are the only writers of that scheme; keeping them together is the point,
+    // because the count is the subtlest thing in this file.
+
+    // `>` ends an opening tag. Consecutive unbraced nesting shares one frame
+    // via the child count; a fresh frame is pushed only when the enclosing
+    // context is not itself a depth-0 children region (top level, attr/child
+    // braces, interpolation).
+    private void enterJsxChildren() {
+        if (directlyInJsxChildren()) {
+            incrementJsxContentChildCount();
+        } else {
+            pushJsxContentFrame();
+        }
+        yybegin(JSX_CHILDREN);
+    }
+
+    // `/>` ends a self-closing element: back to wherever the element appeared —
+    // the children region of an enclosing element, or expression context.
+    private void leaveSelfClosingElement() {
+        if (directlyInJsxChildren()) {
+            yybegin(JSX_CHILDREN);
+        } else {
+            yybegin(YYINITIAL);
+        }
+    }
+
+    // The `>` of `</name >`: one fewer open element. Popping the frame means the
+    // outermost element of this children region closed — the push invariant
+    // guarantees the frame below is never a depth-0 children region — so we are
+    // back in expression context.
+    private void leaveClosedElement() {
+        if (directlyInJsxChildren()) {
+            decrementJsxContentChildCount();
+            if (jsxContentChildCount() == 0) {
+                popFrame();
+                yybegin(YYINITIAL);
+            } else {
+                yybegin(JSX_CHILDREN);
+            }
+        } else {
+            yybegin(YYINITIAL);
+        }
+    }
+
+    // Unclosed-tag rescue: pops only an abandoned children frame, never a live
+    // `${...}` one.
+    private void dropAbandonedChildrenFrame() {
+        if (directlyInJsxChildren()) popFrame();
+        yybegin(YYINITIAL);
     }
 
     /** One live frame in the packed byte layout, each counter clamped to fit. */
@@ -580,8 +659,7 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
 // Invariant: no rule here may have a same-length competitor in the shared
 // block — first-match-wins would silently prefer whichever comes first.
 <YYINITIAL> {
-    "/*"                { commentDepth = 1; blockCommentReturn = YYINITIAL;
-                          yybegin(IN_BLOCK_COMMENT); }
+    "/*"                { beginBlockComment(); }
     \"                  { yybegin(IN_STRING); return track(ReScriptTypes.STRING_START); }
     `                   { yybegin(IN_TEMPLATE); return track(ReScriptTypes.TEMPLATE_START); }
 
@@ -655,8 +733,7 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
                             return track(ReScriptTypes.LBRACE);
                         }
     // Longest match beats the `/` rule below.
-    "/*"                { commentDepth = 1; blockCommentReturn = JSX_CHILDREN;
-                          yybegin(IN_BLOCK_COMMENT); }
+    "/*"                { beginBlockComment(); }
     // Always SLASH — a deliberate divergence: bsc accepts a bare regex child
     // (`<div> /a/ </div>`), but letting `/` open one here would let it swallow
     // the `</` this state exists to see. The braced form `{/a/}` lexes correctly.
@@ -807,11 +884,7 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
     // Unclosed-tag rescue: a declaration-shaped next line ends the tag mid-edit.
     // The lookahead is unconsumed, so the keyword re-lexes in YYINITIAL. The
     // depth guard pops only an abandoned children frame, never a live `${...}` one.
-    [\r\n]+ [ \t]* / {JSX_DECL_RESCUE} {
-                            if (topIsJsxContent() && jsxContentBraceDepth() == 0) popFrame();
-                            yybegin(YYINITIAL);
-                            return whiteSpace();
-                        }
+    [\r\n]+ [ \t]* / {JSX_DECL_RESCUE} { dropAbandonedChildrenFrame(); return whiteSpace(); }
     // ONE token, deliberately not LIDENT MINUS LIDENT: `-` stays unlexable in
     // tag states, so a non-value like `neg=-1` cannot form by construction.
     {JSX_HYPHEN_IDENT}  { return track(ReScriptTypes.LIDENT); }
@@ -835,8 +908,7 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
     // skips them for free — they are in getCommentTokens() — so nothing in the
     // grammar has to admit them.
     {LINE_COMMENT}      { return track(ReScriptTypes.LINE_COMMENT); }
-    "/*"                { commentDepth = 1; blockCommentReturn = JSX_TAG;
-                          yybegin(IN_BLOCK_COMMENT); }
+    "/*"                { beginBlockComment(); }
     \"                  { yybegin(IN_TAG_STRING); return track(ReScriptTypes.STRING_START); }
     `                   { yybegin(IN_TAG_TEMPLATE); return track(ReScriptTypes.TEMPLATE_START); }
     // Unbraced applied or container value: `b=f(x)`, `b=Some(1)`, `b=#tag(x)`,
@@ -869,25 +941,10 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
     // nesting shares one JSX_CONTENT frame via its child count; a fresh
     // frame is pushed only when the enclosing context is not itself a
     // depth-0 children region (top level, attr/child braces, interpolation).
-    ">"                 {
-                            if (topIsJsxContent() && jsxContentBraceDepth() == 0) {
-                                incrementJsxContentChildCount();
-                            } else {
-                                pushJsxContentFrame();
-                            }
-                            yybegin(JSX_CHILDREN);
-                            return track(ReScriptTypes.JSX_GT);
-                        }
+    ">"                 { enterJsxChildren(); return track(ReScriptTypes.JSX_GT); }
     // Self-closing element: back to wherever the element appeared — the
     // children region of an enclosing element, or expression context.
-    "/>"                {
-                            if (topIsJsxContent() && jsxContentBraceDepth() == 0) {
-                                yybegin(JSX_CHILDREN);
-                            } else {
-                                yybegin(YYINITIAL);
-                            }
-                            return track(ReScriptTypes.JSX_SLASH_GT);
-                        }
+    "/>"                { leaveSelfClosingElement(); return track(ReScriptTypes.JSX_SLASH_GT); }
 }
 
 // Inside `</name >`. Only names and the closing `>` belong here; a newline
@@ -896,8 +953,7 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
 <JSX_CLOSE_TAG> {
     {JSX_HYPHEN_IDENT}  { return track(ReScriptTypes.LIDENT); }
     {LINE_COMMENT}      { return track(ReScriptTypes.LINE_COMMENT); }
-    "/*"                { commentDepth = 1; blockCommentReturn = JSX_CLOSE_TAG;
-                          yybegin(IN_BLOCK_COMMENT); }
+    "/*"                { beginBlockComment(); }
     [ \t]+              { return TokenType.WHITE_SPACE; }
     // Mid-edit bail, guarded exactly like JSX_TAG's. An unguarded bail (any
     // newline) breaks the legal `</A` NEWLINE `>`: it drops to children and
@@ -915,25 +971,7 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
     // expression context (the push invariant guarantees the frame below is
     // never a depth-0 children region). The finished element is a value, so
     // this `>` is an expression end (trackExprEnd, not track).
-    ">"                 {
-                            // The `jsxContentBraceDepth() == 0` half mirrors the
-                            // opening tag's guard. Without it a stray `</li>`
-                            // inside a `{child}` brace decrements the ENCLOSING
-                            // region's count and can pop a frame that is still
-                            // live, taking the outer element down with it.
-                            if (topIsJsxContent() && jsxContentBraceDepth() == 0) {
-                                decrementJsxContentChildCount();
-                                if (jsxContentChildCount() == 0) {
-                                    popFrame();
-                                    yybegin(YYINITIAL);
-                                } else {
-                                    yybegin(JSX_CHILDREN);
-                                }
-                            } else {
-                                yybegin(YYINITIAL);
-                            }
-                            return trackExprEnd(ReScriptTypes.JSX_GT);
-                        }
+    ">"                 { leaveClosedElement(); return trackExprEnd(ReScriptTypes.JSX_GT); }
 }
 
 // Regex literal state: match /pattern/flags as a single token
