@@ -472,9 +472,14 @@ import com.intellij.psi.TokenType;
         return type;
     }
 
-    // Newlines are only ever passed over, never returned as part of a
-    // significant token, so noticing them here covers every path: whitespace
-    // runs in each state, and block-comment interiors.
+    // A newline can also live INSIDE a significant token — string and template
+    // content, and a char literal holding a raw newline in its content or in
+    // an x/o/u escape tail — but a break inside the previous token is not a
+    // break to bsc (`"a` NEWLINE `b" <c` is a comparison), so those interiors
+    // deliberately do not report here and track() clears the flag when the
+    // token completes. Every other newline is passed over, so noticing it
+    // here covers every path: whitespace runs in each state, and
+    // block-comment interiors.
     private void noteLineBreak(int start, int end) {
         for (int i = start; i < end; i++) {
             // LF only. bsc does not treat a lone CR as a break (`a` CR `<b` is
@@ -504,6 +509,7 @@ import com.intellij.psi.TokenType;
                type == ReScriptTypes.INT          ||   // 10
                type == ReScriptTypes.FLOAT        ||   // 3.0
                type == ReScriptTypes.BIGINT       ||   // 1n
+               type == ReScriptTypes.CHAR         ||   // 'a'
                type == ReScriptTypes.TRUE         ||   // true
                type == ReScriptTypes.FALSE        ||   // false
                type == ReScriptTypes.RPAREN       ||   // foo()
@@ -630,12 +636,18 @@ import com.intellij.psi.TokenType;
 
 WHITE_SPACE = [ \t\n\r]+
 LINE_COMMENT = "//" [^\n]*
-LOWER_IDENT = [a-z_][a-zA-Z0-9_]*
+// The apostrophe is an identifier TAIL character in ReScript (x', y'z, let'),
+// never a head, so a scan starting at ' can only be a char literal or TICK.
+// Keyword rules survive the widening because longest match prefers the wider
+// identifier: `let'` is a 4-char LIDENT, not LET + TICK — which is bsc's
+// reading too.
+IDENT_TAIL = [a-zA-Z0-9_']
+LOWER_IDENT = [a-z_]{IDENT_TAIL}*
 // Hyphenated web-component names (model-viewer, data-testid). Lowercase first
 // segment only: uppercase names never hyphenate, and a segment cannot start
 // with a digit.
-JSX_HYPHEN_IDENT = [a-z_][a-zA-Z0-9_]* ("-" [a-zA-Z_][a-zA-Z0-9_]*)+
-UPPER_IDENT = [A-Z][a-zA-Z0-9_]*
+JSX_HYPHEN_IDENT = [a-z_]{IDENT_TAIL}* ("-" [a-zA-Z_]{IDENT_TAIL}*)+
+UPPER_IDENT = [A-Z]{IDENT_TAIL}*
 // What may follow the keyword on a declaration-shaped line. The shape — not the
 // keyword — is what decides: `<A b=` NEWLINE `module(M) />` is legal, a first-class
 // module being an unbraced value, so `module(` must not fire where `module M = …` must.
@@ -650,6 +662,24 @@ BIN_INT = 0[bB][01][01_]*
 BIGINT = [0-9][0-9_]*n
 INT = [0-9][0-9_]*
 FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
+// Width-based and alphabet-agnostic, hex-checked only inside \u{…} — that is
+// bsc's scanner. The short fixed forms ('\x4', '\o1', 1-2 digit
+// decimals) are legal only at EOF or before a comment; the 0..N widths here
+// deliberately over-accept them mid-file and bsc reports them. The x/o/u
+// tails may contain newlines (bsc accepts '\x<NL>4'); the bare catch-all, the
+// braced-u form and the decimal form may not ('\<NL>', '\u{<NL>41}' and
+// '\1<NL>23' are all rejected), so those alphabets keep the exclusion.
+CHAR_ESCAPE = \\ ( u\{ [0-9a-fA-F]* \}
+                 | x [^]{0,2}
+                 | o [^]{0,3}
+                 | u [^]{0,4}
+                 | [0-9]{1,3}
+                 | [^\r\n] )
+// The content class includes the apostrophe (''' is a legal char) and the
+// newline (a raw newline is legal char content). It cannot run away: the
+// content slot is exactly one character, so an unterminated ' fails back to
+// TICK after mis-joining at most a few characters.
+CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
 
 %%
 
@@ -872,6 +902,7 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
     "!"                 { return track(ReScriptTypes.BANG); }
     "?"                 { return track(ReScriptTypes.QUESTION); }
     "#"                 { return track(ReScriptTypes.HASH); }
+    {CHAR}              { return track(ReScriptTypes.CHAR); }
     "'"                 { return track(ReScriptTypes.TICK); }
     "%%"                { return track(ReScriptTypes.PCT_PCT); }
     "%"                 { return track(ReScriptTypes.PCT); }
@@ -897,6 +928,7 @@ FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
     {INT}               { return track(ReScriptTypes.INT); }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }
     {UPPER_IDENT}       { return track(ReScriptTypes.UIDENT); }
+    {CHAR}              { return track(ReScriptTypes.CHAR); }
     "."                 { return track(ReScriptTypes.DOT); }
     "="                 { return track(ReScriptTypes.EQ); }
     "?"                 { return track(ReScriptTypes.QUESTION); }

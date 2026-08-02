@@ -13,7 +13,7 @@ ReScript File
         PsiElement(LBRACE)('{')
         PsiElement(LIDENT)('a')
         PsiElement(RBRACE)('}')
-        PsiErrorElement:BIGINT, BLOCK_COMMENT, FALSE, FLOAT, HASH, INT, JSX_LT, JSX_LT_SLASH, LBRACE, LBRACKET, LIDENT, LINE_COMMENT, LPAREN, MODULE, PCT, REGEX, STRING_START, TEMPLATE_START, TRUE or UIDENT expected, got 'let'
+        PsiErrorElement:BIGINT, BLOCK_COMMENT, CHAR, FALSE, FLOAT, HASH, INT, JSX_LT, JSX_LT_SLASH, LBRACE, LBRACKET, LIDENT, LINE_COMMENT, LPAREN, MODULE, PCT, REGEX, STRING_START, TEMPLATE_START, TRUE or UIDENT expected, got 'let'
           <empty list>
   ReScriptLetBindingImpl(LET_BINDING)
     PsiElement(LET)('let')

@@ -44,9 +44,13 @@ Macros define reusable character classes:
 
 ```
 WHITE_SPACE = [ \t\n\r]+
-LOWER_IDENT = [a-z_][a-zA-Z0-9_]*
+IDENT_TAIL  = [a-zA-Z0-9_']
+LOWER_IDENT = [a-z_]{IDENT_TAIL}*
 INT = [0-9]+
 ```
+
+Macros may reference other macros, as `LOWER_IDENT` does above. The apostrophe
+is an identifier tail character in ReScript — see `APOSTROPHE.md`.
 
 JFlex does NOT support `\s`, `\d`, `\w` shortcuts — use explicit character
 classes.

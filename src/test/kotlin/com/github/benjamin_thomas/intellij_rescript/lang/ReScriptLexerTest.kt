@@ -79,6 +79,21 @@ class ReScriptLexerTest {
     fun testGenericTypeParams() = runLexerTest("GenericTypeParams.res", "GenericTypeParams.out")
 
     @Test
+    fun testCharLiterals() = runLexerTest("CharLiterals.res", "CharLiterals.out")
+
+    @Test
+    fun testCharLiteralEscapes() = runLexerTest("CharLiteralEscapes.res", "CharLiteralEscapes.out")
+
+    @Test
+    fun testCharTypeVariables() = runLexerTest("CharTypeVariables.res", "CharTypeVariables.out")
+
+    @Test
+    fun testApostropheIdents() = runLexerTest("ApostropheIdents.res", "ApostropheIdents.out")
+
+    @Test
+    fun testJsxApostrophe() = runLexerTest("JsxApostrophe.res", "JsxApostrophe.out")
+
+    @Test
     fun testJsxSelfClosing() = runLexerTest("JsxSelfClosing.res", "JsxSelfClosing.out")
 
     @Test
@@ -334,8 +349,70 @@ class ReScriptLexerTest {
     }
 
     @Test
+    fun testZeroStateForCharLiteral() {
+        checkZeroState(
+            ReScriptLexerAdapter(),
+            "let a = 'a'\nlet b = '\\n'\nlet c = '''",
+            TokenSet.create(ReScriptTypes.CHAR),
+            _ReScriptLexer.PREV_IS_EXPR_END_MASK or _ReScriptLexer.SAW_LINE_BREAK_MASK,
+        )
+    }
+
+    @Test
     fun testCorrectRestart() {
         checkCorrectRestart(ReScriptLexerAdapter(), "let x = if foo { 1 } else { 2 }")
+    }
+
+    @Test
+    fun testCorrectRestartWithCharLiteral() {
+        checkCorrectRestart(ReScriptLexerAdapter(), "let c = 'a'")
+    }
+
+    // A letter after `<` makes a stale expression-end bit enter JSX_TAG; a
+    // quote there would not exercise the JSX lookahead.
+    @Test
+    fun testCorrectRestartWithGluedCharComparison() {
+        checkCorrectRestart(ReScriptLexerAdapter(), "let b = 'a'<b")
+    }
+
+    @Test
+    fun testCorrectRestartWithDivisionAfterChar() {
+        checkCorrectRestart(ReScriptLexerAdapter(), "let n = 'a' / b / c")
+    }
+
+    @Test
+    fun testCorrectRestartWithStatementPositionJsxAfterChar() {
+        checkCorrectRestart(ReScriptLexerAdapter(), "'a'\n<div />")
+    }
+
+    @Test
+    fun testCorrectRestartWithEscapedChar() {
+        checkCorrectRestart(ReScriptLexerAdapter(), "let c = '\\n'")
+    }
+
+    @Test
+    fun testCorrectRestartWithCrossLineCharEscape() {
+        checkCorrectRestart(ReScriptLexerAdapter(), "let c = '\\x\n4'\nlet after = 0")
+    }
+
+    @Test
+    fun testCorrectRestartWithBareQuoteChar() {
+        checkCorrectRestart(ReScriptLexerAdapter(), "let c = '''")
+    }
+
+    @Test
+    fun testCorrectRestartWithCharJsxAttributeValue() {
+        checkCorrectRestart(ReScriptLexerAdapter(), "let x = <Foo c='a' />")
+    }
+
+    @Test
+    fun testCorrectRestartWithBareCharJsxChild() {
+        checkCorrectRestart(ReScriptLexerAdapter(), "let x = <div> 'a' </div>")
+    }
+
+    @Test
+    fun testCorrectRestartWithPrimedIdentifierAndChar() {
+        checkCorrectRestart(ReScriptLexerAdapter(), "let x' = 1\nlet pair = (x', 'a')")
     }
 
     @Test

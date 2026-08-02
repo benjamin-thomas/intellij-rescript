@@ -6,6 +6,13 @@ import kotlin.test.assertEquals
 class ReScriptSyntaxHighlighterTest {
 
     @Test
+    fun testCharMapsToStringKey() {
+        val keys = ReScriptSyntaxHighlighter().getTokenHighlights(ReScriptTypes.CHAR)
+        assertEquals(1, keys.size, "number of highlight keys for CHAR")
+        assertEquals("RESCRIPT_STRING", keys.single().externalName, "highlight key for CHAR")
+    }
+
+    @Test
     fun testJsxPunctuationMapsToJsxKey() {
         val highlighter = ReScriptSyntaxHighlighter()
         for (token in listOf(

@@ -59,7 +59,8 @@ class ReScriptSyntaxHighlighter : SyntaxHighlighterBase() {
             ReScriptTypes.STRING_START, ReScriptTypes.STRING_END,
             ReScriptTypes.STRING_CONTENT,
             ReScriptTypes.TEMPLATE_START, ReScriptTypes.TEMPLATE_END,
-            ReScriptTypes.TEMPLATE_CONTENT -> STRING
+            ReScriptTypes.TEMPLATE_CONTENT,
+            ReScriptTypes.CHAR -> STRING
             ReScriptTypes.STRING_ESCAPE -> STRING_ESCAPE
             ReScriptTypes.REGEX -> REGEX
 

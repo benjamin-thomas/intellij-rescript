@@ -43,6 +43,7 @@
         BIGINT     = 'BIGINT'
         INT        = 'INT'
         FLOAT      = 'FLOAT'
+        CHAR       = 'CHAR'
         STRING_START   = 'STRING_START'
         STRING_END     = 'STRING_END'
         STRING_CONTENT = 'STRING_CONTENT'
@@ -305,7 +306,7 @@ private nonDeclToken ::= exprKeyword | LIDENT | UIDENT | literal | anyOperator |
 // instead of absorbing it. Inside parens it's still a raw token via parenContent.
 private exprKeyword ::= REC | PRIVATE | TRUE | FALSE | SWITCH | IF | ELSE
                       | ASYNC | AWAIT | TRY | CATCH | WHILE | FOR | AS
-private literal     ::= BIGINT | INT | FLOAT | StringLiteral | TemplateLiteral | REGEX
+private literal     ::= BIGINT | INT | FLOAT | StringLiteral | TemplateLiteral | REGEX | CHAR
 private comparisonOperator  ::= EQEQ | EQEQEQ | BANGEQ | BANGEQEQ | LT | GT | LTEQ | GTEQ
 private logicalOperator     ::= AMPAMP | PIPEPIPE
 private bitwiseOperator     ::= AMPAMPAMP | PIPEPIPEPIPE | CARETCARETCARET | TILDETILDETILDE
