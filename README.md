@@ -47,7 +47,7 @@ rules only when a native feature demands it.
 | Custom inspections | (not available)     | Future (PSI-based)                    |
 
 See [CHANGELOG.md](CHANGELOG.md) for what's shipped and
-[`_tickets/todo/`](_tickets/todo/) for what's planned.
+[`_tickets/`](_tickets/) for what's planned.
 
 ## Requirements / How to use
 
@@ -80,8 +80,7 @@ It also differs architecturally:
 - it is currently power-user oriented: you are expected to manage your own environment, configure
   explicit tool paths, and keep a compiler/watch process running outside the IDE.
 
-This is also a learning project, with a local [`_knowledge/`](_knowledge/) base designed to help
-both human and LLM readers understand the codebase.
+This is also a learning project.
 
 ## Contributions
 
@@ -112,11 +111,6 @@ discuss it during review.
 - [Custom Language Support Tutorial](https://plugins.jetbrains.com/docs/intellij/custom-language-support-tutorial.html)
 
 ## Development
-
-Contributors: see [`_knowledge/INDEX.md`](_knowledge/INDEX.md) for the domain
-knowledge base (architecture, lexer, parser, JetBrains APIs) and
-[`_knowledge/architecture/DEV_TOOLS.md`](_knowledge/architecture/DEV_TOOLS.md)
-for PSI inspection, debugging, and LSP tracing.
 
 ### Build and run locally
 

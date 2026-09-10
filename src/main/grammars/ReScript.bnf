@@ -177,7 +177,6 @@ private structureItemRecover ::= !(declKeyword | AT | PCT_PCT | JSX_LT | <<eof>>
 TopLevelExpr ::= exprAtom+
 
 // Bindings (bind a name to a value)
-// See _knowledge/parser/PSI_CUSTOMIZATION.md for how mixin + implements work.
 LetBinding      ::= LET REC? LetBindingPattern (EQ Expr)? AndLetBinding* {
     pin = 1
     mixin="com.github.benjamin_thomas.intellij_rescript.lang.psi.impl.ReScriptLetBindingMixin"

@@ -43,9 +43,6 @@ Each layer's job:
 - **annotator / inspection** — where rejection belongs. Anything needing name
   comparison or case rules (`<div></span>`) goes here, not in the grammar.
 
-Full reasoning and the measurements behind it:
-`_knowledge/architecture/RESPONSIBILITIES.md`.
-
 ## ReScript syntax questions
 
 Never infer what the language accepts — ask the compiler:
@@ -62,18 +59,18 @@ compiler-invalid form into a specification once already.
 Do this before encoding any syntax assumption in a grammar rule, a gold file,
 or a comment.
 
-## Knowledge base
+## Skills and tickets
 
-The `_knowledge/` directory contains domain knowledge about how JetBrains language
-plugins work and how this plugin is built. Reading it is optional — consult when
-you need context on a specific topic.
+Project skills live in `.agents/skills/local-*/SKILL.md`; `.claude/skills/`
+holds symlinks to them. Where a `local-` skill overlaps a global one, prefer
+the `local-` one.
 
-- `_tickets/todo/` — planned work, decomposed into context-sized tickets (see `_tickets/todo/<subject>/<NNN_name>/ticket.md`)
-- `_knowledge/INDEX.md` — entry point to the knowledge base
-
-Knowledge can become stale. If you discover that something in `_knowledge/` is
-wrong or outdated, update or remove it. Use `/condense-knowledge` at the end of
-a session to capture new learnings and correct existing ones.
+- `local-ticket-create` / `local-ticket-work` / `local-ticket-review` — planned
+  work under `_tickets/<subject>/<NNN_name>/ticket.md`. Tickets start as
+  sketches (rough steps) and end as specs; the reviewer holds the diff against
+  a spec and sets `passed` or `flunked`.
+- `local-tdd` — the RED / GREEN / REFACTOR loop for this codebase.
+- `local-prep-release` — cut a release.
 
 ## Testing
 

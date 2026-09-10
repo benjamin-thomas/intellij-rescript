@@ -59,12 +59,12 @@ npx rescript build -w
 ## Test-file convention
 
 Pairs mirror the **planned** plugin convention from
-`_tickets/todo/navigation/010_go-to-test-file-level/`:
+`_tickets/navigation/010_go-to-test-file-level/`:
 
 - `src/<sub>/Foo.res` ↔ `tests/<sub>/FooTest.res` (sibling `tests/` directory,
   CamelCase `Test` suffix).
 - Function-level: `let foo` in the source maps to `let test_foo` in the test
-  (per `_tickets/todo/navigation/020_*`).
+  (per `_tickets/navigation/020_*`).
 
 Once the `testFinder` is wired up, `Ctrl+Shift+T` on any file or function
 here should jump cleanly.

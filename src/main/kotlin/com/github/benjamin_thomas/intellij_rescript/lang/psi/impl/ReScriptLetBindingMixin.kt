@@ -8,7 +8,8 @@ import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.TokenType
 import com.github.benjamin_thomas.intellij_rescript.lang.psi.ReScriptLetBindingPattern
 
-// See _knowledge/parser/PSI_CUSTOMIZATION.md for how mixins and PsiNameIdentifierOwner work.
+// GrammarKit overwrites the generated Impl on every generateParser; hand-written
+// PSI behavior lives in the mixin it extends.
 abstract class ReScriptLetBindingMixin(node: ASTNode) : ASTWrapperPsiElement(node), PsiNameIdentifierOwner {
 
     override fun getNameIdentifier(): PsiElement? {
