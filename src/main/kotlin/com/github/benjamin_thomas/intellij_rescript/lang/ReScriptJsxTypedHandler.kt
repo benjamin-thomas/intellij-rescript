@@ -19,7 +19,7 @@ class ReScriptJsxTypedHandler : TypedHandlerDelegate() {
         // The typed char is not in the PSI tree until the document is committed
         PsiDocumentManager.getInstance(project).commitDocument(editor.document)
         val gt = file.findElementAt(caret - 1) ?: return Result.CONTINUE
-        val close = jsxAutoCloseText(gt, editor.document.text.substring(caret)) ?: return Result.CONTINUE
+        val close = jsxAutoCloseText(gt) ?: return Result.CONTINUE
 
         // Not wrapped in its own command: joining the typing command keeps it one undo step
         ApplicationManager.getApplication().runWriteAction {
@@ -31,11 +31,10 @@ class ReScriptJsxTypedHandler : TypedHandlerDelegate() {
 }
 
 /**
- * What to insert after a typed `>` that became the leaf [gt], with
- * [textAfterCaret] being the document text following it — or null for "do
- * nothing". Pure query so the branch matrix is testable without an editor.
+ * What to insert after a typed `>` that became the leaf [gt] — or null for
+ * "do nothing". Pure query so the branch matrix is testable without an editor.
  */
-fun jsxAutoCloseText(gt: PsiElement, textAfterCaret: String): String? {
+fun jsxAutoCloseText(gt: PsiElement): String? {
     if (gt.node.elementType != ReScriptTypes.JSX_GT) return null
 
     // A closing tag's `>` lives under JsxClosingTag; an opening tag's is a
@@ -43,6 +42,7 @@ fun jsxAutoCloseText(gt: PsiElement, textAfterCaret: String): String? {
     val element = gt.parent as? ReScriptJsxElement ?: return null
     val tag = element.jsxTagName?.text ?: return null
 
-    if (textAfterCaret.startsWith("</$tag")) return null
+    // Retyping the opening `>` of an element that already has its closing tag
+    if (element.jsxClosingTag != null) return null
     return "</$tag>"
 }

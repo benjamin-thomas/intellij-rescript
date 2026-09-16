@@ -14,11 +14,24 @@ import kotlin.test.assertNull
  */
 class ReScriptJsxAutoCloseTest : BasePlatformTestCase() {
 
-    private fun closingFor(text: String, textAfterCaret: String = ""): String? {
+    private fun closingFor(text: String): String? {
         val file = PsiFileFactory.getInstance(project)
             .createFileFromText("Test.res", ReScriptFileType, text)
         val gt: PsiElement = file.findElementAt(text.length - 1)!!
-        return jsxAutoCloseText(gt, textAfterCaret)
+        return jsxAutoCloseText(gt)
+    }
+
+    fun testNoInsertWhenElementAlreadyHasClosingTag() {
+        // Retyped the opening tag's `>`; the `|` marks the just-typed char
+        assertNull(closingForMarked("let x = <div|>child</div>"))
+    }
+
+    private fun closingForMarked(marked: String): String? {
+        val text = marked.replace("|", "")
+        val file = PsiFileFactory.getInstance(project)
+            .createFileFromText("Test.res", ReScriptFileType, text)
+        val gt = file.findElementAt(marked.indexOf('|'))!!
+        return jsxAutoCloseText(gt)
     }
 
     fun testInsertsClosingTagForElement() {
@@ -27,10 +40,6 @@ class ReScriptJsxAutoCloseTest : BasePlatformTestCase() {
 
     fun testNoInsertWhenTypedGtEndsClosingTag() {
         assertNull(closingFor("let x = <div></div>"))
-    }
-
-    fun testNoInsertWhenClosingTagAlreadyFollows() {
-        assertNull(closingFor("let x = <div>", "</div"))
     }
 
     fun testNoInsertForFragmentGt() {
