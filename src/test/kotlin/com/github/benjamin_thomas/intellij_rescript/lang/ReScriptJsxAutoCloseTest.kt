@@ -42,8 +42,12 @@ class ReScriptJsxAutoCloseTest : BasePlatformTestCase() {
         assertNull(closingFor("let x = <div></div>"))
     }
 
-    fun testNoInsertForFragmentGt() {
-        assertNull(closingFor("let x = <>"))
+    fun testInsertsClosingTagForFragment() {
+        assertEquals("</>", closingFor("let x = <>"))
+    }
+
+    fun testNoInsertWhenTypedGtEndsFragment() {
+        assertNull(closingFor("let x = <></>"))
     }
 
     fun testNoInsertForComparisonGt() {
