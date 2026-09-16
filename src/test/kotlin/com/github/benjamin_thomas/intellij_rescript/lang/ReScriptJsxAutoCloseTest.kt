@@ -38,6 +38,10 @@ class ReScriptJsxAutoCloseTest : BasePlatformTestCase() {
         assertEquals("</div>", closingFor("let x = <div>"))
     }
 
+    fun testInsertsClosingTagForModulePathTag() {
+        assertEquals("</Mod.sub>", closingFor("let x = <Mod.sub>"))
+    }
+
     fun testNoInsertWhenTypedGtEndsClosingTag() {
         assertNull(closingFor("let x = <div></div>"))
     }
