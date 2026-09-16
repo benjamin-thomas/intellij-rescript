@@ -39,6 +39,11 @@ for how a typing-side behavior is tested in this codebase.
    tests keep passing.
 
 ## Notes
+- 2026-09-16: branch logic extracted into pure query `jsxAutoCloseText(leaf,
+  textAfterCaret): String?` in `ReScriptJsxTypedHandler.kt`; branch matrix is
+  characterized in `ReScriptJsxAutoCloseTest` (PSI built via PsiFileFactory, no
+  editor), while `ReScriptJsxTypedHandlerTest` stays as the end-to-end wiring
+  test (delegate registered, insertion + caret placement).
 - Out of scope, follow-up tickets if wanted: completing `/>` when typing
   `/` at the end of an opening tag; tag-pair highlight (`<div>` ↔
   `</div>`); rename-tag sync; tag-name completion (LSP territory).
