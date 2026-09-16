@@ -81,6 +81,8 @@
         <lang.quoteHandler
                 language="ReScript"
                 implementationClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptQuoteHandler"/>
+        <typedHandler
+                implementation="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptJsxTypedHandler"/>
         <gotoRelatedProvider
                 implementation="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptGotoRelatedProvider"/>
         <lang.braceMatcher
