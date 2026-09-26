@@ -630,4 +630,38 @@ class ReScriptStatementMoverTest : BasePlatformTestCase() {
             """.trimIndent()
         )
     }
+
+    fun testMoveMultiLineJsxChildDownAsOneUnit() {
+        // Arrange: caret on the opening line of a multi-line child
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <div>
+                <p><caret>
+                  {React.string("1")}
+                </p>
+                <span> {React.string("2")} </span>
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert: the whole child moved below its sibling
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <div>
+                <span> {React.string("2")} </span>
+                <p>
+                  {React.string("1")}
+                </p>
+              </div>
+
+            """.trimIndent()
+        )
+    }
 }

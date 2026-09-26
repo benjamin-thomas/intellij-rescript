@@ -41,6 +41,7 @@ class ReScriptStatementMover : LineMover() {
                 down
             )
             if (sibling?.node?.elementType == ReScriptTypes.JSX_ELEMENT) {
+                info.toMove = LineRange(jsxChild)
                 info.toMove2 = LineRange(sibling)
                 return true
             }
