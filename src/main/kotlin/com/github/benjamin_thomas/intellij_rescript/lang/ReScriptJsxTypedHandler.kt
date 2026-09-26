@@ -57,15 +57,19 @@ private fun elementCloseText(element: ReScriptJsxElement): String? {
 // The parser hands a closing tag to the innermost open element, whatever its
 // name, so a tag typed inside a parent takes the parent's closing tag, the
 // parent takes its own parent's, and so on up to an ancestor left without one.
-private fun tookParentsClosingTag(element: ReScriptJsxElement): Boolean {
-    val parent = element.parent as? ReScriptJsxElement ?: return false
-    return parent.jsxClosingTag == null || tookParentsClosingTag(parent)
+private fun tookParentsClosingTag(jsx: PsiElement): Boolean = when (val parent = jsx.parent) {
+    is ReScriptJsxElement -> parent.jsxClosingTag == null || tookParentsClosingTag(parent)
+    is ReScriptJsxFragment -> !hasClosingTag(parent) || tookParentsClosingTag(parent)
+    else -> false
 }
 
 // The opening `>` of a fragment directly follows `<`; the closing one follows `</`
 private fun fragmentCloseText(fragment: ReScriptJsxFragment, gt: PsiElement): String? {
     if (gt.prevSibling?.node?.elementType != ReScriptTypes.JSX_LT) return null
     // Retyped the opening `>` of a fragment that already has its `</>`
-    if (fragment.node.getChildren(TokenSet.create(ReScriptTypes.JSX_LT_SLASH)).isNotEmpty()) return null
+    if (hasClosingTag(fragment)) return null
     return "</>"
 }
+
+private fun hasClosingTag(fragment: ReScriptJsxFragment): Boolean =
+    fragment.node.getChildren(TokenSet.create(ReScriptTypes.JSX_LT_SLASH)).isNotEmpty()
