@@ -492,4 +492,38 @@ class ReScriptStatementMoverTest : BasePlatformTestCase() {
             """.trimIndent()
         )
     }
+
+    fun testMoveLetWithJsxBodyUpWithCursorOnLet() {
+        // Arrange: caret on the declaration line of a multi-line JSX component
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let a = 1
+
+            let make<caret> = () =>
+              <div>
+                <p> {React.string("1")} </p>
+                <p> {React.string("2")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_UP_ACTION)
+
+        // Assert: the whole binding moved
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <div>
+                <p> {React.string("1")} </p>
+                <p> {React.string("2")} </p>
+              </div>
+
+            let a = 1
+
+            """.trimIndent()
+        )
+    }
 }
