@@ -34,6 +34,15 @@ class ReScriptStatementMover : LineMover() {
         val psiRange = getElementRange(editor, file, originalRange) ?: return false
         if (psiRange.first == null || psiRange.second == null) return false
 
+        val jsxChild = findJsxChild(psiRange.first)
+        if (jsxChild != null && !down) {
+            val sibling = firstNonWhiteElement(jsxChild.prevSibling, false)
+            if (sibling?.node?.elementType == ReScriptTypes.JSX_ELEMENT) {
+                info.toMove2 = LineRange(sibling)
+                return true
+            }
+        }
+
         val firstItem = findMovableAncestor(psiRange.first) ?: return false
         val lastItem = findMovableAncestor(psiRange.second) ?: return false
 
@@ -53,6 +62,17 @@ class ReScriptStatementMover : LineMover() {
         info.toMove = LineRange(firstItem, lastItem)
         info.toMove2 = LineRange(sibling)
         return true
+    }
+
+    private fun findJsxChild(psi: PsiElement): PsiElement? {
+        var current: PsiElement? = psi
+        while (current != null && current !is PsiFile) {
+            if (current.node.elementType == ReScriptTypes.JSX_ELEMENT &&
+                current.parent?.node?.elementType == ReScriptTypes.JSX_ELEMENT
+            ) return current
+            current = current.parent
+        }
+        return null
     }
 
     private fun findMovableAncestor(psi: PsiElement): PsiElement? {

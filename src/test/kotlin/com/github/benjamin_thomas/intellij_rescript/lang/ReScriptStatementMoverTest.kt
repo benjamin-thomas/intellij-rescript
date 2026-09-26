@@ -526,4 +526,74 @@ class ReScriptStatementMoverTest : BasePlatformTestCase() {
             """.trimIndent()
         )
     }
+
+    fun testMoveJsxChildUpPastSibling() {
+        // Arrange: caret on the second child of a multi-line element
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let a = 1
+
+            let make = () =>
+              <div>
+                <p> {React.string("1")} </p>
+                <p> {React.string("2")}<caret> </p>
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_UP_ACTION)
+
+        // Assert: the children swapped, the bindings stayed
+        myFixture.checkResult(
+            """
+            let a = 1
+
+            let make = () =>
+              <div>
+                <p> {React.string("2")} </p>
+                <p> {React.string("1")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveJsxChildUpInOnlyItemOfModule() {
+        // Arrange: the component is the only item of its module
+        myFixture.configureByText(
+            "Test.res",
+            """
+            module A = {
+              @react.component
+              let make = () =>
+                <div>
+                  <p> {React.string("1")} </p>
+                  <p> {React.string("2")}<caret> </p>
+                </div>
+            }
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_UP_ACTION)
+
+        // Assert: the children swapped
+        myFixture.checkResult(
+            """
+            module A = {
+              @react.component
+              let make = () =>
+                <div>
+                  <p> {React.string("2")} </p>
+                  <p> {React.string("1")} </p>
+                </div>
+            }
+
+            """.trimIndent()
+        )
+    }
 }
