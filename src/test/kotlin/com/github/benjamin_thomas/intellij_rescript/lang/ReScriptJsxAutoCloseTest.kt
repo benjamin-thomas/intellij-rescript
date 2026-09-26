@@ -163,6 +163,19 @@ class ReScriptJsxAutoCloseTest : BasePlatformTestCase() {
         )
     }
 
+    fun testInsertsClosingTagInsideDifferentlySpacedPathParent() {
+        assertEquals(
+            "</span>",
+            closingForMarked(
+                """
+                let x = <Mod . outer>
+                  <span|>
+                </Mod.outer>
+                """.trimIndent()
+            )
+        )
+    }
+
     fun testNoInsertWhenRetypingClosedTagInsideUnclosedParent() {
         // `</span>` cannot be the parent's, so it is the span's own
         assertNull(

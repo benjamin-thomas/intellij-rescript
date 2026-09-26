@@ -7,6 +7,7 @@ import com.intellij.codeInsight.editorActions.TypedHandlerDelegate
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
+import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
@@ -68,22 +69,25 @@ private fun tookParentsClosingTag(jsx: PsiElement): Boolean {
 
 // The name in the closing tag [jsx] holds: "" for `</>`, null when it holds none
 private fun heldClosingName(jsx: PsiElement): String? = when (jsx) {
-    is ReScriptJsxElement -> jsx.jsxClosingTag?.let { it.jsxTagName?.text ?: "" }
+    is ReScriptJsxElement -> jsx.jsxClosingTag?.let { nameAfter(it.firstChild) }
     is ReScriptJsxFragment -> closingSlash(jsx)?.let(::nameAfter)
     else -> null
 }
 
-// A fragment that took an element's `</div>` holds only its `</`: the name
-// follows outside the fragment.
+// Names compare by their tokens, as `<Mod . outer>` and `</Mod.outer>` are the
+// same tag. A fragment that took an element's `</div>` holds only its `</`:
+// the name follows outside the fragment.
 private fun nameAfter(slash: PsiElement): String =
     generateSequence(PsiTreeUtil.nextVisibleLeaf(slash)) { PsiTreeUtil.nextVisibleLeaf(it) }
+        .filterNot { it is PsiComment }
         .takeWhile { it.node.elementType in TAG_NAME_TOKENS }
         .joinToString("") { it.text }
 
-private val TAG_NAME_TOKENS = TokenSet.create(ReScriptTypes.UIDENT, ReScriptTypes.LIDENT, ReScriptTypes.DOT)
-
 private fun openingName(jsx: PsiElement): String =
-    (jsx as? ReScriptJsxElement)?.jsxTagName?.text ?: ""
+    (jsx as? ReScriptJsxElement)?.jsxTagName?.node?.getChildren(TAG_NAME_TOKENS)
+        ?.joinToString("") { it.text } ?: ""
+
+private val TAG_NAME_TOKENS = TokenSet.create(ReScriptTypes.UIDENT, ReScriptTypes.LIDENT, ReScriptTypes.DOT)
 
 // The opening `>` of a fragment directly follows `<`; the closing one follows `</`
 private fun fragmentCloseText(fragment: ReScriptJsxFragment, gt: PsiElement): String? {
