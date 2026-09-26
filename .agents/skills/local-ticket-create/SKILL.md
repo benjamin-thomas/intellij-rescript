@@ -43,12 +43,22 @@ review. You write at `todo`; `local-ticket-work`
 the rest. `form:` is `sketch` or `spec`; `local-ticket-work` advances it.
 Accepted tickets are deleted — git history is the archive.
 
+`eta:` says how much work the ticket is, in human-readable form (`2h`, `half
+a day`, `3 days`): the time to take it to `done`, verification included,
+review not. It is a planning metric, not a commitment: sketches get one too,
+and it is revised whenever the scope moves. It is a duration, not a date —
+a ticket that would be a mistake to start early (waiting on a platform
+release, say) carries a `not_before:` date.
+
+A `blocked:` line is not yours to write: a `local-worker` sets it when it
+stops on a question for the human, and removes it once answered.
+
 ## Workflow
 
 ### 1. Survey
 
 ```bash
-grep -rH -e '^status:' -e '^form:' -e '^summary:' _tickets --include=ticket.md | sort
+grep -rH -e '^status:' -e '^form:' -e '^eta:' -e '^summary:' _tickets --include=ticket.md | sort
 ```
 
 Subjects and order fall out of the sorted paths. Reuse a subject when the work
@@ -86,6 +96,7 @@ nested, never renumbered.
 summary: One line
 status: todo
 form: sketch
+eta: half a day
 created: YYYY-MM-DD
 ---
 
@@ -125,8 +136,8 @@ auto-closes"), not vague ("brace matching works"), but revisable.
 
 ### 7. Confirm, then write
 
-Show the proposed tree with each ticket's goal and criteria. Incorporate
-feedback. **Only then write files.**
+Show the proposed tree with each ticket's goal, criteria and ETA, and each
+subject's total. Incorporate feedback. **Only then write files.**
 
 ## Rules
 

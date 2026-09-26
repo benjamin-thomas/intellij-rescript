@@ -6,9 +6,12 @@ description: Human-driven strict RED-GREEN-REFACTOR TDD workflow for the intelli
 You are in **TDD (Test-Driven Development)** mode now.
 
 Follow strict RED-GREEN-REFACTOR discipline with user checkpoints expressed
-below.
+below. For a budget of rounds run without checkpoints, see `local-tdd-tcr`.
 
 ## General principles
+
+Write tests as `test-style.md` (next to this file) says — read it before the
+first test.
 
 There is no watcher: Gradle compiles on demand. Always pass `--no-daemon`, and
 run one class or one method — platform tests boot a headless IDE, so the full
@@ -25,6 +28,35 @@ at each checkpoint.
 
 A red step is _not_ a compiler error. A red step should represent a logical
 error, so stub whatever needs to be as needed.
+
+## Commits: proposed at every green, made only on request
+
+**Never stage on your own.** The user stages chunk by chunk to validate the
+code — the index is their review tool, not yours.
+
+Before the first test, check once whether `.git` is writable, and whether the
+tree is clean:
+
+```bash
+test -w "$(git rev-parse --absolute-git-dir)" && echo writable || echo read-only
+git status --porcelain
+```
+
+Say which mode you are in. If the tree is not clean, say so before starting: a
+commit made from this loop takes everything in it.
+
+At every GREEN checkpoint, propose a commit message in the imperative, saying
+what the commit does: a title of 50 characters or fewer, a body only when the
+title cannot say it all. It covers **everything not committed yet** — read it from
+`git diff HEAD` at that moment, never from memory. That is what lets the user
+commit by hand, or let several steps pile up, without telling you: the next
+proposal simply starts from wherever HEAD is by then.
+
+On `c`, stage everything and commit:
+
+```bash
+git add -A && git commit -m "<message>"
+```
 
 ## The TDD loop
 
@@ -64,10 +96,16 @@ error, so stub whatever needs to be as needed.
    - [Setup step]
    - [Assertion to verify]
 
-   Continue? (y/N)
+   Uncommitted: [n] step(s) — proposed message: "[message]"
+
+     c  commit, then write the next test   (c <message> to reword it)
+     s  skip the commit, write the next test
    ```
 
-4. **STOP and wait for user approval.**
+   Read-only `.git`: drop the `c` line; the message is for the user to use.
+
+4. **STOP and wait for the answer.** Anything but `c` or `s` — a question, a
+   refactor to do first — is handled as it comes; then offer the choice again.
 
 ### Phase 3: REFACTOR (optional)
 
@@ -77,57 +115,10 @@ Clean up while keeping tests green. Recompile and rerun after each change.
 
 - NEVER write implementation code before a failing test
 - NEVER write more than one test at a time
-- NEVER continue past a checkpoint without user approval — only "y" or "yes" proceeds
+- NEVER move past a checkpoint without the go-ahead — "y" at RED, "c" or "s" at
+  GREEN; any other reply is handled first, then the checkpoint is asked again
 - NEVER weaken or delete an existing test to get to green. If a test blocks you, stop and inform the human.
 - Keep implementations MINIMAL — just enough to pass
 - One behavior per test cycle
-- NEVER run `git` write commands — the human stages and commits
-
-## Test Structure (Arrange-Act-Assert)
-
-Use the "AAA comments" (Arrange, Act, Assert), to enforce clear responsibilities in the test code.
-
-Arrange step is optional when testing pure code.
-
-Tests should "read like a story", so a one-line comment describing each section is good here.
-
-### Example
-
-```kotlin
-class ReScriptStatementMoverTest : BasePlatformTestCase() {
-
-    fun testMoveLetUpPastLet() {
-        // Arrange: two bindings, caret on the second
-        myFixture.configureByText(
-            "Test.res",
-            """
-            let a = 1
-            let b<caret> = 2
-
-            """.trimIndent()
-        )
-
-        // Act: move statement up
-        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_UP_ACTION)
-
-        // Assert: the bindings swapped, the caret followed
-        myFixture.checkResult(
-            """
-            let b = 2
-            let a = 1
-
-            """.trimIndent()
-        )
-    }
-}
-```
-
-## Assertion Practices
-
-- **Hardcode expected values** — don't run functions or extract to var here.
-- **Assert only relevant values to the test scenario** – reduce the testing area, tests should be as readable as possible.
-- **Fail unreachable branches explicitly** — don't swallow errors. If a condition is impossible, we should assert that.
-- **Don't test for the absence of behavior** – generally. If changing the
-  "Arrange" block doesn't affect the test's outcome, that's a sign our test is
-  essentially "useless". So stop and ask the human what to do when you detect
-  such cases. Most times, deleting the test is the right call.
+- NEVER stage on your own — the index is the user's review tool
+- NEVER commit except on "c": then stage everything and commit

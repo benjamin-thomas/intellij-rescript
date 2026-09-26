@@ -31,11 +31,13 @@ review the whole diff as if new.
 
 ### 1. Get the diff
 
-Ask which it is unless obvious:
+The work is on the feature branch `local-ticket-work` started, partly
+committed and partly not. This shows all of it, since the branch left its
+parent — `master`, unless your prompt names another (a `local-worker`'s
+branch forks from its subject branch):
 
 ```bash
-git diff HEAD && git status --short     # uncommitted, in the tree
-git diff master...HEAD                  # committed on a branch
+git diff "$(git merge-base <parent> HEAD)" && git status --short
 ```
 
 Read the whole diff, not a stat.

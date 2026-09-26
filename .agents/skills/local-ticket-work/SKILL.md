@@ -31,11 +31,14 @@ If `_tickets/` doesn't exist, say so and stop — tickets come from
 `local-ticket-create` (`.agents/skills/local-ticket-create/SKILL.md`).
 
 ```bash
-grep -rH -e '^status:' -e '^form:' -e '^summary:' _tickets --include=ticket.md | sort
+grep -rH -e '^status:' -e '^form:' -e '^eta:' -e '^not_before:' -e '^blocked:' -e '^summary:' _tickets --include=ticket.md | sort
 ```
 
-Present them grouped by subject in numeric order. **Do not auto-pick.** Then
-by status:
+Present them grouped by subject in numeric order, each with its ETA ("no ETA"
+when it has none). **Do not auto-pick.** A ticket whose `not_before:` is in
+the future is not startable: say so. A `blocked:` line is a question a
+`local-worker` left for the human: raise it before anything else. Then by
+status:
 
 - `todo` — continue.
 - `doing` — an interrupted session, almost always. Ask before resuming.
@@ -76,22 +79,45 @@ fix it with the human or demote it to `sketch` before starting.
 
 ### Scope and risk
 <files, unknowns>
+
+### ETA
+<the ticket's, revised against what step 2 found — or a first one>
+
+### Branch
+<the feature branch the work goes on>
 ```
 
 Ask: **"Ready to start? Any additional instructions?"** Touch nothing — not
 the status, not the code — until the human says yes. If the ticket has drifted
 far, propose rewriting it instead of starting.
 
-Once confirmed, write the amended criteria and any scope decisions back into
-the ticket. Clarifying it is part of the work.
+The work goes on a feature branch, which the tickets of one feature can share.
+On master, propose a short name for the work — past ones: `jsx-autoclose`,
+`support-field-attributes`. On a branch already carrying this feature, stay.
+On another feature's branch, ask before mixing this ticket's work into it.
+
+When the human grants a budget of rounds, the work runs under `local-tdd-tcr`
+(`.agents/skills/local-tdd-tcr/SKILL.md`): run its checks before this recap,
+make the Plan its test list with the budget, and let this question be its
+"Start?".
+
+Once confirmed, write the amended criteria, any scope decisions and the ETA
+back into the ticket. Clarifying it is part of the work.
 
 ### 4. Work
+
+On master, create the confirmed branch first — `git switch -c <branch>`; with a
+read-only `.git`, give the user the command instead.
 
 Set `status: doing`. Follow `AGENTS.md`: compile as you go, `--no-daemon`
 everywhere, `bsc -only-parse` by exit status for any syntax assumption. Prefer
 `local-tdd` (`.agents/skills/local-tdd/SKILL.md`) when the change is testable.
-Keep the ticket true as you learn: when a decision changes scope or a
-criterion, edit the ticket, not just the conversation.
+Keep the ticket true as you learn: when a decision changes scope, a criterion
+or the ETA, edit the ticket, not just the conversation.
+
+Under `local-tdd-tcr`, the ticket is written back and committed as that skill
+says — its reverts would otherwise take the ticket's edits with them — then
+left untouched until the batch's report. Bring it up to date after that.
 
 ### 5. Verify
 
@@ -130,8 +156,9 @@ Git keeps it: git log --diff-filter=D -- _tickets/
 Remove it? (y/N)
 ```
 
-On `y`, `rm -r` the directory (no `-f`) and say it's ready to commit alongside
-the work.
+On `y`, `rm -r` the directory (no `-f`). Say it's ready to commit alongside
+the work, and that the user lands the branch with `git merge --no-ff <branch>`
+once the feature is done — possibly after more of its tickets.
 
 ## When it grows
 
@@ -139,7 +166,8 @@ If compaction looms or you find a subsystem the ticket never mentioned:
 
 1. **Stop.** Keep your changes.
 2. Set `status: todo`.
-3. Append a dated note to the ticket: what grew, how you'd split it.
+3. Append a dated note to the ticket: what grew, how you'd split it, and a
+   rough ETA for each piece.
 4. Tell the human it needs re-splitting.
 
 A ticket that balloons was sketched in the wrong place. Don't power through.
@@ -152,7 +180,8 @@ A ticket that balloons was sketched in the wrong place. Don't power through.
 - NEVER set `passed` or `flunked` — those are the reviewer's
 - NEVER leave `doing` behind without finishing or resetting to `todo`
 - NEVER resume a `doing` ticket without asking
-- NEVER run `git add`, `git commit` or `git rm` — plain `rm` is fine, it shows
-  as a diff the human confirms
+- NEVER run `git add`, `git commit` or `git rm`, except on a `c` at a
+  `local-tdd` checkpoint or inside a `local-tdd-tcr` batch — plain `rm` is
+  fine, it shows as a diff the human confirms
 - Ask when the ticket is ambiguous instead of guessing
 - Leave no debug code, temp files or commented-out blocks
