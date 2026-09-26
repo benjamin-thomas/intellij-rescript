@@ -136,6 +136,20 @@ class ReScriptJsxAutoCloseTest : BasePlatformTestCase() {
         )
     }
 
+    fun testInsertsFragmentClosingInsideFragment() {
+        assertEquals(
+            "</>",
+            closingForMarked(
+                """
+                let x =
+                  <>
+                    <|>
+                  </>
+                """.trimIndent()
+            )
+        )
+    }
+
     fun testInsertsClosingTagInsideBracedChild() {
         assertEquals("</span>", closingForMarked("let x = <div>{<span|>}</div>"))
     }

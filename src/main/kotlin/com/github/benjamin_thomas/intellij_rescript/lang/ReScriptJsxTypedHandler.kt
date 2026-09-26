@@ -67,7 +67,7 @@ private fun tookParentsClosingTag(jsx: PsiElement): Boolean = when (val parent =
 private fun fragmentCloseText(fragment: ReScriptJsxFragment, gt: PsiElement): String? {
     if (gt.prevSibling?.node?.elementType != ReScriptTypes.JSX_LT) return null
     // Retyped the opening `>` of a fragment that already has its `</>`
-    if (hasClosingTag(fragment)) return null
+    if (hasClosingTag(fragment) && !tookParentsClosingTag(fragment)) return null
     return "</>"
 }
 
