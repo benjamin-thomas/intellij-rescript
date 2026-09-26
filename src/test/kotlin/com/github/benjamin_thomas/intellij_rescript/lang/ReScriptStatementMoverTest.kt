@@ -664,4 +664,72 @@ class ReScriptStatementMoverTest : BasePlatformTestCase() {
             """.trimIndent()
         )
     }
+
+    fun testMoveFirstJsxChildUpStaysInParent() {
+        // Arrange: caret on the first child, a binding above the component
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let a = 1
+
+            let make = () =>
+              <div>
+                <p> {React.string("1")}<caret> </p>
+                <p> {React.string("2")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_UP_ACTION)
+
+        // Assert: neither the child nor the component moved
+        myFixture.checkResult(
+            """
+            let a = 1
+
+            let make = () =>
+              <div>
+                <p> {React.string("1")} </p>
+                <p> {React.string("2")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveLastJsxChildDownStaysInParent() {
+        // Arrange: caret on the last child, a binding below the component
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <div>
+                <p> {React.string("1")} </p>
+                <p> {React.string("2")}<caret> </p>
+              </div>
+
+            let b = 2
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert: neither the child nor the component moved
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <div>
+                <p> {React.string("1")} </p>
+                <p> {React.string("2")} </p>
+              </div>
+
+            let b = 2
+
+            """.trimIndent()
+        )
+    }
 }

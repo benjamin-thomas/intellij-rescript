@@ -40,11 +40,13 @@ class ReScriptStatementMover : LineMover() {
                 if (down) jsxChild.nextSibling else jsxChild.prevSibling,
                 down
             )
-            if (sibling?.node?.elementType == ReScriptTypes.JSX_ELEMENT) {
-                info.toMove = LineRange(jsxChild)
-                info.toMove2 = LineRange(sibling)
+            if (sibling?.node?.elementType != ReScriptTypes.JSX_ELEMENT) {
+                info.toMove2 = null
                 return true
             }
+            info.toMove = LineRange(jsxChild)
+            info.toMove2 = LineRange(sibling)
+            return true
         }
 
         val firstItem = findMovableAncestor(psiRange.first) ?: return false
