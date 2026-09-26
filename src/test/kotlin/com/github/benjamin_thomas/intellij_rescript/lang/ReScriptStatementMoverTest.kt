@@ -596,4 +596,38 @@ class ReScriptStatementMoverTest : BasePlatformTestCase() {
             """.trimIndent()
         )
     }
+
+    fun testMoveJsxChildDownPastSibling() {
+        // Arrange: caret on the first child
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <div>
+                <p> {React.string("1")}<caret> </p>
+                <p> {React.string("2")} </p>
+              </div>
+
+            let b = 2
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert: the children swapped, the bindings stayed
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <div>
+                <p> {React.string("2")} </p>
+                <p> {React.string("1")} </p>
+              </div>
+
+            let b = 2
+
+            """.trimIndent()
+        )
+    }
 }

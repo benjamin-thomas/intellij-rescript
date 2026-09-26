@@ -35,8 +35,11 @@ class ReScriptStatementMover : LineMover() {
         if (psiRange.first == null || psiRange.second == null) return false
 
         val jsxChild = findJsxChild(psiRange.first)
-        if (jsxChild != null && !down) {
-            val sibling = firstNonWhiteElement(jsxChild.prevSibling, false)
+        if (jsxChild != null) {
+            val sibling = firstNonWhiteElement(
+                if (down) jsxChild.nextSibling else jsxChild.prevSibling,
+                down
+            )
             if (sibling?.node?.elementType == ReScriptTypes.JSX_ELEMENT) {
                 info.toMove2 = LineRange(sibling)
                 return true
