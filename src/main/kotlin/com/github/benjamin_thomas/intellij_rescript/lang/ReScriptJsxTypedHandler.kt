@@ -55,10 +55,11 @@ private fun elementCloseText(element: ReScriptJsxElement): String? {
 }
 
 // The parser hands a closing tag to the innermost open element, whatever its
-// name, so a tag typed inside a parent takes the parent's closing tag.
+// name, so a tag typed inside a parent takes the parent's closing tag, the
+// parent takes its own parent's, and so on up to an ancestor left without one.
 private fun tookParentsClosingTag(element: ReScriptJsxElement): Boolean {
     val parent = element.parent as? ReScriptJsxElement ?: return false
-    return parent.jsxClosingTag == null
+    return parent.jsxClosingTag == null || tookParentsClosingTag(parent)
 }
 
 // The opening `>` of a fragment directly follows `<`; the closing one follows `</`

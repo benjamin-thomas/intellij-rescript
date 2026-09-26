@@ -105,6 +105,23 @@ class ReScriptJsxAutoCloseTest : BasePlatformTestCase() {
         )
     }
 
+    fun testInsertsClosingTagInsideGrandparent() {
+        // Each level took its parent's closing tag, so only the root lacks one
+        assertEquals(
+            "</li>",
+            closingForMarked(
+                """
+                let x =
+                  <div>
+                    <ul>
+                      <li|>
+                    </ul>
+                  </div>
+                """.trimIndent()
+            )
+        )
+    }
+
     fun testInsertsClosingTagInsideBracedChild() {
         assertEquals("</span>", closingForMarked("let x = <div>{<span|>}</div>"))
     }
