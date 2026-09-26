@@ -1,0 +1,244 @@
+#!/bin/bash
+#
+# Tests for manage/agents, run against a throwaway repo. Nothing here launches
+# a sandbox, a tmux window or an agent: AGENTS_DRY_RUN records them instead.
+#
+#   manage/test_agents
+
+set -euo pipefail
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+TMP="$(mktemp -d)"
+trap 'rm -rf "$TMP"' EXIT
+
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+export SANDBOX_AGENT_STATE_DIR="$TMP/registry"
+export AGENTS_DRY_RUN="$TMP/launches"
+export AGENTS_POLL=1
+unset AGENTS_ROLE TMUX
+
+passed=0 failed=0
+check() {
+  if "${@:2}"; then
+    passed=$((passed + 1))
+  else
+    failed=$((failed + 1))
+    printf 'FAIL: %s\n' "$1"
+  fi
+}
+fails() { ! "$@" >/dev/null 2>&1; }
+exits() { "${@:2}" >/dev/null 2>&1; [ $? = "$1" ]; }
+launched() { grep -qxF "$1" "$AGENTS_DRY_RUN"; }
+
+REPO="$TMP/proj"
+WT="$TMP/proj.worktrees"
+A="$REPO/manage/agents"
+STATE="$REPO/tmp/agents/jsx"
+git init -q -b master "$REPO"
+cd "$REPO"
+git config user.name test
+git config user.email test@example.com
+mkdir -p manage
+cp "$HERE/agents" manage/agents
+printf '/tmp/\n/build/\n' >.gitignore
+git add -A
+git commit -qm init
+
+# work <worktree> — one more commit on its branch
+work() { git -C "$1" commit -q --allow-empty -m "Add a behaviour"; }
+# hand_off <worktree> <note> — the worker's handoff note on its tip
+hand_off() { git -C "$1" notes --ref="agents/$(git -C "$1" branch --show-current)" add -f -m "$2" HEAD; }
+state_of() { "$A" status jsx | awk -v u="$1" '$1 == u { print $2 }'; }
+
+L=claude:opus:high R=codex:gpt-6-astra:xhigh
+PAIR="$L $R"
+
+# --- orchestrate ---
+
+"$A" orchestrate jsx --lead "$L" --reviewer "$R" 2>/dev/null
+check "orchestrate creates the subject branch" git show-ref --verify -q refs/heads/jsx
+check "orchestrate checks it out in its own worktree" \
+  test "$(git -C "$WT/jsx" symbolic-ref --short HEAD)" = jsx
+check "orchestrate runs its session here, workers defaulting to its pair" \
+  launched "here	orchestrator jsx $WT/jsx confirm $PAIR $PAIR "
+"$A" orchestrate jsx --autonomous --goal "parse real JSX" --lead "$L" --reviewer "$R" \
+  --worker-lead codex:gpt-6-sol:high --worker-reviewer claude:fable:max 2>/dev/null
+check "orchestrate passes the mode, the workers' pair and the goal" \
+  launched "here	orchestrator jsx $WT/jsx autonomous $PAIR codex:gpt-6-sol:high claude:fable:max parse real JSX"
+check "orchestrate remembers the picks" grep -qxF "worker-lead=codex:gpt-6-sol:high" tmp/agents/choices
+check "a subject is lowercase words joined by single dashes" fails "$A" orchestrate JSX --lead "$L" --reviewer "$R"
+check "a subject cannot hold the unit separator" fails "$A" orchestrate a--b --lead "$L" --reviewer "$R"
+check "orchestrate refuses inside a sandbox" fails env AGENTS_ROLE=worker "$A" orchestrate jsx --lead "$L" --reviewer "$R"
+check "orchestrate needs a terminal to pick agents" fails "$A" orchestrate jsx </dev/null
+check "an unknown harness is rejected" fails "$A" orchestrate jsx --lead gpt:x:high --reviewer "$R"
+check "an effort the harness lacks is rejected" fails "$A" orchestrate jsx --lead claude:opus:ultra --reviewer "$R"
+check "a model name cannot carry a space" fails "$A" orchestrate jsx --lead "claude:op us:high" --reviewer "$R"
+
+# --- picking agents from a terminal ---
+# Stubs: fzf takes the preselected (first) line and logs its header; codex
+# serves a small model catalog.
+
+mkdir -p "$TMP/bin"
+cat >"$TMP/bin/fzf" <<'STUB'
+#!/bin/bash
+# The installed fzf, when there is one, must accept the options.
+real="$(PATH="${PATH#*:}" command -v fzf || true)"
+if [ -n "$real" ]; then printf 'x\n' | "$real" "$@" --filter=x >/dev/null || exit 2; fi
+for a; do case "$a" in --header=*) printf '%s\n' "${a#--header=}" >>"$FZF_LOG" ;; esac; done
+printf '\n%s\n' "$(head -n1)"
+STUB
+cat >"$TMP/bin/codex" <<'STUB'
+#!/bin/sh
+echo '{"models":[{"slug":"gpt-6-sol","supported_reasoning_levels":[{"effort":"low"}]},{"slug":"gpt-6-astra","supported_reasoning_levels":[{"effort":"high"},{"effort":"xhigh"}]}]}'
+STUB
+chmod +x "$TMP/bin/fzf" "$TMP/bin/codex"
+export FZF_LOG="$TMP/fzf.log"
+in_terminal() { PATH="$TMP/bin:$PATH" script -qec "$(printf '%q ' "$@")" /dev/null >/dev/null; }
+
+rm -f "$AGENTS_DRY_RUN" tmp/agents/choices
+printf 'lead=%s\nreviewer=%s\n' "$L" "$R" >tmp/agents/choices
+in_terminal "$A" orchestrate jsx || true
+check "the picks start from the remembered agents, workers sharing the pair" \
+  launched "here	orchestrator jsx $WT/jsx confirm $PAIR $PAIR "
+check "each agent is picked as harness, model, then effort" \
+  test "$(grep -c "orchestrator's" "$FZF_LOG")" = 6
+check "a codex model offers its own effort levels" \
+  grep -qxF "orchestrator's reviewer — codex effort" "$FZF_LOG"
+rm -f "$AGENTS_DRY_RUN"
+
+# --- dispatch ---
+
+W1="$WT/jsx--float-literals"
+printf 'Lex 8. as a float.\n' >"$TMP/brief.md"
+"$A" dispatch jsx float-literals --brief "$TMP/brief.md" --rounds 5 --lead "$L" --reviewer "$R" 2>/dev/null
+check "dispatch forks the unit branch from the subject" \
+  test "$(git rev-parse jsx--float-literals)" = "$(git rev-parse jsx)"
+check "dispatch keeps the brief on the host" cmp -s "$TMP/brief.md" "$STATE/briefs/float-literals.md"
+check "a dispatch by hand runs its worker here, with the pair, unit, budget and brief" \
+  launched "here	worker jsx $W1 confirm $PAIR float-literals 5 $STATE/briefs/float-literals.md"
+check "dispatch rejects a malformed unit" fails "$A" dispatch jsx Float --brief "$TMP/brief.md" --lead "$L" --reviewer "$R"
+check "dispatch needs a brief for a new unit" fails "$A" dispatch jsx fragments --lead "$L" --reviewer "$R"
+head -c 40000 /dev/zero | tr '\0' x >"$TMP/big.md"
+check "dispatch rejects an oversized brief" fails "$A" dispatch jsx fragments --brief "$TMP/big.md" --lead "$L" --reviewer "$R"
+check "dispatch rejects a zero budget" fails "$A" dispatch jsx fragments --brief "$TMP/brief.md" --rounds 0 --lead "$L" --reviewer "$R"
+check "dispatch refuses inside a sandbox" \
+  fails env AGENTS_ROLE=orchestrator "$A" dispatch jsx fragments --brief "$TMP/brief.md" --lead "$L" --reviewer "$R"
+check "dispatch needs the subject branch" fails "$A" dispatch other x --brief "$TMP/brief.md" --lead "$L" --reviewer "$R"
+check "dispatch needs a terminal to pick agents" fails "$A" dispatch jsx float-literals </dev/null
+
+# --- status and wait ---
+
+check "a fresh unit branch is dispatched" test "$(state_of float-literals)" = dispatched
+work "$W1"
+check "a branch with commits is working" test "$(state_of float-literals)" = working
+check "wait times out while no worker hands off" exits 1 "$A" wait jsx --timeout 2
+(sleep 2 && hand_off "$W1" $'blocked: needs \033[31myou') &
+check "wait returns when a worker hands off" exits 0 "$A" wait jsx --timeout 20
+wait
+check "a blocked note blocks it" test "$(state_of float-literals)" = blocked
+check "note text reaches the terminal without control characters" \
+  fails grep -q $'\033' <("$A" status jsx)
+work "$W1"
+check "a new commit after the note means working again" test "$(state_of float-literals)" = working
+hand_off "$W1" $'ready\n\nRounds: 3'
+check "a ready note on the tip is ready" test "$(state_of float-literals)" = ready
+check "wait returns at once when no worker is in flight" exits 2 "$A" wait jsx --timeout 20
+
+# --- the inbox ---
+
+W2="$WT/jsx--fragments"
+mkdir -p "$STATE/inbox"
+printf 'Parse fragments.\n' >"$STATE/inbox/fragments.md"
+printf 'dispatch fragments 3\ndispatch fragments 3; touch pwned\nrm -rf /\n' >"$STATE/inbox/queue"
+"$A" _serve-once jsx confirm "$L" "$R" 2>"$TMP/serve.log"
+check "the inbox dispatches a well-formed line to a new window, with the workers' default pair" \
+  launched "jsx--fragments	worker jsx $W2 confirm $PAIR fragments 3 $STATE/briefs/fragments.md"
+check "the brief moves out of the inbox" test ! -e "$STATE/inbox/fragments.md" -a -s "$STATE/briefs/fragments.md"
+check "the inbox rejects the other lines" test "$(grep -c 'rejected' "$TMP/serve.log")" = 2
+check "the queue is consumed" test ! -e "$STATE/inbox/queue"
+check "a rejected line is not executed" test ! -e pwned -a ! -e "$WT/jsx/pwned"
+printf 'dispatch fragments 4 codex:gpt-6-sol:high claude:fable:max\ndispatch fragments 6 claude:opus:ultra %s\n' "$R" \
+  >"$STATE/inbox/queue"
+"$A" _serve-once jsx confirm "$L" "$R" 2>>"$TMP/serve.log"
+check "a queued line may name the unit's own pair, reusing its brief" \
+  launched "jsx--fragments	worker jsx $W2 confirm codex:gpt-6-sol:high claude:fable:max fragments 4 $STATE/briefs/fragments.md"
+check "a queued line with a bad agent is rejected" fails grep -q ' fragments 6 ' "$AGENTS_DRY_RUN"
+printf 'dispatch nothing 3\n' >"$STATE/inbox/queue"
+"$A" _serve-once jsx confirm "$L" "$R" 2>>"$TMP/serve.log"
+check "a unit without a brief is rejected" fails grep -q ' nothing 3 ' "$AGENTS_DRY_RUN"
+printf 'x\n' >"$STATE/inbox/bad--unit.md"
+printf 'dispatch bad--unit 3\n' >"$STATE/inbox/queue"
+"$A" _serve-once jsx confirm "$L" "$R" 2>>"$TMP/serve.log"
+check "a queued unit must be a well-formed name" fails grep -q ' bad--unit 3 ' "$AGENTS_DRY_RUN"
+printf 'secret\n' >"$TMP/secret.md"
+ln -s "$TMP/secret.md" "$STATE/inbox/leak.md"
+printf 'dispatch leak 3\n' >"$STATE/inbox/queue"
+"$A" _serve-once jsx confirm "$L" "$R" 2>>"$TMP/serve.log"
+check "a symlinked brief is refused" fails grep -q ' leak 3 ' "$AGENTS_DRY_RUN"
+check "a symlinked brief's target is left alone" test -f "$TMP/secret.md"
+printf 'dispatch fragments 7\n' >"$TMP/secret"
+ln -s "$TMP/secret" "$STATE/inbox/queue"
+"$A" _serve-once jsx confirm "$L" "$R" 2>>"$TMP/serve.log"
+check "a symlinked queue is not followed" fails grep -q ' fragments 7 ' "$AGENTS_DRY_RUN"
+check "the symlinked queue's target is left alone" test -f "$TMP/secret"
+
+# --- completion ---
+
+comp() { "$A" __complete "$@"; }
+check "completion offers the subcommands" grep -qw status <(comp commands)
+check "completion offers a subcommand's flags" grep -qx -- --brief <(comp flags dispatch | tr ' ' '\n')
+check "completion offers the subjects that have a worktree" test "$(comp subjects status)" = jsx
+mkdir -p _tickets/grammar
+check "orchestrate also completes the ticket subjects" grep -qx grammar <(comp subjects orchestrate)
+check "completion offers a subject's units" test "$(comp units jsx | tr '\n' ' ')" = "float-literals fragments "
+check "completion offers the remembered agents" grep -qxF "$R" <(comp agents)
+
+HOME="$TMP/home" "$A" install-completion 2>/dev/null
+HOME="$TMP/home" "$A" install-completion 2>/dev/null
+check "install-completion sources its script from .bashrc, once" \
+  test "$(grep -c 'manage-agents' "$TMP/home/.bashrc")" = 1
+
+# completed <line> — the installed completion's candidates, cursor at the end
+completed() {
+  bash -c '
+    . "$1"
+    line="$2"
+    read -ra COMP_WORDS <<<"$line"
+    [[ $line == *" " ]] && COMP_WORDS+=("")
+    COMP_CWORD=$((${#COMP_WORDS[@]} - 1)) COMP_LINE="$line" COMP_POINT=${#line}
+    _manage_agents
+    printf "%s\n" "${COMPREPLY[@]}"
+  ' _ "$TMP/home/.bash_completion.d/manage-agents" "$1"
+}
+check "the installed completion completes a subcommand" test "$(completed "$A st")" = status
+check "the installed completion completes a subject" test "$(completed "$A status j")" = jsx
+check "the installed completion completes a unit" test "$(completed "$A dispatch jsx fl")" = float-literals
+check "the installed completion completes an agent past its colon" \
+  grep -qx opus:high <(completed "$A dispatch jsx fragments --lead claude:op")
+
+# --- clean ---
+
+mkdir -p "$W1/build" && touch "$W1/build/ignored"
+mkdir -p "$SANDBOX_AGENT_STATE_DIR"
+printf '{"project":"%s","tmux_window_id":"@42","pid":%s}\n' "$W1" $$ >"$SANDBOX_AGENT_STATE_DIR/s.json"
+"$A" clean jsx 2>/dev/null
+check "clean keeps a unit not merged yet" git show-ref --verify -q refs/heads/jsx--float-literals
+git -C "$WT/jsx" merge -q --no-ff --no-edit jsx--float-literals
+check "a merged unit shows as merged" test "$(state_of float-literals)" = merged
+"$A" clean jsx 2>/dev/null
+check "clean stops the unit's session" launched "kill	$$"
+check "clean removes the merged worktree" test ! -e "$W1"
+check "clean removes the merged branch" fails git show-ref --verify -q refs/heads/jsx--float-literals
+check "clean removes its handoff notes" fails git show-ref --verify -q refs/notes/agents/jsx--float-literals
+check "clean keeps the unmerged unit" test -d "$W2"
+
+check "clean --all keeps a subject not landed on master" fails "$A" clean jsx --all
+git merge -q --no-ff --no-edit jsx
+check "clean --all keeps a subject with an unmerged unit" fails "$A" clean jsx --all
+git worktree remove "$W2"
+git branch -D -q jsx--fragments
+"$A" clean jsx --all 2>/dev/null
+check "clean --all removes a landed subject" test ! -e "$WT/jsx"
+
+printf '%d passed, %d failed\n' "$passed" "$failed"
+[ "$failed" = 0 ]

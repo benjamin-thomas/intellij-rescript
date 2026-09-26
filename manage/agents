@@ -1,0 +1,777 @@
+#!/bin/bash
+#
+# Parallel agent sessions working toward one goal. Each unit of work gets its
+# own git worktree and its own sandboxed herdr session (sandbox-agent). A
+# session you start runs right where you start it; the workers the
+# orchestrator dispatches open in new windows of your tmux session.
+#
+#   manage/agents orchestrate <subject> [--goal TEXT] [--autonomous]
+#                             [--lead A] [--reviewer A]
+#                             [--worker-lead A] [--worker-reviewer A]
+#       The orchestrator, on branch <subject> forked from master. It splits
+#       the goal into units and dispatches them itself.
+#   manage/agents dispatch <subject> <unit> [--brief FILE] [--rounds N]
+#                          [--autonomous] [--lead A] [--reviewer A]
+#       A worker for one unit, on branch <subject>--<unit> forked from
+#       <subject>. Without --brief, the unit's previous brief is reused.
+#   manage/agents status <subject>
+#   manage/agents wait <subject> [--timeout SECONDS]
+#       Blocks until a worker hands off: ready, or blocked.
+#   manage/agents clean <subject> [<unit>...] [--all]
+#       Stops the sessions of units merged into <subject>, and removes their
+#       worktrees, branches and handoff notes. --all also removes the
+#       subject's own, once <subject> is merged into master.
+#   manage/agents install-completion
+#       Bash completion for subcommands, flags, subjects, units and agents.
+#
+# Every session holds two full-screen tabs: the lead agent, and a reviewer
+# agent named `reviewer`. An agent A is harness:model:effort —
+# claude:opus:high, codex:gpt-6-astra:xhigh. Those not given as flags are
+# picked interactively (fzf), starting from your previous picks. The workers'
+# pair is the orchestrator's default; it may propose another per unit.
+#
+# A worker hands off with a git note on its branch tip, in
+# refs/notes/agents/<branch>: a first line `ready` or `blocked: <reason>`,
+# then its report. Worktrees live in ../<repo>.worktrees/<branch>.
+#
+# --autonomous: the orchestrator dispatches and merges without asking, and
+# workers start without asking you to approve their test list. A blocker, a
+# failed merge and the final landing on master still come to you.
+#
+# A sandbox can neither create worktrees nor launch sandboxes, so the
+# orchestrator asks for them through tmp/agents/inbox/ in its worktree: a host
+# directory mounted there, served by a loop beside its session, which logs to
+# tmp/agents/host/log. status and wait only read git, so they run anywhere.
+#
+# AGENTS_DRY_RUN=<file> records sessions started and stopped there instead.
+
+set -euo pipefail
+# Without it, a failure inside $(…) does not stop the script.
+shopt -s inherit_errexit
+
+SELF="$(realpath "$0")"
+REPO="$(git -C "$(dirname "$SELF")" rev-parse --show-toplevel)"
+MAIN="$(dirname "$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir)")"
+WT_ROOT="$(dirname "$MAIN")/$(basename "$MAIN").worktrees"
+REGISTRY="${SANDBOX_AGENT_STATE_DIR:-$HOME/.local/state/sandbox-agent}"
+CHOICES="$MAIN/tmp/agents/choices"
+BSC_MODULES="rescript-playground-example/node_modules"
+BRIEF_MAX_BYTES=32768
+CLAUDE_MODELS=(opus fable sonnet)
+CLAUDE_EFFORTS=(low medium high xhigh max)
+
+say() { printf 'agents: %s\n' "$*" >&2; }
+die() { say "$*"; exit 1; }
+usage() { sed -n '3,/^$/s/^# \{0,1\}//p' "$SELF"; }
+g() { git -C "$REPO" "$@"; }
+
+# Handoff notes are agent-written: strip control characters before they reach
+# a host terminal.
+clean_text() { tr -d '\000-\037\177'; }
+
+# Subjects and units are lowercase words joined by single dashes, so the `--`
+# in <subject>--<unit> is unambiguous.
+is_name() { [[ $1 =~ ^[a-z][a-z0-9]*(-[a-z0-9]+)*$ ]] && [ ${#1} -le 40 ]; }
+valid_name() { is_name "$2" || die "bad $1 (lowercase words joined by single dashes, at most 40): $2"; }
+valid_rounds() { [[ $1 =~ ^[1-9][0-9]?$ ]] || die "bad round budget (want 1-99): $1"; }
+
+# The host builds each command line from an agent spec itself, so a spec that
+# came through the inbox can name a model, never a command.
+is_agent() {
+  local re='^(claude|codex):[A-Za-z0-9][]A-Za-z0-9._[-]*:([a-z]+)$'
+  [[ $1 =~ $re ]] || return 1
+  case "${1%%:*}" in
+    claude) [[ " ${CLAUDE_EFFORTS[*]} " == *" ${BASH_REMATCH[2]} "* ]] ;;
+    codex) [[ ${BASH_REMATCH[2]} =~ ^(minimal|low|medium|high|xhigh|max|ultra)$ ]] ;;
+  esac
+}
+valid_agent() { is_agent "$1" || die "bad agent (want harness:model:effort, harness claude or codex): $1"; }
+
+# model_args <agent> — the harness's flags for that model and effort
+model_args() {
+  local harness model effort
+  IFS=: read -r harness model effort <<<"$1"
+  case "$harness" in
+    claude) printf '%s\n' --model "$model" --effort "$effort" ;;
+    codex) printf '%s\n' -m "$model" -c "model_reasoning_effort=$effort" ;;
+  esac
+}
+
+# No permission prompts in either agent: the sandbox is the boundary. The lead
+# runs through the harness's -yolo wrapper; herdr starts the reviewer's binary
+# itself, so it gets the flag its wrapper would add.
+bypass_flag() {
+  case "$1" in
+    claude) printf '%s\n' --dangerously-skip-permissions ;;
+    codex) printf '%s\n' --dangerously-bypass-approvals-and-sandbox ;;
+  esac
+}
+
+host_only() {
+  [ -z "${AGENTS_ROLE:-}" ] && return
+  die "$1 needs the host. From inside a session, use tmp/agents/inbox/ (see the local-orchestrate skill)"
+}
+
+has_branch() { g show-ref --verify --quiet "refs/heads/$1"; }
+state_dir() { printf '%s\n' "$MAIN/tmp/agents/$1"; }
+
+check_brief() { [ ! -L "$1" ] && [ -f "$1" ] && [ -s "$1" ] && [ "$(wc -c <"$1")" -le "$BRIEF_MAX_BYTES" ]; }
+
+# --- picking agents ---
+
+remembered() { [ -f "$CHOICES" ] && sed -n "s/^$1=//p" "$CHOICES" | head -n1 || true; }
+
+remember() {
+  mkdir -p "${CHOICES%/*}"
+  { [ -f "$CHOICES" ] && grep -v "^$1=" "$CHOICES" || true; printf '%s=%s\n' "$1" "$2"; } >"$CHOICES.new"
+  mv "$CHOICES.new" "$CHOICES"
+}
+
+# pick <header> <default> <option>... — the default comes first; a typed value
+# that matches no option is taken as it is (a full model name, say).
+pick() {
+  local header="$1" default="$2" out status
+  shift 2
+  out="$({ [ -z "$default" ] || printf '%s\n' "$default"; printf '%s\n' "$@" | grep -vxF -- "$default" || true; } |
+    fzf --height=40% --reverse --header="$header" --print-query)" && status=0 || status=$?
+  case "$status" in
+    0) sed -n 2p <<<"$out" ;;
+    1) [ -n "$out" ] || die "nothing picked"; head -n1 <<<"$out" ;;
+    130) die "cancelled" ;;
+    *) die "fzf failed (exit $status)" ;;
+  esac
+}
+
+# The catalog also gives each model's own effort levels.
+codex_catalog() {
+  timeout 20 codex debug models 2>/dev/null |
+    jq -r '(.models // .data // .)[]? | [(.slug // .id // .model),
+      ((.supported_reasoning_levels // .supported_reasoning_efforts // []) | map(.effort // .) | join(" "))] | @tsv' ||
+    true
+}
+
+# pick_agent <role> <default agent> — prints an agent spec
+pick_agent() {
+  local role="$1" harness model effort models=() efforts=() catalog d_harness="" d_model="" d_effort=""
+  is_agent "$2" && IFS=: read -r d_harness d_model d_effort <<<"$2"
+  harness="$(pick "$role — harness" "$d_harness" claude codex)"
+  [ "$harness" = "$d_harness" ] || d_model="" d_effort=""
+  case "$harness" in
+    claude)
+      model="$(pick "$role — claude model (or type a full model name)" "$d_model" "${CLAUDE_MODELS[@]}")"
+      efforts=("${CLAUDE_EFFORTS[@]}")
+      ;;
+    codex)
+      catalog="$(codex_catalog)"
+      mapfile -t models < <(cut -f1 <<<"$catalog" | sed '/^$/d')
+      model="$(pick "$role — codex model" "$d_model" "${models[@]}")"
+      read -ra efforts <<<"$(awk -F'\t' -v m="$model" '$1 == m { print $2 }' <<<"$catalog")"
+      [ ${#efforts[@]} -gt 0 ] || efforts=(low medium high xhigh max)
+      ;;
+    *) die "unknown harness: $harness" ;;
+  esac
+  effort="$(pick "$role — $harness effort" "$d_effort" "${efforts[@]}")"
+  valid_agent "$harness:$model:$effort"
+  printf '%s\n' "$harness:$model:$effort"
+}
+
+# agent_for <key> <flag value> <role> — the flag, else a pick from the terminal
+agent_for() {
+  local agent="$2"
+  if [ -z "$agent" ]; then
+    [ -t 0 ] || die "no terminal to pick the $3 from: pass it as a flag"
+    command -v fzf >/dev/null || die "picking agents needs fzf: pass them as flags"
+    agent="$(pick_agent "$3" "$(remembered "$1")")"
+  fi
+  valid_agent "$agent"
+  remember "$1" "$agent"
+  printf '%s\n' "$agent"
+}
+
+# --- worktrees and sessions ---
+
+# ensure_worktree <branch> <start point> — prints the worktree path
+ensure_worktree() {
+  local branch="$1" path="$WT_ROOT/$1"
+  has_branch "$branch" || g branch --no-track "$branch" "$2" >&2
+  if [ ! -e "$path" ]; then
+    mkdir -p "$WT_ROOT"
+    g worktree add "$path" "$branch" >&2
+    # Gitignored, so git does not bring it; copied only into a fresh checkout,
+    # which no agent has touched yet.
+    if [ -f "$MAIN/.claude/settings.local.json" ]; then
+      mkdir -p "$path/.claude"
+      cp "$MAIN/.claude/settings.local.json" "$path/.claude/"
+    fi
+  fi
+  [ "$(git -C "$path" symbolic-ref --short HEAD 2>/dev/null)" = "$branch" ] ||
+    die "$path is not on branch $branch"
+  [ -x "$path/manage/agents" ] ||
+    die "branch $branch has no manage/agents: commit the agent tooling to master first"
+  printf '%s\n' "$path"
+}
+
+# session_file <worktree> — the sandbox-agent registry entry of its live session
+session_file() {
+  local f pid
+  for f in "$REGISTRY"/*.json; do
+    [ -f "$f" ] || continue
+    [ "$(jq -r .project "$f")" = "$1" ] || continue
+    pid="$(jq -r .pid "$f")"
+    [[ $pid =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null && { printf '%s\n' "$f"; return; }
+  done
+  return 1
+}
+
+# stop_session <worktree> — sandbox-agent forwards TERM to bwrap; a KILL, when
+# that is not enough, still ends the sandbox, which runs with
+# --die-with-parent. A window opened for the session closes on its own.
+stop_session() {
+  local f pid i
+  f="$(session_file "$1")" || return 0
+  pid="$(jq -r .pid "$f")"
+  if [ -n "${AGENTS_DRY_RUN:-}" ]; then
+    printf 'kill\t%s\n' "$pid" >>"$AGENTS_DRY_RUN"
+    return
+  fi
+  kill "$pid" 2>/dev/null || return 0
+  for i in 1 2 3 4 5; do
+    kill -0 "$pid" 2>/dev/null || return 0
+    sleep 1
+  done
+  kill -KILL "$pid" 2>/dev/null || true
+}
+
+# run_here <args for session...> — in this terminal, until the session is quit
+run_here() {
+  if [ -n "${AGENTS_DRY_RUN:-}" ]; then
+    printf 'here\t%s\n' "$*" >>"$AGENTS_DRY_RUN"
+    return
+  fi
+  session "$@"
+}
+
+# launch <window name> <args for session...> — in a new window of the tmux
+# session, left in the background
+launch() {
+  local name="$1"
+  shift
+  if [ -n "${AGENTS_DRY_RUN:-}" ]; then
+    printf '%s\t%s\n' "$name" "$*" >>"$AGENTS_DRY_RUN"
+    return
+  fi
+  [ -n "${TMUX:-}" ] || die "run this inside tmux: a dispatched worker opens in a window of your tmux session"
+  tmux new-window -d -n "$name" "$SELF" _window "$@"
+}
+
+# A window of its own closes with its session, except when the session dies
+# at once: then its error stays readable.
+window() {
+  local start=$SECONDS
+  session "$@" || true
+  if [ $((SECONDS - start)) -lt 15 ]; then
+    printf '\n%s' "The session ended at once. Press enter to close this window. "
+    read -r _ || true
+  fi
+}
+
+# The sandbox, plus the inbox loop behind an orchestrator. Runs until the herdr
+# session is quit (ctrl+o q).
+#   session orchestrator <subject> <worktree> <mode> <lead> <reviewer> <worker lead> <worker reviewer> <goal>
+#   session worker <subject> <worktree> <mode> <lead> <reviewer> <unit> <rounds> <brief>
+SERVER=""
+session() {
+  local role="$1" subject="$2" wt="$3" mode="$4" lead="$5" reviewer="$6" state
+  local args=(--git-rw
+    --setenv "AGENTS_ROLE=$role" --setenv "AGENTS_SUBJECT=$subject" --setenv "AGENTS_MODE=$mode"
+    --setenv "AGENTS_LEAD=$lead" --setenv "AGENTS_REVIEWER=$reviewer")
+  state="$(state_dir "$subject")"
+
+  # bsc is needed for syntax checks, and node_modules is gitignored: share the
+  # main checkout's, read-only.
+  if [ -d "$MAIN/$BSC_MODULES" ] && [ ! -L "$wt/rescript-playground-example" ]; then
+    mkdir -p "$wt/$BSC_MODULES"
+    args+=(--mount "ro:$MAIN/$BSC_MODULES:$wt/$BSC_MODULES")
+  fi
+
+  if [ "$role" = worker ]; then
+    args+=(--setenv "AGENTS_UNIT=$7" --setenv "AGENTS_PARENT=$subject" --setenv "AGENTS_ROUNDS=$8"
+      --setenv "AGENTS_BRIEF=$(cat "$9")")
+  else
+    args+=(--setenv "AGENTS_WORKER_LEAD=$7" --setenv "AGENTS_WORKER_REVIEWER=$8" --setenv "AGENTS_GOAL=$9")
+    # The inbox is a host directory mounted in, so the agent cannot swap it
+    # for a symlink: the host only ever touches files directly inside it.
+    mkdir -p "$state/inbox"
+    if [ -L "$wt/tmp" ] || [ -L "$wt/tmp/agents" ]; then
+      say "$wt/tmp/agents is a symlink: remove it, then start again"
+      return 1
+    fi
+    mkdir -p "$wt/tmp/agents/host" "$wt/tmp/agents/inbox"
+    args+=(--mount "ro:$state:$wt/tmp/agents/host" --mount "rw:$state/inbox:$wt/tmp/agents/inbox")
+    serve "$subject" "$mode" "$7" "$8" >>"$state/log" 2>&1 &
+    SERVER=$!
+    trap 'kill "$SERVER" 2>/dev/null || true' EXIT
+  fi
+
+  sandbox-agent "${args[@]}" "$wt" -- "$wt/manage/agents" _layout
+}
+
+# take_brief <subject> <unit> — moves a brief the orchestrator left in the
+# inbox into the host-only state dir; prints the path of the unit's brief.
+# Without a new one, the unit's previous brief is reused.
+take_brief() {
+  local src dst
+  src="$(state_dir "$1")/inbox/$2.md"
+  dst="$(state_dir "$1")/briefs/$2.md"
+  mkdir -p "${dst%/*}"
+  if [ -e "$src" ] || [ -L "$src" ]; then
+    mv -f "$src" "$dst"
+  fi
+  if ! check_brief "$dst"; then
+    rm -f "$dst"
+    return 1
+  fi
+  printf '%s\n' "$dst"
+}
+
+# The inbox is agent-writable: a file there may be a symlink to anything on
+# the host. Each is moved out before being read, and nothing read from the
+# queue is echoed back.
+# serve_once <subject> <mode> <worker lead> <worker reviewer>
+serve_once() {
+  local subject="$1" mode="$2" state line unit rounds lead reviewer brief
+  state="$(state_dir "$subject")"
+  [ -e "$state/inbox/queue" ] || [ -L "$state/inbox/queue" ] || return 0
+  mv -f "$state/inbox/queue" "$state/batch"
+  if [ -L "$state/batch" ] || [ ! -f "$state/batch" ]; then
+    say "$(date +%T) queue: not a regular file, ignored"
+    rm -f "$state/batch"
+    return
+  fi
+  while IFS= read -r line || [ -n "$line" ]; do
+    if [[ $line =~ ^dispatch\ ([a-z0-9-]+)\ ([1-9][0-9]?)(\ ([^ ]+)\ ([^ ]+))?$ ]]; then
+      unit="${BASH_REMATCH[1]}" rounds="${BASH_REMATCH[2]}"
+      lead="${BASH_REMATCH[4]:-$3}" reviewer="${BASH_REMATCH[5]:-$4}"
+      if ! is_name "$unit" || ! is_agent "$lead" || ! is_agent "$reviewer"; then
+        say "$(date +%T) queue: rejected a dispatch — bad unit name or agent"
+        continue
+      fi
+      if ! brief="$(take_brief "$subject" "$unit")"; then
+        say "$(date +%T) queue: rejected dispatch $unit — no brief in inbox/$unit.md (at most $BRIEF_MAX_BYTES bytes)"
+        continue
+      fi
+      say "$(date +%T) dispatch $unit $rounds $lead $reviewer"
+      (dispatch "$subject" "$unit" "$rounds" "$mode" "$lead" "$reviewer" "$brief" window) || say "dispatch $unit failed"
+    elif [[ $line =~ ^clean\ ([a-z0-9-]+)$ ]] && is_name "${BASH_REMATCH[1]}"; then
+      say "$(date +%T) clean ${BASH_REMATCH[1]}"
+      (clean "$subject" "${BASH_REMATCH[1]}") || say "clean ${BASH_REMATCH[1]} failed"
+    elif [ -n "$line" ]; then
+      say "$(date +%T) queue: rejected a malformed line"
+    fi
+  done <"$state/batch"
+  rm -f "$state/batch"
+}
+
+serve() {
+  while true; do
+    serve_once "$@"
+    sleep 3
+  done
+}
+
+orchestrate() {
+  local subject="$1" mode="$2" goal="$7" lead reviewer wlead wreviewer wt
+  host_only orchestrate
+  has_branch master || die "no master branch"
+  wt="$(ensure_worktree "$subject" master)"
+  ! session_file "$wt" >/dev/null || die "the $subject orchestrator is already running"
+
+  lead="$(agent_for lead "$3" "orchestrator's lead")"
+  reviewer="$(agent_for reviewer "$4" "orchestrator's reviewer")"
+  wlead="$5" wreviewer="$6"
+  if [ -z "$wlead$wreviewer" ]; then
+    if [ -t 0 ] && [ "$(pick "workers' default pair" "same as the orchestrator's" "pick another")" != "same as the orchestrator's" ]; then
+      wlead="$(agent_for worker-lead "" "workers' lead")"
+      wreviewer="$(agent_for worker-reviewer "" "workers' reviewer")"
+    else
+      wlead="$lead" wreviewer="$reviewer"
+    fi
+  fi
+  wlead="$(agent_for worker-lead "${wlead:-$lead}" "workers' lead")"
+  wreviewer="$(agent_for worker-reviewer "${wreviewer:-$reviewer}" "workers' reviewer")"
+
+  say "the $subject orchestrator starts here ($mode): lead $lead, reviewer $reviewer; workers $wlead + $wreviewer"
+  run_here orchestrator "$subject" "$wt" "$mode" "$lead" "$reviewer" "$wlead" "$wreviewer" "$goal"
+}
+
+# dispatch <subject> <unit> <rounds> <mode> <lead> <reviewer> <brief> <here|window>
+# — lead and reviewer are picked when empty
+dispatch() {
+  local subject="$1" unit="$2" rounds="$3" mode="$4" brief="$7" where="$8" branch lead reviewer wt
+  host_only dispatch
+  has_branch "$subject" || die "no branch $subject: start with manage/agents orchestrate $subject"
+  check_brief "$brief" || die "no brief for $unit: a regular file of at most $BRIEF_MAX_BYTES bytes"
+  branch="$subject--$unit"
+  lead="$(agent_for worker-lead "$5" "$branch lead")"
+  reviewer="$(agent_for worker-reviewer "$6" "$branch reviewer")"
+  wt="$(ensure_worktree "$branch" "$subject")"
+  ! session_file "$wt" >/dev/null || die "$branch already has a running session"
+  say "$unit on $branch ($rounds rounds, $mode): lead $lead, reviewer $reviewer"
+  if [ "$where" = here ]; then
+    run_here worker "$subject" "$wt" "$mode" "$lead" "$reviewer" "$unit" "$rounds" "$brief"
+  else
+    launch "$branch" worker "$subject" "$wt" "$mode" "$lead" "$reviewer" "$unit" "$rounds" "$brief"
+  fi
+}
+
+units() { g for-each-ref --format='%(refname:strip=2)' "refs/heads/$1--*"; }
+
+# handoff <branch> — the first line of the note on its tip, if any
+handoff() { g notes --ref="agents/$1" show "$1" 2>/dev/null | head -n1 | clean_text || true; }
+
+# merged <subject> <branch> — its tip is the second parent of a merge in <subject>
+merged() {
+  local tip
+  tip="$(g rev-parse "$2")"
+  g rev-list --merges --parents "$1" | awk -v t="$tip" '$3 == t { found = 1 } END { exit !found }'
+}
+
+# rows <subject> — unit <TAB> state <TAB> detail
+# state: dispatched | working | ready | blocked | merged
+rows() {
+  local subject="$1" branch unit note ahead reason
+  while IFS= read -r branch; do
+    [ -n "$branch" ] || continue
+    unit="${branch#"$subject--"}"
+    is_name "$unit" || continue
+    note="$(handoff "$branch")"
+    ahead="$(g rev-list --count "$subject..$branch")"
+    if merged "$subject" "$branch"; then
+      printf '%s\tmerged\t\n' "$unit"
+    elif [[ $note == blocked* ]]; then
+      reason="${note#blocked}"
+      reason="${reason#:}"
+      printf '%s\tblocked\t%s\n' "$unit" "${reason# }"
+    elif [ "$note" = ready ]; then
+      printf '%s\tready\t%s commits\n' "$unit" "$ahead"
+    elif [ "$ahead" = 0 ]; then
+      printf '%s\tdispatched\t\n' "$unit"
+    else
+      printf '%s\tworking\t%s commits\n' "$unit" "$ahead"
+    fi
+  done < <(units "$subject")
+}
+
+status() {
+  has_branch "$1" || die "no branch $1"
+  { printf 'UNIT\tSTATE\tDETAIL\n'; rows "$1"; } | column -t -s $'\t'
+}
+
+handoffs() { rows "$1" | awk -F'\t' '$2 == "ready" || $2 == "blocked"'; }
+in_flight() { rows "$1" | awk -F'\t' '$2 == "dispatched" || $2 == "working"'; }
+
+wait_handoff() {
+  local subject="$1" timeout="$2" before deadline
+  has_branch "$subject" || die "no branch $subject"
+  if [ -z "$(in_flight "$subject")" ]; then
+    status "$subject"
+    say "no worker in flight"
+    return 2
+  fi
+  before="$(handoffs "$subject")"
+  deadline=$((SECONDS + timeout))
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    sleep "${AGENTS_POLL:-20}"
+    if [ "$(handoffs "$subject")" != "$before" ]; then
+      status "$subject"
+      return 0
+    fi
+  done
+  say "no handoff within ${timeout}s"
+  return 1
+}
+
+remove_worktree() {
+  local branch="$1" wt="$WT_ROOT/$1"
+  stop_session "$wt"
+  if [ -e "$wt" ] && ! g worktree remove "$wt"; then
+    say "kept $wt: it has uncommitted changes"
+    return 1
+  fi
+  g branch -D "$branch" >/dev/null
+  g update-ref -d "refs/notes/agents/$branch" 2>/dev/null || true
+}
+
+# clean <subject> [unit...] — only units merged into <subject>
+clean() {
+  local subject="$1" unit branch
+  shift
+  host_only clean
+  local list=("$@")
+  [ $# -gt 0 ] || mapfile -t list < <(units "$subject" | sed "s/^$subject--//")
+  for unit in "${list[@]}"; do
+    [ -n "$unit" ] || continue
+    valid_name unit "$unit"
+    branch="$subject--$unit"
+    has_branch "$branch" || continue
+    if ! merged "$subject" "$branch"; then
+      say "kept $branch: not merged into $subject"
+      continue
+    fi
+    remove_worktree "$branch" && say "removed $branch"
+  done
+}
+
+clean_subject() {
+  local subject="$1"
+  host_only clean
+  if ! g merge-base --is-ancestor "$subject" master; then
+    say "kept $subject: not merged into master yet"
+    return 1
+  fi
+  [ -z "$(units "$subject")" ] ||
+    die "kept $subject: some unit branches are not merged (manage/agents status $subject)"
+  remove_worktree "$subject" && say "removed $subject"
+}
+
+# --- inside the sandbox: the first tab of the herdr session ---
+
+start_reviewer() {
+  local pane="$1" err i args
+  mapfile -t args < <(bypass_flag "${AGENTS_REVIEWER%%:*}"; model_args "$AGENTS_REVIEWER")
+  for i in 1 2 3 4 5 6 7 8; do
+    if err="$(herdr agent start reviewer --kind "${AGENTS_REVIEWER%%:*}" --pane "$pane" -- "${args[@]}" 2>&1 >/dev/null)"; then
+      return 0
+    fi
+    case "$err" in
+      *agent_not_ready*)
+        say "the reviewer is waiting on a dialog in its tab: answer it there"
+        return 0
+        ;;
+    esac
+    sleep 1
+  done
+  say "the reviewer did not start: $err"
+  return 1
+}
+
+build_layout() {
+  local i pane
+  # herdr may still be starting when the first pane runs.
+  for i in $(seq 30); do
+    herdr workspace list >/dev/null 2>&1 && break
+    sleep 1
+  done
+  # Claude's prompt suggestions render where its output would, which misleads
+  # an agent reading the pane.
+  herdr workspace rename "$HERDR_WORKSPACE_ID" "$1" >/dev/null &&
+    herdr tab rename "$HERDR_TAB_ID" lead >/dev/null &&
+    pane="$(herdr tab create --workspace "$HERDR_WORKSPACE_ID" --label reviewer --cwd "$PWD" \
+      --env CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=false --no-focus | jq -r .result.root_pane.pane_id)" &&
+    start_reviewer "$pane"
+}
+
+layout() {
+  local label prompt args lead
+  [ "${HERDR_ENV:-}" = 1 ] || die "_layout runs as the first pane of a sandboxed herdr session"
+  case "${AGENTS_ROLE:-}" in
+    orchestrator)
+      label="$AGENTS_SUBJECT"
+      prompt="Use the local-orchestrate skill (.agents/skills/local-orchestrate/SKILL.md). Subject: $AGENTS_SUBJECT. Mode: $AGENTS_MODE. Workers' default pair: lead $AGENTS_WORKER_LEAD, reviewer $AGENTS_WORKER_REVIEWER. Goal: ${AGENTS_GOAL:-none given, ask the human}"
+      ;;
+    worker)
+      label="$(basename "$PWD")"
+      prompt="Use the local-worker skill (.agents/skills/local-worker/SKILL.md). Unit: $AGENTS_UNIT, on branch $label, forked from $AGENTS_PARENT. Rounds: $AGENTS_ROUNDS. Mode: $AGENTS_MODE. Your brief:
+
+$AGENTS_BRIEF"
+      ;;
+    *) die "AGENTS_ROLE is not set: _layout is started by manage/agents" ;;
+  esac
+
+  # This pane is the session's only one at first: exiting would end the whole
+  # session, so every failure falls back to a shell.
+  if ! is_agent "${AGENTS_LEAD:-}" || ! is_agent "${AGENTS_REVIEWER:-}"; then
+    say "bad AGENTS_LEAD or AGENTS_REVIEWER: '${AGENTS_LEAD:-}' '${AGENTS_REVIEWER:-}'"
+    exec "${SHELL:-bash}"
+  fi
+  build_layout "$label" || say "the layout is incomplete (see above)"
+  lead="${AGENTS_LEAD%%:*}-yolo"
+  mapfile -t args < <(model_args "$AGENTS_LEAD")
+  if command -v "$lead" >/dev/null; then
+    exec "$lead" "${args[@]}" "$prompt"
+  fi
+  say "$lead not found. The prompt was: $prompt"
+  exec "${SHELL:-bash}"
+}
+
+# --- Bash completion ---
+
+subjects() {
+  local name
+  g worktree list --porcelain | sed -n "s|^worktree $WT_ROOT/||p" | while IFS= read -r name; do
+    ! is_name "$name" || printf '%s\n' "$name"
+  done
+}
+
+# complete_candidates <kind> [<command or subject>]
+complete_candidates() {
+  local m e f
+  case "${1:-}" in
+    commands) echo "orchestrate dispatch status wait clean install-completion help" ;;
+    flags)
+      case "${2:-}" in
+        orchestrate) echo "--goal --autonomous --lead --reviewer --worker-lead --worker-reviewer" ;;
+        dispatch) echo "--brief --rounds --autonomous --lead --reviewer" ;;
+        wait) echo "--timeout" ;;
+        clean) echo "--all" ;;
+      esac
+      ;;
+    subjects)
+      {
+        subjects
+        if [ "${2:-}" = orchestrate ]; then
+          for f in "$REPO"/_tickets/*/; do
+            if [ -d "$f" ] && is_name "$(basename "$f")"; then basename "$f"; fi
+          done
+        fi
+      } | sort -u
+      ;;
+    units)
+      is_name "${2:-}" || return 0
+      {
+        units "$2" | sed "s/^$2--//"
+        for f in "$(state_dir "$2")"/briefs/*.md; do
+          [ ! -f "$f" ] || basename "$f" .md
+        done
+      } | sort -u
+      ;;
+    agents)
+      {
+        [ ! -f "$CHOICES" ] || sed -n 's/^[a-z-]*=//p' "$CHOICES"
+        for m in "${CLAUDE_MODELS[@]}"; do
+          for e in "${CLAUDE_EFFORTS[@]}"; do echo "claude:$m:$e"; done
+        done
+      } | sort -u
+      ;;
+  esac
+}
+
+completion_script() {
+  cat <<'COMPLETION'
+# Bash completion for manage/agents, written by `manage/agents install-completion`.
+_manage_agents() {
+  local script="${COMP_WORDS[0]}" cur="${COMP_WORDS[COMP_CWORD]}" cmd="${COMP_WORDS[1]}"
+  local line word before colon_prefix candidates=''
+  COMPREPLY=()
+
+  # An agent spec holds colons, and bash splits words at them: read the
+  # current word and the flag before it from the line itself.
+  line="${COMP_LINE:0:COMP_POINT}"
+  word="${line##* }"
+  before="${line% *}"
+  before="${before##* }"
+  case "$before" in
+    --lead | --reviewer | --worker-lead | --worker-reviewer)
+      candidates="$("$script" __complete agents 2>/dev/null)"
+      COMPREPLY=($(compgen -W "$candidates" -- "$word"))
+      colon_prefix="${word%"${word##*:}"}"
+      COMPREPLY=("${COMPREPLY[@]#"$colon_prefix"}")
+      return
+      ;;
+    --brief) return ;;
+    --goal | --rounds | --timeout) compopt +o default 2>/dev/null; return ;;
+  esac
+
+  if ((COMP_CWORD == 1)); then
+    candidates="$("$script" __complete commands 2>/dev/null)"
+  elif [[ $cur == -* ]]; then
+    candidates="$("$script" __complete flags "$cmd" 2>/dev/null)"
+  elif ((COMP_CWORD == 2)); then
+    candidates="$("$script" __complete subjects "$cmd" 2>/dev/null)"
+  elif [[ $cmd == dispatch && COMP_CWORD -eq 3 ]] || [[ $cmd == clean ]]; then
+    candidates="$("$script" __complete units "${COMP_WORDS[2]}" 2>/dev/null)"
+  fi
+  COMPREPLY=($(compgen -W "$candidates" -- "$cur"))
+}
+complete -o default -F _manage_agents manage/agents ./manage/agents
+COMPLETION
+}
+
+install_completion() {
+  local target="$HOME/.bash_completion.d/manage-agents" line
+  host_only install-completion
+  line="[ -f \"$target\" ] && . \"$target\""
+  mkdir -p "${target%/*}"
+  completion_script >"$target"
+  if ! grep -qxF "$line" "$HOME/.bashrc" 2>/dev/null; then
+    printf '\n# manage/agents completion\n%s\n' "$line" >>"$HOME/.bashrc"
+  fi
+  say "installed Bash completion to $target"
+  say "restart your shell, or run: . $target"
+}
+
+# --- command line ---
+
+main() {
+  local cmd="${1:-}" subject mode=confirm rounds=10 timeout=540 all="" goal="" brief_file="" rest=()
+  local lead="" reviewer="" wlead="" wreviewer=""
+  [ $# = 0 ] || shift
+  case "$cmd" in
+    orchestrate | dispatch | status | wait | clean)
+      subject="${1:-}"
+      [ -n "$subject" ] || { usage; exit 2; }
+      valid_name subject "$subject"
+      shift
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          --autonomous) mode=autonomous ;;
+          --goal) goal="${2:-}"; shift ;;
+          --brief) brief_file="${2:-}"; shift ;;
+          --rounds) rounds="${2:-}"; valid_rounds "$rounds"; shift ;;
+          --timeout) timeout="${2:-}"; [[ $timeout =~ ^[0-9]+$ ]] || die "bad timeout: $timeout"; shift ;;
+          --lead) lead="${2:-}"; valid_agent "$lead"; shift ;;
+          --reviewer) reviewer="${2:-}"; valid_agent "$reviewer"; shift ;;
+          --worker-lead) wlead="${2:-}"; valid_agent "$wlead"; shift ;;
+          --worker-reviewer) wreviewer="${2:-}"; valid_agent "$wreviewer"; shift ;;
+          --all) all=1 ;;
+          -*) usage; exit 2 ;;
+          *) rest+=("$1") ;;
+        esac
+        shift
+      done
+      ;;
+  esac
+  case "$cmd" in
+    orchestrate)
+      [ ${#rest[@]} = 0 ] || { usage; exit 2; }
+      orchestrate "$subject" "$mode" "$lead" "$reviewer" "$wlead" "$wreviewer" "$goal"
+      ;;
+    dispatch)
+      [ ${#rest[@]} = 1 ] || { usage; exit 2; }
+      local unit="${rest[0]}" brief
+      valid_name unit "$unit"
+      brief="$(state_dir "$subject")/briefs/$unit.md"
+      if [ -n "$brief_file" ]; then
+        check_brief "$(realpath "$brief_file")" || die "bad brief: a file of at most $BRIEF_MAX_BYTES bytes"
+        mkdir -p "${brief%/*}"
+        cp -- "$brief_file" "$brief"
+      fi
+      dispatch "$subject" "$unit" "$rounds" "$mode" "$lead" "$reviewer" "$brief" here
+      ;;
+    status) status "$subject" ;;
+    wait) wait_handoff "$subject" "$timeout" ;;
+    clean)
+      clean "$subject" "${rest[@]}"
+      [ -z "$all" ] || clean_subject "$subject"
+      ;;
+    install-completion) install_completion ;;
+    __complete) complete_candidates "$@" ;;
+    _window) window "$@" ;;
+    _layout) layout ;;
+    _serve-once) serve_once "$@" ;;
+    -h | --help | help) usage ;;
+    *) usage; exit 2 ;;
+  esac
+}
+
+main "$@"

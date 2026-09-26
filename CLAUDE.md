@@ -69,8 +69,34 @@ the `local-` one.
   work under `_tickets/<subject>/<NNN_name>/ticket.md`. Tickets start as
   sketches (rough steps) and end as specs; the reviewer holds the diff against
   a spec and sets `passed` or `flunked`.
-- `local-tdd` — the RED / GREEN / REFACTOR loop for this codebase.
+- `local-tdd` — the RED / GREEN / REFACTOR loop for this codebase; each green
+  proposes a commit message, committed only when the user says so.
+- `local-tdd-tcr` — the same loop run semi-autonomously for a budget of rounds,
+  under test && commit || revert, committing on the current feature branch.
+- `local-orchestrate` / `local-worker` / `local-defect-review` — one goal run
+  in parallel, without tickets: `manage/agents` gives each unit of work its own
+  worktree (`../<repo>.worktrees/`) and sandboxed herdr session, where a worker
+  runs TCR from a brief and a reviewer agent fails only reproducible defects;
+  the orchestrator merges ready branches into the subject branch.
 - `local-prep-release` — cut a release.
+
+## Git
+
+Git and publishing are the user's. Never push, never publish, and don't stage
+or commit: propose a commit message, and the user stages and commits. Commit
+yourself only when the user grants it for the session, answers `c` at a
+`local-tdd` checkpoint, under `local-tdd-tcr`, or on the branch
+`local-orchestrate` or `local-worker` gives you.
+
+A commit message is an imperative title of **50 characters or fewer** — the
+log is skimmed — with a body only when the title cannot say it all.
+
+Ticket work goes on a feature branch (see `local-ticket-work`), which the user
+lands on master with `git merge --no-ff`, never squashed.
+
+Writing to `.git` needs a sandbox launched with `sandbox-agent --git-rw`. Check
+with `test -w "$(git rev-parse --absolute-git-dir)"`; when it is read-only,
+give the user the commands instead.
 
 ## Testing
 

@@ -33,8 +33,7 @@ review the whole diff as if new.
 
 The work is on the feature branch `local-ticket-work` started, partly
 committed and partly not. This shows all of it, since the branch left its
-parent — `master`, unless your prompt names another (a `local-worker`'s
-branch forks from its subject branch):
+parent — `master`, unless your prompt names another:
 
 ```bash
 git diff "$(git merge-base <parent> HEAD)" && git status --short

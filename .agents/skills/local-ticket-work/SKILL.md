@@ -31,14 +31,12 @@ If `_tickets/` doesn't exist, say so and stop — tickets come from
 `local-ticket-create` (`.agents/skills/local-ticket-create/SKILL.md`).
 
 ```bash
-grep -rH -e '^status:' -e '^form:' -e '^eta:' -e '^not_before:' -e '^blocked:' -e '^summary:' _tickets --include=ticket.md | sort
+grep -rH -e '^status:' -e '^form:' -e '^eta:' -e '^not_before:' -e '^summary:' _tickets --include=ticket.md | sort
 ```
 
 Present them grouped by subject in numeric order, each with its ETA ("no ETA"
 when it has none). **Do not auto-pick.** A ticket whose `not_before:` is in
-the future is not startable: say so. A `blocked:` line is a question a
-`local-worker` left for the human: raise it before anything else. Then by
-status:
+the future is not startable: say so. Then by status:
 
 - `todo` — continue.
 - `doing` — an interrupted session, almost always. Ask before resuming.

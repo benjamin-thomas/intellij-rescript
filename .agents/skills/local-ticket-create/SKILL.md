@@ -50,9 +50,6 @@ and it is revised whenever the scope moves. It is a duration, not a date —
 a ticket that would be a mistake to start early (waiting on a platform
 release, say) carries a `not_before:` date.
 
-A `blocked:` line is not yours to write: a `local-worker` sets it when it
-stops on a question for the human, and removes it once answered.
-
 ## Workflow
 
 ### 1. Survey
