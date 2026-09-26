@@ -792,4 +792,38 @@ class ReScriptStatementMoverTest : BasePlatformTestCase() {
             """.trimIndent()
         )
     }
+
+    fun testMoveMultiLineBracedJsxChildDownAsOneUnit() {
+        // Arrange: caret inside a multi-line braced child
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <div>
+                {
+                  React.string("x")<caret>
+                }
+                <p> {React.string("1")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert: the whole braced child moved below the element
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <div>
+                <p> {React.string("1")} </p>
+                {
+                  React.string("x")
+                }
+              </div>
+
+            """.trimIndent()
+        )
+    }
 }

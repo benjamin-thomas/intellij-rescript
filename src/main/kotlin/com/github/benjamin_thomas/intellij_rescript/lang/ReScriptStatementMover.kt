@@ -2,9 +2,11 @@ package com.github.benjamin_thomas.intellij_rescript.lang
 
 import com.intellij.codeInsight.editorActions.moveUpDown.LineMover
 import com.intellij.codeInsight.editorActions.moveUpDown.LineRange
+import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.Editor
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.tree.TokenSet
 import com.github.benjamin_thomas.intellij_rescript.ReScriptLanguage
 
@@ -23,9 +25,16 @@ class ReScriptStatementMover : LineMover() {
         ReScriptTypes.TOP_LEVEL_EXPR,
     )
 
-    private val jsxParentTags = TokenSet.create(
-        ReScriptTypes.JSX_GT,
-        ReScriptTypes.JSX_CLOSING_TAG,
+    private val openingBrackets = TokenSet.create(
+        ReScriptTypes.LBRACE,
+        ReScriptTypes.LPAREN,
+        ReScriptTypes.LBRACKET,
+    )
+
+    private val closingBrackets = TokenSet.create(
+        ReScriptTypes.RBRACE,
+        ReScriptTypes.RPAREN,
+        ReScriptTypes.RBRACKET,
     )
 
     override fun checkAvailable(editor: Editor, file: PsiFile, info: MoveInfo, down: Boolean): Boolean {
@@ -39,19 +48,18 @@ class ReScriptStatementMover : LineMover() {
         val psiRange = getElementRange(editor, file, originalRange) ?: return false
         if (psiRange.first == null || psiRange.second == null) return false
 
-        val firstChild = findJsxChild(psiRange.first)
-        if (firstChild != null) {
-            val lastChild = findJsxChild(psiRange.second) ?: firstChild
-            val sibling = firstNonWhiteElement(
-                if (down) lastChild.nextSibling else firstChild.prevSibling,
-                down
-            )
-            if (sibling == null || sibling.node.elementType in jsxParentTags) {
+        val jsxChild = findJsxChild(psiRange.first)
+        if (jsxChild != null) {
+            val groups = jsxChildLineGroups(jsxChild.parent, editor.document)
+            val firstIndex = groups.indexOfFirst { it.last >= originalRange.startLine }
+            val lastIndex = groups.indexOfLast { it.first < originalRange.endLine }
+            val targetIndex = if (down) lastIndex + 1 else firstIndex - 1
+            if (firstIndex == -1 || lastIndex < firstIndex || targetIndex !in groups.indices) {
                 info.toMove2 = null
                 return true
             }
-            info.toMove = LineRange(firstChild, lastChild)
-            info.toMove2 = LineRange(sibling)
+            info.toMove = LineRange(groups[firstIndex].first, groups[lastIndex].last + 1)
+            info.toMove2 = LineRange(groups[targetIndex].first, groups[targetIndex].last + 1)
             return true
         }
 
@@ -83,6 +91,30 @@ class ReScriptStatementMover : LineMover() {
             current = current.parent
         }
         return null
+    }
+
+    // Braced children are loose leaves (bracedBlock is a private rule), so a
+    // child is rebuilt by bracket depth; children sharing a line move together.
+    private fun jsxChildLineGroups(parent: PsiElement, document: Document): List<IntRange> {
+        val groups = mutableListOf<IntRange>()
+        var depth = 0
+        for (child in generateSequence(parent.firstChild) { it.nextSibling }) {
+            if (child is PsiWhiteSpace || !isInJsxChildren(child)) continue
+            val lines = document.getLineNumber(child.textRange.startOffset)..
+                document.getLineNumber(child.textRange.endOffset)
+            val last = groups.lastOrNull()
+            if (last != null && (depth > 0 || lines.first <= last.last)) {
+                groups[groups.lastIndex] = last.first..maxOf(last.last, lines.last)
+            } else {
+                groups += lines
+            }
+            depth = when (child.node.elementType) {
+                in openingBrackets -> depth + 1
+                in closingBrackets -> maxOf(0, depth - 1)
+                else -> depth
+            }
+        }
+        return groups
     }
 
     private fun isInJsxChildren(psi: PsiElement): Boolean {
