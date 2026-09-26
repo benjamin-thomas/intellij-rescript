@@ -296,4 +296,8 @@ class ReScriptParserTest : ParsingTestCase(
             "JsxStatementPositionTypeClash.out",
             hasParseErrors = true,
         )
+    // A float's trailing dot lexed as DOT would parse as a field access on an
+    // unbraced value, swallowing the next attribute or the tag's `>`.
+    fun testJsxTrailingDotFloats() =
+        runParserTest("JsxTrailingDotFloats.res", "JsxTrailingDotFloats.out")
 }
