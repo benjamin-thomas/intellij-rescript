@@ -150,6 +150,19 @@ class ReScriptJsxAutoCloseTest : BasePlatformTestCase() {
         )
     }
 
+    fun testNoInsertWhenRetypingClosedTagInsideUnclosedParent() {
+        // `</span>` cannot be the parent's, so it is the span's own
+        assertNull(
+            closingForMarked(
+                """
+                let x =
+                  <section>
+                    <span|></span>
+                """.trimIndent()
+            )
+        )
+    }
+
     fun testInsertsClosingTagInsideBracedChild() {
         assertEquals("</span>", closingForMarked("let x = <div>{<span|>}</div>"))
     }

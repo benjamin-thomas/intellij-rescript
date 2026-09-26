@@ -57,11 +57,23 @@ private fun elementCloseText(element: ReScriptJsxElement): String? {
 // The parser hands a closing tag to the innermost open element, whatever its
 // name, so a tag typed inside a parent takes the parent's closing tag, the
 // parent takes its own parent's, and so on up to an ancestor left without one.
-private fun tookParentsClosingTag(jsx: PsiElement): Boolean = when (val parent = jsx.parent) {
-    is ReScriptJsxElement -> parent.jsxClosingTag == null || tookParentsClosingTag(parent)
-    is ReScriptJsxFragment -> !hasClosingTag(parent) || tookParentsClosingTag(parent)
-    else -> false
+// Each closing tag taken must fit, by name, the level it was taken from.
+private fun tookParentsClosingTag(jsx: PsiElement): Boolean {
+    val parent = jsx.parent
+    if (parent !is ReScriptJsxElement && parent !is ReScriptJsxFragment) return false
+    if (heldClosingName(jsx) != openingName(parent)) return false
+    return heldClosingName(parent) == null || tookParentsClosingTag(parent)
 }
+
+// The name in the closing tag [jsx] holds: "" for `</>`, null when it holds none
+private fun heldClosingName(jsx: PsiElement): String? = when (jsx) {
+    is ReScriptJsxElement -> jsx.jsxClosingTag?.let { it.jsxTagName?.text ?: "" }
+    is ReScriptJsxFragment -> if (hasClosingTag(jsx)) "" else null
+    else -> null
+}
+
+private fun openingName(jsx: PsiElement): String =
+    (jsx as? ReScriptJsxElement)?.jsxTagName?.text ?: ""
 
 // The opening `>` of a fragment directly follows `<`; the closing one follows `</`
 private fun fragmentCloseText(fragment: ReScriptJsxFragment, gt: PsiElement): String? {
