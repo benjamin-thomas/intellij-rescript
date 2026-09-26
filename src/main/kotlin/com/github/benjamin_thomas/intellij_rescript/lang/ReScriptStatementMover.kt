@@ -23,6 +23,11 @@ class ReScriptStatementMover : LineMover() {
         ReScriptTypes.TOP_LEVEL_EXPR,
     )
 
+    private val jsxParentTags = TokenSet.create(
+        ReScriptTypes.JSX_GT,
+        ReScriptTypes.JSX_CLOSING_TAG,
+    )
+
     override fun checkAvailable(editor: Editor, file: PsiFile, info: MoveInfo, down: Boolean): Boolean {
         // Global extension point, so we must verify the language first
         if (file.language !is ReScriptLanguage) return false
@@ -40,7 +45,7 @@ class ReScriptStatementMover : LineMover() {
                 if (down) jsxChild.nextSibling else jsxChild.prevSibling,
                 down
             )
-            if (sibling?.node?.elementType != ReScriptTypes.JSX_ELEMENT) {
+            if (sibling == null || sibling.node.elementType in jsxParentTags) {
                 info.toMove2 = null
                 return true
             }

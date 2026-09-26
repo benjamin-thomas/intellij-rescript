@@ -732,4 +732,34 @@ class ReScriptStatementMoverTest : BasePlatformTestCase() {
             """.trimIndent()
         )
     }
+
+    fun testMoveJsxChildDownPastBracedChild() {
+        // Arrange: the next sibling is a braced child
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <div>
+                <p> {React.string("1")}<caret> </p>
+                {React.string("x")}
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert: the element moved below the braced child
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <div>
+                {React.string("x")}
+                <p> {React.string("1")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+    }
 }
