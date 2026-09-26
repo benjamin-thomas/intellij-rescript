@@ -57,4 +57,8 @@ class ReScriptJsxAutoCloseTest : BasePlatformTestCase() {
     fun testNoInsertForComparisonGt() {
         assertNull(closingFor("let x = a >"))
     }
+
+    fun testNoInsertWhenNestedSameNameTagsAreAllClosed() {
+        assertNull(closingForMarked("let x = <div><div|></div></div>"))
+    }
 }
