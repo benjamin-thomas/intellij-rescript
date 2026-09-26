@@ -826,4 +826,68 @@ class ReScriptStatementMoverTest : BasePlatformTestCase() {
             """.trimIndent()
         )
     }
+
+    fun testMoveJsxFragmentChildUpPastSibling() {
+        // Arrange: caret on the second child of a fragment
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <>
+                <p> {React.string("1")} </p>
+                <p> {React.string("2")}<caret> </p>
+              </>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_UP_ACTION)
+
+        // Assert: the children swapped
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <>
+                <p> {React.string("2")} </p>
+                <p> {React.string("1")} </p>
+              </>
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveLastJsxFragmentChildDownStaysInFragment() {
+        // Arrange: caret on the last child of a fragment, a binding below
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <>
+                <p> {React.string("1")} </p>
+                <p> {React.string("2")}<caret> </p>
+              </>
+
+            let b = 2
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert: neither the child nor the component moved
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <>
+                <p> {React.string("1")} </p>
+                <p> {React.string("2")} </p>
+              </>
+
+            let b = 2
+
+            """.trimIndent()
+        )
+    }
 }

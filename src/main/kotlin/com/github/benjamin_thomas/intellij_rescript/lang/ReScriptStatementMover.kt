@@ -25,6 +25,16 @@ class ReScriptStatementMover : LineMover() {
         ReScriptTypes.TOP_LEVEL_EXPR,
     )
 
+    private val jsxParents = TokenSet.create(
+        ReScriptTypes.JSX_ELEMENT,
+        ReScriptTypes.JSX_FRAGMENT,
+    )
+
+    private val jsxClosingTags = TokenSet.create(
+        ReScriptTypes.JSX_CLOSING_TAG,
+        ReScriptTypes.JSX_LT_SLASH,
+    )
+
     private val openingBrackets = TokenSet.create(
         ReScriptTypes.LBRACE,
         ReScriptTypes.LPAREN,
@@ -119,10 +129,11 @@ class ReScriptStatementMover : LineMover() {
 
     private fun isInJsxChildren(psi: PsiElement): Boolean {
         val parent = psi.parent ?: return false
-        if (parent.node.elementType != ReScriptTypes.JSX_ELEMENT) return false
+        if (parent.node.elementType !in jsxParents) return false
         val openingTagEnd = parent.node.findChildByType(ReScriptTypes.JSX_GT) ?: return false
+        val closingTag = parent.node.findChildByType(jsxClosingTags) ?: return false
         return psi.textRange.startOffset >= openingTagEnd.textRange.endOffset &&
-            psi.node.elementType != ReScriptTypes.JSX_CLOSING_TAG
+            psi.textRange.endOffset <= closingTag.startOffset
     }
 
     private fun findMovableAncestor(psi: PsiElement): PsiElement? {
