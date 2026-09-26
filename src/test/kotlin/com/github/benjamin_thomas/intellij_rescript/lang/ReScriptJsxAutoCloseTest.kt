@@ -150,6 +150,19 @@ class ReScriptJsxAutoCloseTest : BasePlatformTestCase() {
         )
     }
 
+    fun testInsertsFragmentClosingInsideElement() {
+        assertEquals(
+            "</>",
+            closingForMarked(
+                """
+                let x = <div>
+                  <|>
+                </div>
+                """.trimIndent()
+            )
+        )
+    }
+
     fun testNoInsertWhenRetypingClosedTagInsideUnclosedParent() {
         // `</span>` cannot be the parent's, so it is the span's own
         assertNull(

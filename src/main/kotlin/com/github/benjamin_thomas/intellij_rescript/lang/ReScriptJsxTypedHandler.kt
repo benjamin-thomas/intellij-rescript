@@ -11,6 +11,7 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.tree.TokenSet
+import com.intellij.psi.util.PsiTreeUtil
 
 class ReScriptJsxTypedHandler : TypedHandlerDelegate() {
 
@@ -68,9 +69,18 @@ private fun tookParentsClosingTag(jsx: PsiElement): Boolean {
 // The name in the closing tag [jsx] holds: "" for `</>`, null when it holds none
 private fun heldClosingName(jsx: PsiElement): String? = when (jsx) {
     is ReScriptJsxElement -> jsx.jsxClosingTag?.let { it.jsxTagName?.text ?: "" }
-    is ReScriptJsxFragment -> if (hasClosingTag(jsx)) "" else null
+    is ReScriptJsxFragment -> closingSlash(jsx)?.let(::nameAfter)
     else -> null
 }
+
+// A fragment that took an element's `</div>` holds only its `</`: the name
+// follows outside the fragment.
+private fun nameAfter(slash: PsiElement): String =
+    generateSequence(PsiTreeUtil.nextVisibleLeaf(slash)) { PsiTreeUtil.nextVisibleLeaf(it) }
+        .takeWhile { it.node.elementType in TAG_NAME_TOKENS }
+        .joinToString("") { it.text }
+
+private val TAG_NAME_TOKENS = TokenSet.create(ReScriptTypes.UIDENT, ReScriptTypes.LIDENT, ReScriptTypes.DOT)
 
 private fun openingName(jsx: PsiElement): String =
     (jsx as? ReScriptJsxElement)?.jsxTagName?.text ?: ""
@@ -79,9 +89,9 @@ private fun openingName(jsx: PsiElement): String =
 private fun fragmentCloseText(fragment: ReScriptJsxFragment, gt: PsiElement): String? {
     if (gt.prevSibling?.node?.elementType != ReScriptTypes.JSX_LT) return null
     // Retyped the opening `>` of a fragment that already has its `</>`
-    if (hasClosingTag(fragment) && !tookParentsClosingTag(fragment)) return null
+    if (closingSlash(fragment) != null && !tookParentsClosingTag(fragment)) return null
     return "</>"
 }
 
-private fun hasClosingTag(fragment: ReScriptJsxFragment): Boolean =
-    fragment.node.getChildren(TokenSet.create(ReScriptTypes.JSX_LT_SLASH)).isNotEmpty()
+private fun closingSlash(fragment: ReScriptJsxFragment): PsiElement? =
+    fragment.node.findChildByType(ReScriptTypes.JSX_LT_SLASH)?.psi
