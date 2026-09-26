@@ -61,4 +61,12 @@ class ReScriptJsxAutoCloseTest : BasePlatformTestCase() {
     fun testNoInsertWhenNestedSameNameTagsAreAllClosed() {
         assertNull(closingForMarked("let x = <div><div|></div></div>"))
     }
+
+    fun testInsertsClosingTagInsideBracedChild() {
+        assertEquals("</span>", closingForMarked("let x = <div>{<span|>}</div>"))
+    }
+
+    fun testInsertsClosingTagInsideRenderProp() {
+        assertEquals("</div>", closingForMarked("let x = <Foo render={x => <div|>} />"))
+    }
 }
