@@ -4,6 +4,7 @@ import com.intellij.codeInsight.editorActions.moveUpDown.LineMover
 import com.intellij.codeInsight.editorActions.moveUpDown.LineRange
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiWhiteSpace
@@ -105,11 +106,13 @@ class ReScriptStatementMover : LineMover() {
 
     // Braced children are loose leaves (bracedBlock is a private rule), so a
     // child is rebuilt by bracket depth; children sharing a line move together.
+    // A group on a line of the parent's tags stays put: its line holds the tag.
     private fun jsxChildLineGroups(parent: PsiElement, document: Document): List<IntRange> {
+        val children = jsxChildrenRange(parent) ?: return emptyList()
         val groups = mutableListOf<IntRange>()
         var depth = 0
         for (child in generateSequence(parent.firstChild) { it.nextSibling }) {
-            if (child is PsiWhiteSpace || !isInJsxChildren(child)) continue
+            if (child is PsiWhiteSpace || !children.contains(child.textRange)) continue
             val lines = document.getLineNumber(child.textRange.startOffset)..
                 document.getLineNumber(child.textRange.endOffset)
             val last = groups.lastOrNull()
@@ -124,16 +127,21 @@ class ReScriptStatementMover : LineMover() {
                 else -> depth
             }
         }
-        return groups
+        val openingTagLine = document.getLineNumber(children.startOffset)
+        val closingTagLine = document.getLineNumber(children.endOffset)
+        return groups.filter { it.first > openingTagLine && it.last < closingTagLine }
     }
 
     private fun isInJsxChildren(psi: PsiElement): Boolean {
-        val parent = psi.parent ?: return false
-        if (parent.node.elementType !in jsxParents) return false
-        val openingTagEnd = parent.node.findChildByType(ReScriptTypes.JSX_GT) ?: return false
-        val closingTag = parent.node.findChildByType(jsxClosingTags) ?: return false
-        return psi.textRange.startOffset >= openingTagEnd.textRange.endOffset &&
-            psi.textRange.endOffset <= closingTag.startOffset
+        val children = psi.parent?.let(::jsxChildrenRange) ?: return false
+        return children.contains(psi.textRange)
+    }
+
+    private fun jsxChildrenRange(parent: PsiElement): TextRange? {
+        if (parent.node.elementType !in jsxParents) return null
+        val openingTagEnd = parent.node.findChildByType(ReScriptTypes.JSX_GT) ?: return null
+        val closingTag = parent.node.findChildByType(jsxClosingTags) ?: return null
+        return TextRange(openingTagEnd.textRange.endOffset, closingTag.startOffset)
     }
 
     private fun findMovableAncestor(psi: PsiElement): PsiElement? {

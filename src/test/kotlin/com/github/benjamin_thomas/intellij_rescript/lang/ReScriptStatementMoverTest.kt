@@ -890,4 +890,36 @@ class ReScriptStatementMoverTest : BasePlatformTestCase() {
             """.trimIndent()
         )
     }
+
+    fun testMoveJsxChildUpStopsAtChildOnOpeningTagLine() {
+        // Arrange: the previous child shares its line with the opening tag
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let a = 1
+
+            let make = () =>
+              <div> <p> {React.string("1")} </p>
+                <span> {React.string("2")}<caret> </span>
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_UP_ACTION)
+
+        // Assert: nothing moved, the child stayed inside its parent
+        myFixture.checkResult(
+            """
+            let a = 1
+
+            let make = () =>
+              <div> <p> {React.string("1")} </p>
+                <span> {React.string("2")} </span>
+              </div>
+
+            """.trimIndent()
+        )
+    }
 }
