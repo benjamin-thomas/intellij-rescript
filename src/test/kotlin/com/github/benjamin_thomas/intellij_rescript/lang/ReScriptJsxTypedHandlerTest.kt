@@ -40,6 +40,36 @@ class ReScriptJsxTypedHandlerTest : BasePlatformTestCase() {
         )
     }
 
+    fun testGreaterThanOnItsOwnLineClosesTagInsideParentElement() {
+        // Arrange: a multi-line opening tag inside a closed element
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let x =
+              <div>
+                <span
+                  className="x"
+                <caret>
+              </div>
+
+            """.trimIndent()
+        )
+        // Act: type the `>` on its own line
+        myFixture.type('>')
+        // Assert: the new tag gets its own closing tag, caret between the tags
+        myFixture.checkResult(
+            """
+            let x =
+              <div>
+                <span
+                  className="x"
+                ><caret></span>
+              </div>
+
+            """.trimIndent()
+        )
+    }
+
     fun testAutoCloseIsOneUndoStep() {
         // Arrange: type `>` to trigger the auto-close
         myFixture.configureByText("Test.res", "let x = <div<caret>")

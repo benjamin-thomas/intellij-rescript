@@ -62,6 +62,49 @@ class ReScriptJsxAutoCloseTest : BasePlatformTestCase() {
         assertNull(closingForMarked("let x = <div><div|></div></div>"))
     }
 
+    fun testInsertsClosingTagInsideSameNameParent() {
+        assertEquals(
+            "</div>",
+            closingForMarked(
+                """
+                let x =
+                  <div>
+                    <div|>
+                  </div>
+                """.trimIndent()
+            )
+        )
+    }
+
+    fun testInsertsClosingTagInsideSameNameComponent() {
+        assertEquals(
+            "</Row>",
+            closingForMarked(
+                """
+                let x =
+                  <Row>
+                    <Row|>
+                  </Row>
+                """.trimIndent()
+            )
+        )
+    }
+
+    fun testInsertsClosingTagBeforeSameNameSibling() {
+        assertEquals(
+            "</li>",
+            closingForMarked(
+                """
+                let x =
+                  <ul>
+                    <li|>
+                    <li>{React.string("a")}</li>
+                  </ul>
+                """.trimIndent()
+            )
+        )
+    }
+
     fun testInsertsClosingTagInsideBracedChild() {
         assertEquals("</span>", closingForMarked("let x = <div>{<span|>}</div>"))
     }
