@@ -300,4 +300,6 @@ class ReScriptParserTest : ParsingTestCase(
     // unbraced value, swallowing the next attribute or the tag's `>`.
     fun testJsxTrailingDotFloats() =
         runParserTest("JsxTrailingDotFloats.res", "JsxTrailingDotFloats.out")
+    fun testJsxExponentFloats() =
+        runParserTest("JsxExponentFloats.res", "JsxExponentFloats.out")
 }
