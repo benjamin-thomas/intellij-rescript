@@ -658,4 +658,14 @@ let y = 1
 }</outer>} after`""",
         )
     }
+
+    @Test
+    fun testCorrectRestartWithFloatForms() {
+        checkCorrectRestart(
+            ReScriptLexerAdapter(),
+            "let a = 8. +. 1_000. +. 1.e2 +. 1e3 +. 1E-3\n" +
+                "let x = <A b=8. c=1e3 d=1.e2>1_000. 1E-3</A>\n" +
+                "let y = <B e=2.>{f(1.)}</B>",
+        )
+    }
 }
