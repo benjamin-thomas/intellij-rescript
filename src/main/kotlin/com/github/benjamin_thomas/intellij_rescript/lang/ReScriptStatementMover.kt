@@ -39,17 +39,18 @@ class ReScriptStatementMover : LineMover() {
         val psiRange = getElementRange(editor, file, originalRange) ?: return false
         if (psiRange.first == null || psiRange.second == null) return false
 
-        val jsxChild = findJsxChild(psiRange.first)
-        if (jsxChild != null) {
+        val firstChild = findJsxChild(psiRange.first)
+        if (firstChild != null) {
+            val lastChild = findJsxChild(psiRange.second) ?: firstChild
             val sibling = firstNonWhiteElement(
-                if (down) jsxChild.nextSibling else jsxChild.prevSibling,
+                if (down) lastChild.nextSibling else firstChild.prevSibling,
                 down
             )
             if (sibling == null || sibling.node.elementType in jsxParentTags) {
                 info.toMove2 = null
                 return true
             }
-            info.toMove = LineRange(jsxChild)
+            info.toMove = LineRange(firstChild, lastChild)
             info.toMove2 = LineRange(sibling)
             return true
         }
@@ -78,12 +79,18 @@ class ReScriptStatementMover : LineMover() {
     private fun findJsxChild(psi: PsiElement): PsiElement? {
         var current: PsiElement? = psi
         while (current != null && current !is PsiFile) {
-            if (current.node.elementType == ReScriptTypes.JSX_ELEMENT &&
-                current.parent?.node?.elementType == ReScriptTypes.JSX_ELEMENT
-            ) return current
+            if (isInJsxChildren(current)) return current
             current = current.parent
         }
         return null
+    }
+
+    private fun isInJsxChildren(psi: PsiElement): Boolean {
+        val parent = psi.parent ?: return false
+        if (parent.node.elementType != ReScriptTypes.JSX_ELEMENT) return false
+        val openingTagEnd = parent.node.findChildByType(ReScriptTypes.JSX_GT) ?: return false
+        return psi.textRange.startOffset >= openingTagEnd.textRange.endOffset &&
+            psi.node.elementType != ReScriptTypes.JSX_CLOSING_TAG
     }
 
     private fun findMovableAncestor(psi: PsiElement): PsiElement? {
