@@ -50,8 +50,15 @@ fun jsxAutoCloseText(gt: PsiElement): String? {
 private fun elementCloseText(element: ReScriptJsxElement): String? {
     val tag = element.jsxTagName?.text ?: return null
     // Retyping the opening `>` of an element that already has its closing tag
-    if (element.jsxClosingTag != null) return null
+    if (element.jsxClosingTag != null && !tookParentsClosingTag(element)) return null
     return "</$tag>"
+}
+
+// The parser hands a closing tag to the innermost open element, whatever its
+// name, so a tag typed inside a parent takes the parent's closing tag.
+private fun tookParentsClosingTag(element: ReScriptJsxElement): Boolean {
+    val parent = element.parent as? ReScriptJsxElement ?: return false
+    return parent.jsxClosingTag == null
 }
 
 // The opening `>` of a fragment directly follows `<`; the closing one follows `</`
