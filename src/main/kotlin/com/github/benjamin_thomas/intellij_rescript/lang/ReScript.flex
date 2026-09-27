@@ -935,6 +935,10 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     {BIN_INT}           { return track(ReScriptTypes.INT); }
     {BIGINT}            { return track(ReScriptTypes.BIGINT); }
     {INT}               { return track(ReScriptTypes.INT); }
+    // The only keywords this state knows. Safe because bsc rejects `true` and
+    // `false` as tag or attribute names, so they can only be values here.
+    "true"              { return track(ReScriptTypes.TRUE); }
+    "false"             { return track(ReScriptTypes.FALSE); }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }
     {UPPER_IDENT}       { return track(ReScriptTypes.UIDENT); }
     {CHAR}              { return track(ReScriptTypes.CHAR); }

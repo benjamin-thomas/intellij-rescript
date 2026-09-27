@@ -374,7 +374,7 @@ ReScript File
           PsiElement(LIDENT)('b')
           PsiElement(EQ)('=')
           ReScriptJsxAttributeValueImpl(JSX_ATTRIBUTE_VALUE)
-            PsiElement(LIDENT)('true')
+            PsiElement(TRUE)('true')
         PsiElement(JSX_SLASH_GT)('/>')
   ReScriptLetBindingImpl(LET_BINDING)
     PsiElement(LET)('let')

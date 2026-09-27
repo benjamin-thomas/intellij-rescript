@@ -247,7 +247,6 @@ class ReScriptParserTest : ParsingTestCase(
         runParserTest("JsxExcludedFromTypeBody.res", "JsxExcludedFromTypeBody.out")
     fun testJsxLiteralAttributeValues() =
         runParserTest("JsxLiteralAttributeValues.res", "JsxLiteralAttributeValues.out")
-    // `true` stays LIDENT here: the JSX_TAG lexer state has no keyword rules.
     fun testJsxIdentAttributeValues() =
         runParserTest("JsxIdentAttributeValues.res", "JsxIdentAttributeValues.out")
     fun testJsxHyphenatedTagNames() =
@@ -305,4 +304,6 @@ class ReScriptParserTest : ParsingTestCase(
         runParserTest("JsxExponentFloats.res", "JsxExponentFloats.out")
     fun testJsxUnbracedValueKeeps() =
         runParserTest("JsxUnbracedValueKeeps.res", "JsxUnbracedValueKeeps.out")
+    fun testJsxUnbracedBooleanValues() =
+        runParserTest("JsxUnbracedBooleanValues.res", "JsxUnbracedBooleanValues.out")
 }
