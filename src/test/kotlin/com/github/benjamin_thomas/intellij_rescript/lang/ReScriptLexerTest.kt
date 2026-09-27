@@ -23,6 +23,9 @@ class ReScriptLexerTest {
     fun testIdentifiers() = runLexerTest("Identifiers.res", "Identifiers.out")
 
     @Test
+    fun testEscapedIdentifiers() = runLexerTest("EscapedIdentifiers.res", "EscapedIdentifiers.out")
+
+    @Test
     fun testLiterals() = runLexerTest("Literals.res", "Literals.out")
 
     @Test
@@ -109,6 +112,10 @@ class ReScriptLexerTest {
         runLexerTest("JsxHyphenatedNames.res", "JsxHyphenatedNames.out")
 
     @Test
+    fun testJsxEscapedIdentifiers() =
+        runLexerTest("JsxEscapedIdentifiers.res", "JsxEscapedIdentifiers.out")
+
+    @Test
     fun testJsxTagNewlineRescue() =
         runLexerTest("JsxTagNewlineRescue.res", "JsxTagNewlineRescue.out")
 
@@ -119,6 +126,61 @@ class ReScriptLexerTest {
     @Test
     fun testJsxTagNewlineRescueInterpolation() =
         runLexerTest("JsxTagNewlineRescueInterpolation.res", "JsxTagNewlineRescueInterpolation.out")
+
+    // Unclosed elements that already stay contained: the tag rescue, closed
+    // elements followed by `array<int>` / `x<y`, and an element left open
+    // inside a braced child.
+    @Test
+    fun testJsxUnclosedElementKeeps() =
+        runLexerTest("JsxUnclosedElementKeeps.res", "JsxUnclosedElementKeeps.out")
+
+    // A `}` directly between tags cannot be a child; it closes the region the
+    // element was opened in, so the element is abandoned there.
+    @Test
+    fun testJsxChildrenStrayBrace() {
+        runLexerTest("JsxChildrenStrayBrace.res", "JsxChildrenStrayBrace.out")
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxChildrenStrayBrace.res"))
+    }
+
+    // A declaration-shaped line cannot be a child, so it ends whatever element
+    // is still open: the declarations after a missing closing tag lex as usual.
+    @Test
+    fun testJsxChildrenDeclRescue() {
+        runLexerTest("JsxChildrenDeclRescue.res", "JsxChildrenDeclRescue.out")
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxChildrenDeclRescue.res"))
+    }
+
+    // `</` inside an unfinished opening tag abandons that tag; the closing tag
+    // it starts belongs to the enclosing element.
+    @Test
+    fun testJsxTagAbandonedByClosingTag() {
+        runLexerTest("JsxTagAbandonedByClosingTag.res", "JsxTagAbandonedByClosingTag.out")
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxTagAbandonedByClosingTag.res"))
+    }
+
+    // `</` inside a half-typed closing tag abandons it, counting its element
+    // closed, and starts the next closing tag.
+    @Test
+    fun testJsxCloseTagAbandonedByClosingTag() {
+        runLexerTest("JsxCloseTagAbandonedByClosingTag.res", "JsxCloseTagAbandonedByClosingTag.out")
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxCloseTagAbandonedByClosingTag.res"))
+    }
+
+    // A declaration-shaped line after a half-typed closing tag ends the element
+    // the tag was closing, not just the tag.
+    @Test
+    fun testJsxCloseTagDeclRescue() {
+        runLexerTest("JsxCloseTagDeclRescue.res", "JsxCloseTagDeclRescue.out")
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxCloseTagDeclRescue.res"))
+    }
+
+    // The rescues fire on any whitespace run that crosses a line break: blanks
+    // before the break, or an indented blank line, must not hide the declaration.
+    @Test
+    fun testJsxDeclRescueBlankRuns() {
+        runLexerTest("JsxDeclRescueBlankRuns.res", "JsxDeclRescueBlankRuns.out")
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxDeclRescueBlankRuns.res"))
+    }
 
     @Test
     fun testJsxChildren() = runLexerTest("JsxChildren.res", "JsxChildren.out")
@@ -660,5 +722,51 @@ class ReScriptLexerTest {
 let y = 1
 }</outer>} after`""",
         )
+    }
+
+    @Test
+    fun testCorrectRestartWithJsxUnclosedElementKeeps() {
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxUnclosedElementKeeps.res"))
+    }
+
+    @Test
+    fun testCorrectRestartWithFloatForms() {
+        checkCorrectRestart(
+            ReScriptLexerAdapter(),
+            "let a = 8. +. 1_000. +. 1.e2 +. 1e3 +. 1E-3\n" +
+                "let x = <A b=8. c=1e3 d=1.e2>1_000. 1E-3</A>\n" +
+                "let y = <B e=2.>{f(1.)}</B>",
+        )
+    }
+
+    // Like the block-comment state, the regex state is entered and left within
+    // one advance(): a pushed-back `/` enters it, and the action returning the
+    // literal (or its SLASH fallback) leaves it. That is what lets it keep what
+    // it needs in plain fields rather than in the packed restart int.
+    @Test
+    fun testRegexStateIsNeverObservable() {
+        val text = "let a = /x/g / 2\n" +
+            "let b = /unterminated\n" +
+            "let c = <A d=/y/ e=/z\n/>\n"
+        val lexer = ReScriptLexerAdapter()
+        lexer.start(text)
+        while (lexer.tokenType != null) {
+            assertNotEquals(
+                _ReScriptLexer.REGEX shr 1,
+                lexer.state and _ReScriptLexer.LEXICAL_STATE_MASK,
+                "a token boundary at ${lexer.tokenStart} is inside a regex",
+            )
+            lexer.advance()
+        }
+    }
+
+    // A regex value must come back to its tag, from a full lex and from a
+    // restart alike. The first assertion checks the regex is lexed at all.
+    @Test
+    fun testCorrectRestartWithRegexAttributeValue() {
+        val text = "let v = <A b=/re/> x </A>\nlet w = <B c=/a\\/b/gi d=1 />"
+        val tokens = lexTokens(ReScriptLexerAdapter(), text)
+        assertTrue(tokens.contains("REGEX ('/re/')"), tokens)
+        checkCorrectRestart(ReScriptLexerAdapter(), text)
     }
 }

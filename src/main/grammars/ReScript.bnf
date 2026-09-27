@@ -1,5 +1,6 @@
 {
     parserClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptParser"
+    parserUtilClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptParserUtil"
 
     psiClassPrefix="ReScript"
     psiImplClassSuffix="Impl"
@@ -294,7 +295,9 @@ private bracketBlock   ::= LBRACKET parenContent* RBRACKET { pin = 1 }
 
 // Inside braces: nested declarations are valid.
 // References blockDeclaration (not declaration) to avoid recoverWhile eating past `}`.
-private blockContent ::= blockDeclaration | parenContent
+// firstClassModuleExpr goes first: ModuleBinding commits on `module`, so tried
+// after it, `{module(M)}` becomes a broken declaration instead of a value.
+private blockContent ::= firstClassModuleExpr | blockDeclaration | parenContent
 
 // Inside parens/brackets: keywords are raw tokens, no declarations
 private parenContent ::= jsxValue | delimitedBlock | declKeyword | AT | PCT_PCT | nonDeclToken
@@ -389,8 +392,11 @@ private jsxAttributeAssign ::= EQ QUESTION? JsxAttributeValue { pin = 1 }
 // `parse_primary_expr ~operand:(parse_atomic_expr p)`.
 JsxAttributeValue ::= jsxValueAtom jsxValuePostfix*
 private jsxValueAtom ::= literal | TRUE | FALSE | bracedBlock | jsxVariantValue
-                       | firstClassModuleExpr | jsxExtensionValue | jsxPathChild
-                       | jsxValueParen | jsxValueBracket
+                       | firstClassModuleExpr | jsxExtensionValue | jsxCollectionValue
+                       | jsxPathChild | jsxValueParen | jsxValueBracket
+// `list{…}` / `dict{…}`, only glued: `b=list {...p}` is the value `list`, then a
+// spread attribute. Before jsxPathChild, which would take `list` alone.
+private jsxCollectionValue ::= <<gluedCollectionBrace>> LIDENT bracedBlock
 // Field access is a postfix too, so `f(x).y` and `Ctor(x).y` parse — both legal.
 // UIDENT is admitted deliberately, though a field must end lowercase to the
 // compiler (`f(x).Bar` is a syntax error, `f(x).A.name` is not). Narrowing this
@@ -399,11 +405,17 @@ private jsxValueAtom ::= literal | TRUE | FALSE | bracedBlock | jsxVariantValue
 // JsxElement as loose siblings, with no error reported anywhere. Reporting the
 // error needs the precise suffix PLUS a pinned uppercase-ending recovery branch
 // — which works, but buys a diagnostic bsc already gives, so it stays unbuilt.
+//
+// A template postfix is a tagged template, ``b=j`x` ``, spaced or not (bsc takes
+// both). Nothing valid can follow a value with a template, so admitting it after
+// any atom misreads no legal code.
 private jsxValuePostfix ::= jsxValueParen | jsxValueBracket | DOT (LIDENT | UIDENT)
+                          | TemplateLiteral
 // Same as jsxVariantChild but with the payload spelled by the rules below, so a
 // `#tag(x)` payload is bounded the same way an application's arguments are.
 private jsxVariantValue ::= HASH (LIDENT | UIDENT | INT | StringLiteral) jsxValueParen?
-private jsxExtensionValue ::= PCT LIDENT jsxValueParen?
+// `%true(…)` and `%false(…)` are legal extensions, and a tag lexes both names as keywords.
+private jsxExtensionValue ::= PCT (LIDENT | TRUE | FALSE) jsxValueParen?
 private jsxValueParen ::= LPAREN jsxValueContent* RPAREN { pin = 1 }
 private jsxValueBracket ::= LBRACKET jsxValueContent* RBRACKET { pin = 1 }
 // Deliberately NOT parenContent: that admits declKeyword, so an unclosed `(`

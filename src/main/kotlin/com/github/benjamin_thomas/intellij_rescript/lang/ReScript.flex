@@ -153,6 +153,19 @@ import com.intellij.psi.TokenType;
         yybegin(IN_BLOCK_COMMENT);
     }
 
+    // Which state a regex literal returns to: expression context, or the tag
+    // whose attribute value it is. Live only, never packed, and sound for the
+    // same reason as blockCommentReturn: the `/` is pushed back into REGEX, and
+    // every REGEX rule leaves the state in the action that returns its token,
+    // so no token boundary lies inside it.
+    private int regexReturn = YYINITIAL;
+
+    private void beginRegex() {
+        regexReturn = yystate();
+        yybegin(REGEX);
+        yypushback(1);
+    }
+
     // The frame stack, and the source of truth for forward lexing. It is NOT
     // bounded by what the restart int can hold: the packed form carries only
     // the innermost PACKED_FRAMES frames, each counter clamped to the width it
@@ -335,7 +348,8 @@ import com.intellij.psi.TokenType;
         }
     }
 
-    // The `>` of `</name >`: one fewer open element. Popping the frame means the
+    // The `>` of `</name >`, or a `</` that abandons a half-typed closing tag:
+    // one fewer open element. Popping the frame means the
     // outermost element of this children region closed — the push invariant
     // guarantees the frame below is never a depth-0 children region — so we are
     // back in expression context.
@@ -353,7 +367,8 @@ import com.intellij.psi.TokenType;
         }
     }
 
-    // Unclosed-tag rescue: pops only an abandoned children frame, never a live
+    // Abandons the element being lexed (a rescue at a declaration line, a `}`
+    // between tags): pops only an abandoned children frame, never a live
     // `${...}` one.
     private void dropAbandonedChildrenFrame() {
         if (directlyInJsxChildren()) popFrame();
@@ -611,9 +626,10 @@ import com.intellij.psi.TokenType;
 
     public void resetWithPackedRestartState(CharSequence buffer, int start, int end, int packedState) {
         prevIsExprEnd = unpackPrevIsExprEnd(packedState);
-        // Never live across a restart (see the field's declaration); reset so
+        // Never live across a restart (see the fields' declarations); reset so
         // that is stated in code rather than merely true.
         blockCommentReturn = YYINITIAL;
+        regexReturn = YYINITIAL;
         sawLineBreak = unpackSawLineBreak(packedState);
         commentDepth = unpackCommentDepth(packedState);
         unpackContextStackInto(unpackContextStack(packedState));
@@ -648,6 +664,10 @@ LOWER_IDENT = [a-z_]{IDENT_TAIL}*
 // with a digit.
 JSX_HYPHEN_IDENT = [a-z_]{IDENT_TAIL}* ("-" [a-zA-Z_]{IDENT_TAIL}*)+
 UPPER_IDENT = [A-Z]{IDENT_TAIL}*
+// `\"type"`, `\"aria-label"`: any name, keywords included. bsc makes it a
+// lowercase identifier whatever its first letter (`let \"Foo" = 1` is legal),
+// and admits no escape inside: the next `"` ends it.
+ESCAPED_IDENT = \\\" [^\"\r\n]* \"
 // What may follow the keyword on a declaration-shaped line. The shape — not the
 // keyword — is what decides: `<A b=` NEWLINE `module(M) />` is legal, a first-class
 // module being an unbraced value, so `module(` must not fire where `module M = …` must.
@@ -656,12 +676,19 @@ JSX_DECL_RESCUE = ("let"|"and") [ \t]+ [a-z_({]
                 | "module" [ \t]+ ("type" [ \t]+)? [A-Z]
                 | ("open"|"include"|"exception") [ \t]+ [A-Z]
                 | "@" | "%%"
+// The whitespace before a rescued declaration line: the whole run, as long as
+// it crosses a line break. Anchoring on the break alone (`[\r\n]+ [ \t]*`)
+// loses to the plain WHITE_SPACE rule whenever blanks precede the break or an
+// indented blank line sits inside the run — longest match takes the run whole
+// and the rescue never fires.
+JSX_RESCUE_BREAK = [ \t\r\n]* [\r\n] [ \t]*
 HEX_INT = 0[xX][0-9a-fA-F][0-9a-fA-F_]*
 OCT_INT = 0[oO][0-7][0-7_]*
 BIN_INT = 0[bB][01][01_]*
 BIGINT = [0-9][0-9_]*n
 INT = [0-9][0-9_]*
-FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
+EXPONENT = [eE][+-]?[0-9_]+
+FLOAT = [0-9][0-9_]* ("." [0-9_]* {EXPONENT}? | {EXPONENT})
 // bsc's scanner shape. `e` is a hex digit, so only `p` starts an exponent
 // (`0x1.8e3` has none), and the exponent digits are hex too. Every digit run
 // may be empty: bsc's scanner takes `0x1p` whole, then reports the missing
@@ -720,13 +747,13 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     // tag (`let x = <div />`); `<` after an expression-end token is comparison
     // or a type parameter list (`a < b`, `list<int>`). The lookahead keeps
     // bare operator soup like `== != < >` out of JSX mode: a tag's `<` is
-    // always glued to a name, `>`, or `/`.
+    // always glued to a name (an escaped `\"my-el"` too), `>`, or `/`.
     //
     // A `<` separated from the previous token by a line break is a tag even
     // after an expression end, which is how an element in statement position
     // parses — the `@react.component let make` body returns one right after a
     // `let` ending in `}`. bsc draws the line in the same place.
-    "<" / [A-Za-z_>/]   { if (!prevIsExprEnd || sawLineBreak) {
+    "<" / [A-Za-z_>/\\] { if (!prevIsExprEnd || sawLineBreak) {
                               yybegin(JSX_TAG);
                               return track(ReScriptTypes.JSX_LT);
                           } else {
@@ -737,8 +764,7 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
 
     // Regex vs division disambiguation: check previous token
     "/"                 { if (isStartRegexSlash()) {
-                              yybegin(REGEX);
-                              yypushback(1); // un-eat the /
+                              beginRegex();
                           } else {
                               return track(ReScriptTypes.SLASH);
                           }
@@ -755,12 +781,21 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
 // ReScript atoms (idents, literals, `{expr}`, nested elements), so this state
 // shares YYINITIAL's rule bulk below and only overrides the JSX-specific and
 // context-entering rules. This block sits BEFORE the shared block so that on
-// same-length ties JFlex's first-match-wins picks these overrides; today no
-// same-length competitor exists in the shared block, but the ordering keeps
-// that from becoming a trap.
+// same-length ties JFlex's first-match-wins picks these overrides: the `}`
+// below beats the shared `}` rule only because of that order.
 <JSX_CHILDREN> {
+    // Unclosed-element rescue, the children-side twin of JSX_TAG's: a
+    // declaration-shaped next line cannot be a child (bsc rejects `let`, `type`,
+    // `@…` lines between tags), so the element is abandoned there. Longer than
+    // the shared WHITE_SPACE match, so it wins.
+    {JSX_RESCUE_BREAK} / {JSX_DECL_RESCUE} { dropAbandonedChildrenFrame(); return whiteSpace(); }
     "</"                { yybegin(JSX_CLOSE_TAG); return track(ReScriptTypes.JSX_LT_SLASH); }
-    "<" / [A-Za-z_>/]   { yybegin(JSX_TAG); return track(ReScriptTypes.JSX_LT); }
+    // A `}` directly between tags cannot be a child (bsc rejects it), so it
+    // closes the brace region the element was opened in — a `{child}`, an
+    // attribute, an interpolation or a block. The element is abandoned there:
+    // drop its frame and let expression context close the region.
+    "}"                 { dropAbandonedChildrenFrame(); yypushback(1); }
+    "<" / [A-Za-z_>/\\] { yybegin(JSX_TAG); return track(ReScriptTypes.JSX_LT); }
     // Braced child expression: resume normal lexing until the matching `}`
     // returns to this children region (tracked in the JSX_CONTENT frame).
     "{"                 {
@@ -821,8 +856,9 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     "_"                 { return track(ReScriptTypes.UNDERSCORE); }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }
     {UPPER_IDENT}       { return track(ReScriptTypes.UIDENT); }
+    {ESCAPED_IDENT}     { return track(ReScriptTypes.LIDENT); }
 
-    "&&&"               { return track(ReScriptTypes.AMPAMPAMP); }
+    "&&&"              { return track(ReScriptTypes.AMPAMPAMP); }
     "&&"                { return track(ReScriptTypes.AMPAMP); }
     "|||"               { return track(ReScriptTypes.PIPEPIPEPIPE); }
     "||"                { return track(ReScriptTypes.PIPEPIPE); }
@@ -861,8 +897,9 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
                         }
     "}"                 {
                             if (topIsJsxContent()) {
-                                // Closing a `{child expr}` brace (or a stray `}`
-                                // directly between tags when the depth is 0).
+                                // Closing a `{child expr}` brace. Directly between
+                                // tags (depth 0) <JSX_CHILDREN> intercepts `}`
+                                // first, so the depth is positive here.
                                 if (jsxContentBraceDepth() > 0) {
                                     decrementJsxContentBraceDepth();
                                     if (jsxContentBraceDepth() == 0) yybegin(JSX_CHILDREN);
@@ -922,7 +959,7 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     // Unclosed-tag rescue: a declaration-shaped next line ends the tag mid-edit.
     // The lookahead is unconsumed, so the keyword re-lexes in YYINITIAL. The
     // depth guard pops only an abandoned children frame, never a live `${...}` one.
-    [\r\n]+ [ \t]* / {JSX_DECL_RESCUE} { dropAbandonedChildrenFrame(); return whiteSpace(); }
+    {JSX_RESCUE_BREAK} / {JSX_DECL_RESCUE} { dropAbandonedChildrenFrame(); return whiteSpace(); }
     // ONE token, deliberately not LIDENT MINUS LIDENT: `-` stays unlexable in
     // tag states, so a non-value like `neg=-1` cannot form by construction.
     {JSX_HYPHEN_IDENT}  { return track(ReScriptTypes.LIDENT); }
@@ -934,8 +971,14 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     {BIN_INT}           { return track(ReScriptTypes.INT); }
     {BIGINT}            { return track(ReScriptTypes.BIGINT); }
     {INT}               { return track(ReScriptTypes.INT); }
+    // The only keywords this state knows. Safe because bsc rejects `true` and
+    // `false` as tag or attribute names; the one name that may still be one,
+    // an extension's (`b=%true(x)`), the grammar admits as a keyword.
+    "true"              { return track(ReScriptTypes.TRUE); }
+    "false"             { return track(ReScriptTypes.FALSE); }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }
     {UPPER_IDENT}       { return track(ReScriptTypes.UIDENT); }
+    {ESCAPED_IDENT}     { return track(ReScriptTypes.LIDENT); }
     {CHAR}              { return track(ReScriptTypes.CHAR); }
     "."                 { return track(ReScriptTypes.DOT); }
     "="                 { return track(ReScriptTypes.EQ); }
@@ -949,6 +992,15 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     // grammar has to admit them.
     {LINE_COMMENT}      { return track(ReScriptTypes.LINE_COMMENT); }
     "/*"                { beginBlockComment(); }
+    // A regex value (`b=/re/`), only where a value starts: after one, `b=x/y`
+    // is a bsc error. `/>`, `//` and `/*` are longer matches, so they never
+    // reach this rule.
+    "/"                 { if (isStartRegexSlash()) {
+                              beginRegex();
+                          } else {
+                              return TokenType.BAD_CHARACTER;
+                          }
+                        }
     \"                  { yybegin(IN_TAG_STRING); return track(ReScriptTypes.STRING_START); }
     `                   { yybegin(IN_TAG_TEMPLATE); return track(ReScriptTypes.TEMPLATE_START); }
     // Unbraced applied or container value: `b=f(x)`, `b=Some(1)`, `b=#tag(x)`,
@@ -982,6 +1034,11 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     // frame is pushed only when the enclosing context is not itself a
     // depth-0 children region (top level, attr/child braces, interpolation).
     ">"                 { enterJsxChildren(); return track(ReScriptTypes.JSX_GT); }
+    // `</` never belongs inside an opening tag — an unbraced element value
+    // (`b=<C />`) is legal, `b=</C>` is not — so the tag being typed is
+    // abandoned and this closing tag is the enclosing element's. The tag never
+    // opened a children region, so there is no count to undo.
+    "</"                { yybegin(JSX_CLOSE_TAG); return track(ReScriptTypes.JSX_LT_SLASH); }
     // Self-closing element: back to wherever the element appeared — the
     // children region of an enclosing element, or expression context.
     "/>"                { leaveSelfClosingElement(); return track(ReScriptTypes.JSX_SLASH_GT); }
@@ -995,16 +1052,18 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     {LINE_COMMENT}      { return track(ReScriptTypes.LINE_COMMENT); }
     "/*"                { beginBlockComment(); }
     [ \t]+              { return TokenType.WHITE_SPACE; }
-    // Mid-edit bail, guarded exactly like JSX_TAG's. An unguarded bail (any
-    // newline) breaks the legal `</A` NEWLINE `>`: it drops to children and
-    // lexes the `>` as a comparison, leaving the tag unclosed.
-    [\r\n]+ [ \t]* / {JSX_DECL_RESCUE} {
-                            yybegin(JSX_CHILDREN);
-                            return whiteSpace();
-                        }
+    // Unclosed-element rescue, guarded exactly like JSX_TAG's: the half-typed
+    // closing tag and the element it was closing are both abandoned. An
+    // unguarded bail (any newline) would break the legal `</A` NEWLINE `>`.
+    {JSX_RESCUE_BREAK} / {JSX_DECL_RESCUE} { dropAbandonedChildrenFrame(); return whiteSpace(); }
     [\r\n]+             { return whiteSpace(); }
+    // A second `</` abandons a half-typed closing tag. The parser completes the
+    // abandoned tag with an error, so its element counts as closed here too;
+    // this `</` then starts the next closing tag.
+    "</"                { leaveClosedElement(); yybegin(JSX_CLOSE_TAG); return track(ReScriptTypes.JSX_LT_SLASH); }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }
     {UPPER_IDENT}       { return track(ReScriptTypes.UIDENT); }
+    {ESCAPED_IDENT}     { return track(ReScriptTypes.LIDENT); }
     "."                 { return track(ReScriptTypes.DOT); }
     // Closing tag done: one fewer open element. Popping the frame means the
     // outermost element of this children region closed, so we are back in
@@ -1017,13 +1076,13 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
 // Regex literal state: match /pattern/flags as a single token
 <REGEX> {
     "/" ( [^/\\\n] | "\\". )* "/" [dgimsuvy]* {
-        yybegin(YYINITIAL);
+        yybegin(regexReturn);
         return track(ReScriptTypes.REGEX);
     }
 
     // Failed to match a complete regex — fall back to SLASH
     "/" {
-        yybegin(YYINITIAL);
+        yybegin(regexReturn);
         return track(ReScriptTypes.SLASH);
     }
 }

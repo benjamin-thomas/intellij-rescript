@@ -79,6 +79,14 @@ class ReScriptParserTest : ParsingTestCase(
     fun testTypeFirstClassModule() = runParserTest("TypeFirstClassModule.res", "TypeFirstClassModule.out")
     fun testTypeFirstClassModuleWithTypeEquations() =
         runParserTest("TypeFirstClassModuleWithTypeEquations.res", "TypeFirstClassModuleWithTypeEquations.out")
+    fun testBracedModuleDeclarations() =
+        runParserTest("BracedModuleDeclarations.res", "BracedModuleDeclarations.out")
+    fun testBracedFirstClassModuleBlock() =
+        runParserTest("BracedFirstClassModuleBlock.res", "BracedFirstClassModuleBlock.out")
+    fun testBracedFirstClassModuleRecord() =
+        runParserTest("BracedFirstClassModuleRecord.res", "BracedFirstClassModuleRecord.out")
+    fun testBracedFirstClassModuleJsx() =
+        runParserTest("BracedFirstClassModuleJsx.res", "BracedFirstClassModuleJsx.out")
     fun testNestedLetBindings() = runParserTest("NestedLetBindings.res", "NestedLetBindings.out")
     fun testNestedDelimiters() = runParserTest("NestedDelimiters.res", "NestedDelimiters.out")
     fun testExtensionPoint() = runParserTest("ExtensionPoint.res", "ExtensionPoint.out")
@@ -235,6 +243,17 @@ class ReScriptParserTest : ParsingTestCase(
         runParserTest("JsxMissingClosingTag.res", "JsxMissingClosingTag.out", hasParseErrors = true)
     fun testJsxUnterminatedClosingTag() =
         runParserTest("JsxUnterminatedClosingTag.res", "JsxUnterminatedClosingTag.out", hasParseErrors = true)
+    // The element's error stays inside it; the declarations after it parse as usual.
+    fun testJsxMissingClosingTagBeforeDecl() =
+        runParserTest("JsxMissingClosingTagBeforeDecl.res", "JsxMissingClosingTagBeforeDecl.out", hasParseErrors = true)
+    // A tag still being typed when the parent's closing tag arrives: the error
+    // is the unfinished tag's, the closing tag is the parent's.
+    fun testJsxUnfinishedTagBeforeClosingTag() =
+        runParserTest("JsxUnfinishedTagBeforeClosingTag.res", "JsxUnfinishedTagBeforeClosingTag.out", hasParseErrors = true)
+    // A closing tag left at `</`: its error stays there, the parent's closing
+    // tag and the code after the module parse as usual.
+    fun testJsxHalfTypedClosingTag() =
+        runParserTest("JsxHalfTypedClosingTag.res", "JsxHalfTypedClosingTag.out", hasParseErrors = true)
     // An unclosed brace captures what follows — the same behaviour as any unclosed block,
     // and the lexer reads `</div>` there as comparison soup, not closing-tag tokens.
     fun testJsxUnterminatedBracedChild() =
@@ -247,7 +266,6 @@ class ReScriptParserTest : ParsingTestCase(
         runParserTest("JsxExcludedFromTypeBody.res", "JsxExcludedFromTypeBody.out")
     fun testJsxLiteralAttributeValues() =
         runParserTest("JsxLiteralAttributeValues.res", "JsxLiteralAttributeValues.out")
-    // `true` stays LIDENT here: the JSX_TAG lexer state has no keyword rules.
     fun testJsxIdentAttributeValues() =
         runParserTest("JsxIdentAttributeValues.res", "JsxIdentAttributeValues.out")
     fun testJsxHyphenatedTagNames() =
@@ -274,14 +292,9 @@ class ReScriptParserTest : ParsingTestCase(
     fun testJsxNestedRegionOverflow() =
         runParserTest("JsxNestedRegionOverflow.res", "JsxNestedRegionOverflow.out")
     // The whole class of unbraced attribute values ReScript allows — a primary
-    // expression. One line still errors on purpose (`list{…}`); the fixture says
-    // which and why.
+    // expression.
     fun testJsxAttributeValueApplication() =
-        runParserTest(
-            "JsxAttributeValueApplication.res",
-            "JsxAttributeValueApplication.out",
-            hasParseErrors = true,
-        )
+        runParserTest("JsxAttributeValueApplication.res", "JsxAttributeValueApplication.out")
     fun testJsxComments() = runParserTest("JsxComments.res", "JsxComments.out")
     // A newline inside a closing tag is legal; JSX_CLOSE_TAG's bail must fire
     // only on a declaration-shaped line, or the `>` lexes as a comparison.
@@ -297,4 +310,24 @@ class ReScriptParserTest : ParsingTestCase(
             "JsxStatementPositionTypeClash.out",
             hasParseErrors = true,
         )
+    // A float's trailing dot lexed as DOT would parse as a field access on an
+    // unbraced value, swallowing the next attribute or the tag's `>`.
+    fun testJsxTrailingDotFloats() =
+        runParserTest("JsxTrailingDotFloats.res", "JsxTrailingDotFloats.out")
+    fun testJsxExponentFloats() =
+        runParserTest("JsxExponentFloats.res", "JsxExponentFloats.out")
+    fun testJsxUnbracedValueKeeps() =
+        runParserTest("JsxUnbracedValueKeeps.res", "JsxUnbracedValueKeeps.out")
+    fun testJsxUnbracedBooleanValues() =
+        runParserTest("JsxUnbracedBooleanValues.res", "JsxUnbracedBooleanValues.out")
+    fun testJsxUnbracedRegexValues() =
+        runParserTest("JsxUnbracedRegexValues.res", "JsxUnbracedRegexValues.out")
+    fun testJsxUnbracedCollectionValues() =
+        runParserTest("JsxUnbracedCollectionValues.res", "JsxUnbracedCollectionValues.out")
+    fun testJsxUnbracedTaggedTemplates() =
+        runParserTest("JsxUnbracedTaggedTemplates.res", "JsxUnbracedTaggedTemplates.out")
+    fun testEscapedIdentifiers() =
+        runParserTest("EscapedIdentifiers.res", "EscapedIdentifiers.out")
+    fun testJsxEscapedIdentifiers() =
+        runParserTest("JsxEscapedIdentifiers.res", "JsxEscapedIdentifiers.out")
 }

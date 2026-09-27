@@ -492,4 +492,514 @@ class ReScriptStatementMoverTest : BasePlatformTestCase() {
             """.trimIndent()
         )
     }
+
+    fun testMoveLetWithJsxBodyUpWithCursorOnLet() {
+        // Arrange: caret on the declaration line of a multi-line JSX component
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let a = 1
+
+            let make<caret> = () =>
+              <div>
+                <p> {React.string("1")} </p>
+                <p> {React.string("2")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_UP_ACTION)
+
+        // Assert: the whole binding moved
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <div>
+                <p> {React.string("1")} </p>
+                <p> {React.string("2")} </p>
+              </div>
+
+            let a = 1
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveJsxChildUpPastSibling() {
+        // Arrange: caret on the second child of a multi-line element
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let a = 1
+
+            let make = () =>
+              <div>
+                <p> {React.string("1")} </p>
+                <p> {React.string("2")}<caret> </p>
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_UP_ACTION)
+
+        // Assert: the children swapped, the bindings stayed
+        myFixture.checkResult(
+            """
+            let a = 1
+
+            let make = () =>
+              <div>
+                <p> {React.string("2")} </p>
+                <p> {React.string("1")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveJsxChildUpInOnlyItemOfModule() {
+        // Arrange: the component is the only item of its module
+        myFixture.configureByText(
+            "Test.res",
+            """
+            module A = {
+              @react.component
+              let make = () =>
+                <div>
+                  <p> {React.string("1")} </p>
+                  <p> {React.string("2")}<caret> </p>
+                </div>
+            }
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_UP_ACTION)
+
+        // Assert: the children swapped
+        myFixture.checkResult(
+            """
+            module A = {
+              @react.component
+              let make = () =>
+                <div>
+                  <p> {React.string("2")} </p>
+                  <p> {React.string("1")} </p>
+                </div>
+            }
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveJsxChildDownPastSibling() {
+        // Arrange: caret on the first child
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <div>
+                <p> {React.string("1")}<caret> </p>
+                <p> {React.string("2")} </p>
+              </div>
+
+            let b = 2
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert: the children swapped, the bindings stayed
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <div>
+                <p> {React.string("2")} </p>
+                <p> {React.string("1")} </p>
+              </div>
+
+            let b = 2
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveMultiLineJsxChildDownAsOneUnit() {
+        // Arrange: caret on the opening line of a multi-line child
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <div>
+                <p><caret>
+                  {React.string("1")}
+                </p>
+                <span> {React.string("2")} </span>
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert: the whole child moved below its sibling
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <div>
+                <span> {React.string("2")} </span>
+                <p>
+                  {React.string("1")}
+                </p>
+              </div>
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveFirstJsxChildUpStaysInParent() {
+        // Arrange: caret on the first child, a binding above the component
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let a = 1
+
+            let make = () =>
+              <div>
+                <p> {React.string("1")}<caret> </p>
+                <p> {React.string("2")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_UP_ACTION)
+
+        // Assert: neither the child nor the component moved
+        myFixture.checkResult(
+            """
+            let a = 1
+
+            let make = () =>
+              <div>
+                <p> {React.string("1")} </p>
+                <p> {React.string("2")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveLastJsxChildDownStaysInParent() {
+        // Arrange: caret on the last child, a binding below the component
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <div>
+                <p> {React.string("1")} </p>
+                <p> {React.string("2")}<caret> </p>
+              </div>
+
+            let b = 2
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert: neither the child nor the component moved
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <div>
+                <p> {React.string("1")} </p>
+                <p> {React.string("2")} </p>
+              </div>
+
+            let b = 2
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveJsxChildDownPastBracedChild() {
+        // Arrange: the next sibling is a braced child
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <div>
+                <p> {React.string("1")}<caret> </p>
+                {React.string("x")}
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert: the element moved below the braced child
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <div>
+                {React.string("x")}
+                <p> {React.string("1")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveBracedJsxChildDownPastSibling() {
+        // Arrange: caret on a braced child
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <div>
+                {React.string("x")}<caret>
+                <p> {React.string("1")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert: the braced child moved below the element
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <div>
+                <p> {React.string("1")} </p>
+                {React.string("x")}
+              </div>
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveMultiLineBracedJsxChildDownAsOneUnit() {
+        // Arrange: caret inside a multi-line braced child
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <div>
+                {
+                  React.string("x")<caret>
+                }
+                <p> {React.string("1")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert: the whole braced child moved below the element
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <div>
+                <p> {React.string("1")} </p>
+                {
+                  React.string("x")
+                }
+              </div>
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveJsxFragmentChildUpPastSibling() {
+        // Arrange: caret on the second child of a fragment
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <>
+                <p> {React.string("1")} </p>
+                <p> {React.string("2")}<caret> </p>
+              </>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_UP_ACTION)
+
+        // Assert: the children swapped
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <>
+                <p> {React.string("2")} </p>
+                <p> {React.string("1")} </p>
+              </>
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveLastJsxFragmentChildDownStaysInFragment() {
+        // Arrange: caret on the last child of a fragment, a binding below
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <>
+                <p> {React.string("1")} </p>
+                <p> {React.string("2")}<caret> </p>
+              </>
+
+            let b = 2
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert: neither the child nor the component moved
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <>
+                <p> {React.string("1")} </p>
+                <p> {React.string("2")} </p>
+              </>
+
+            let b = 2
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveJsxChildUpStopsAtChildOnOpeningTagLine() {
+        // Arrange: the previous child shares its line with the opening tag
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let a = 1
+
+            let make = () =>
+              <div> <p> {React.string("1")} </p>
+                <span> {React.string("2")}<caret> </span>
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_UP_ACTION)
+
+        // Assert: nothing moved, the child stayed inside its parent
+        myFixture.checkResult(
+            """
+            let a = 1
+
+            let make = () =>
+              <div> <p> {React.string("1")} </p>
+                <span> {React.string("2")} </span>
+              </div>
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveLetUpInsideBracedJsxChild() {
+        // Arrange: caret on a declaration inside a braced child
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <div>
+                {
+                  let a = 1
+                  let b<caret> = 2
+                  let c = 3
+                  React.int(a + b + c)
+                }
+                <p> {React.string("x")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_UP_ACTION)
+
+        // Assert: only the declarations swapped
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <div>
+                {
+                  let b = 2
+                  let a = 1
+                  let c = 3
+                  React.int(a + b + c)
+                }
+                <p> {React.string("x")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveLetDownInsideBracedJsxChild() {
+        // Arrange: caret on a declaration inside a braced child
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <div>
+                {
+                  let a<caret> = 1
+                  let b = 2
+                  let c = 3
+                  React.int(a + b + c)
+                }
+                <p> {React.string("x")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert: only the declarations swapped
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <div>
+                {
+                  let b = 2
+                  let a = 1
+                  let c = 3
+                  React.int(a + b + c)
+                }
+                <p> {React.string("x")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+    }
 }
