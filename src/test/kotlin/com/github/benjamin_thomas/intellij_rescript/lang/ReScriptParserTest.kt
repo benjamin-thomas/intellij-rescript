@@ -273,14 +273,9 @@ class ReScriptParserTest : ParsingTestCase(
     fun testJsxNestedRegionOverflow() =
         runParserTest("JsxNestedRegionOverflow.res", "JsxNestedRegionOverflow.out")
     // The whole class of unbraced attribute values ReScript allows — a primary
-    // expression. One line still errors on purpose (`list{…}`); the fixture says
-    // which and why.
+    // expression.
     fun testJsxAttributeValueApplication() =
-        runParserTest(
-            "JsxAttributeValueApplication.res",
-            "JsxAttributeValueApplication.out",
-            hasParseErrors = true,
-        )
+        runParserTest("JsxAttributeValueApplication.res", "JsxAttributeValueApplication.out")
     fun testJsxComments() = runParserTest("JsxComments.res", "JsxComments.out")
     // A newline inside a closing tag is legal; JSX_CLOSE_TAG's bail must fire
     // only on a declaration-shaped line, or the `>` lexes as a comparison.
@@ -308,4 +303,6 @@ class ReScriptParserTest : ParsingTestCase(
         runParserTest("JsxUnbracedBooleanValues.res", "JsxUnbracedBooleanValues.out")
     fun testJsxUnbracedRegexValues() =
         runParserTest("JsxUnbracedRegexValues.res", "JsxUnbracedRegexValues.out")
+    fun testJsxUnbracedCollectionValues() =
+        runParserTest("JsxUnbracedCollectionValues.res", "JsxUnbracedCollectionValues.out")
 }

@@ -1,5 +1,6 @@
 {
     parserClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptParser"
+    parserUtilClass="com.github.benjamin_thomas.intellij_rescript.lang.ReScriptParserUtil"
 
     psiClassPrefix="ReScript"
     psiImplClassSuffix="Impl"
@@ -389,8 +390,11 @@ private jsxAttributeAssign ::= EQ QUESTION? JsxAttributeValue { pin = 1 }
 // `parse_primary_expr ~operand:(parse_atomic_expr p)`.
 JsxAttributeValue ::= jsxValueAtom jsxValuePostfix*
 private jsxValueAtom ::= literal | TRUE | FALSE | bracedBlock | jsxVariantValue
-                       | firstClassModuleExpr | jsxExtensionValue | jsxPathChild
-                       | jsxValueParen | jsxValueBracket
+                       | firstClassModuleExpr | jsxExtensionValue | jsxCollectionValue
+                       | jsxPathChild | jsxValueParen | jsxValueBracket
+// `list{…}` / `dict{…}`, only glued: `b=list {...p}` is the value `list`, then a
+// spread attribute. Before jsxPathChild, which would take `list` alone.
+private jsxCollectionValue ::= <<gluedCollectionBrace>> LIDENT bracedBlock
 // Field access is a postfix too, so `f(x).y` and `Ctor(x).y` parse — both legal.
 // UIDENT is admitted deliberately, though a field must end lowercase to the
 // compiler (`f(x).Bar` is a syntax error, `f(x).A.name` is not). Narrowing this

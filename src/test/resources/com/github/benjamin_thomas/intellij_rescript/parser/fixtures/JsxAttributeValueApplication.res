@@ -9,9 +9,8 @@
 // unlexable in a tag, and that guards where a value STARTS (see
 // JsxInvalidNegativeAttributeValue, the sentinel for not overreaching here).
 //
-// Two lines diverge from bsc deliberately, in opposite directions: `listValue`
-// (bsc accepts, the grammar cannot spell it) and `uppercaseField` (bsc rejects,
-// the grammar takes it anyway). Every other line below is accepted by both.
+// One line diverges from bsc deliberately: `uppercaseField` (bsc rejects, the
+// grammar takes it anyway). Every other line below is accepted by both.
 
 // Constructor application — the shape reported from production
 // (`<Modal onCancel=Action(onClose)>`).
@@ -28,9 +27,7 @@ let variantApp = <A b=#tag(x) />
 
 // Literals that need brackets or parens.
 let arrayValue = <A b=[1, 2] />
-// NOT supported, and the gold records the error. A braced suffix on a path is
-// indistinguishable from `<A b=x {...p} />` — also legal, and far commoner —
-// without whitespace sensitivity. `dict{"k": v}` is the same shape.
+// Only when glued: with a space, `b=list {...p}` is a value, then a spread.
 let listValue = <A b=list{1, 2} />
 let tupleValue = <A b=(a, b) />
 let parenValue = <A b=(x) />
