@@ -949,7 +949,8 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     {BIGINT}            { return track(ReScriptTypes.BIGINT); }
     {INT}               { return track(ReScriptTypes.INT); }
     // The only keywords this state knows. Safe because bsc rejects `true` and
-    // `false` as tag or attribute names, so they can only be values here.
+    // `false` as tag or attribute names; the one name that may still be one,
+    // an extension's (`b=%true(x)`), the grammar admits as a keyword.
     "true"              { return track(ReScriptTypes.TRUE); }
     "false"             { return track(ReScriptTypes.FALSE); }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }

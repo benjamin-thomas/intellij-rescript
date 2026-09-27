@@ -412,7 +412,8 @@ private jsxValuePostfix ::= jsxValueParen | jsxValueBracket | DOT (LIDENT | UIDE
 // Same as jsxVariantChild but with the payload spelled by the rules below, so a
 // `#tag(x)` payload is bounded the same way an application's arguments are.
 private jsxVariantValue ::= HASH (LIDENT | UIDENT | INT | StringLiteral) jsxValueParen?
-private jsxExtensionValue ::= PCT LIDENT jsxValueParen?
+// `%true(…)` and `%false(…)` are legal extensions, and a tag lexes both names as keywords.
+private jsxExtensionValue ::= PCT (LIDENT | TRUE | FALSE) jsxValueParen?
 private jsxValueParen ::= LPAREN jsxValueContent* RPAREN { pin = 1 }
 private jsxValueBracket ::= LBRACKET jsxValueContent* RBRACKET { pin = 1 }
 // Deliberately NOT parenContent: that admits declKeyword, so an unclosed `(`
