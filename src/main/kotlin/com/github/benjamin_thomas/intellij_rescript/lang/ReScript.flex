@@ -960,6 +960,7 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     "false"             { return track(ReScriptTypes.FALSE); }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }
     {UPPER_IDENT}       { return track(ReScriptTypes.UIDENT); }
+    {ESCAPED_IDENT}     { return track(ReScriptTypes.LIDENT); }
     {CHAR}              { return track(ReScriptTypes.CHAR); }
     "."                 { return track(ReScriptTypes.DOT); }
     "="                 { return track(ReScriptTypes.EQ); }

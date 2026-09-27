@@ -112,6 +112,10 @@ class ReScriptLexerTest {
         runLexerTest("JsxHyphenatedNames.res", "JsxHyphenatedNames.out")
 
     @Test
+    fun testJsxEscapedIdentifiers() =
+        runLexerTest("JsxEscapedIdentifiers.res", "JsxEscapedIdentifiers.out")
+
+    @Test
     fun testJsxTagNewlineRescue() =
         runLexerTest("JsxTagNewlineRescue.res", "JsxTagNewlineRescue.out")
 

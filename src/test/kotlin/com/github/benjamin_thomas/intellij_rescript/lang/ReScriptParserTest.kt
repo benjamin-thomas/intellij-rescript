@@ -317,4 +317,6 @@ class ReScriptParserTest : ParsingTestCase(
         runParserTest("JsxUnbracedTaggedTemplates.res", "JsxUnbracedTaggedTemplates.out")
     fun testEscapedIdentifiers() =
         runParserTest("EscapedIdentifiers.res", "EscapedIdentifiers.out")
+    fun testJsxEscapedIdentifiers() =
+        runParserTest("JsxEscapedIdentifiers.res", "JsxEscapedIdentifiers.out")
 }
