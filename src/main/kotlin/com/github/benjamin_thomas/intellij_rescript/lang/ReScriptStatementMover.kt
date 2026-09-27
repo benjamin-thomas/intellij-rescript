@@ -98,6 +98,8 @@ class ReScriptStatementMover : LineMover() {
     private fun findJsxChild(psi: PsiElement): PsiElement? {
         var current: PsiElement? = psi
         while (current != null && current !is PsiFile) {
+            // A declaration inside a braced child is also a loose JSX child: it wins.
+            if (current.node.elementType in movableTypes) return null
             if (isInJsxChildren(current)) return current
             current = current.parent
         }

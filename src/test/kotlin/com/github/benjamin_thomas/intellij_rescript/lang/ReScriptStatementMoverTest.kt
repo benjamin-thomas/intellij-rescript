@@ -922,4 +922,84 @@ class ReScriptStatementMoverTest : BasePlatformTestCase() {
             """.trimIndent()
         )
     }
+
+    fun testMoveLetUpInsideBracedJsxChild() {
+        // Arrange: caret on a declaration inside a braced child
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <div>
+                {
+                  let a = 1
+                  let b<caret> = 2
+                  let c = 3
+                  React.int(a + b + c)
+                }
+                <p> {React.string("x")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_UP_ACTION)
+
+        // Assert: only the declarations swapped
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <div>
+                {
+                  let b = 2
+                  let a = 1
+                  let c = 3
+                  React.int(a + b + c)
+                }
+                <p> {React.string("x")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+    }
+
+    fun testMoveLetDownInsideBracedJsxChild() {
+        // Arrange: caret on a declaration inside a braced child
+        myFixture.configureByText(
+            "Test.res",
+            """
+            let make = () =>
+              <div>
+                {
+                  let a<caret> = 1
+                  let b = 2
+                  let c = 3
+                  React.int(a + b + c)
+                }
+                <p> {React.string("x")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+
+        // Act
+        myFixture.performEditorAction(IdeActions.ACTION_MOVE_STATEMENT_DOWN_ACTION)
+
+        // Assert: only the declarations swapped
+        myFixture.checkResult(
+            """
+            let make = () =>
+              <div>
+                {
+                  let b = 2
+                  let a = 1
+                  let c = 3
+                  React.int(a + b + c)
+                }
+                <p> {React.string("x")} </p>
+              </div>
+
+            """.trimIndent()
+        )
+    }
 }
