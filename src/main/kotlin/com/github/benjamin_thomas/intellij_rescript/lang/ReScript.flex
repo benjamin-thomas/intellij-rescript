@@ -661,7 +661,8 @@ OCT_INT = 0[oO][0-7][0-7_]*
 BIN_INT = 0[bB][01][01_]*
 BIGINT = [0-9][0-9_]*n
 INT = [0-9][0-9_]*
-FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
+EXPONENT = [eE][+-]?[0-9_]+
+FLOAT = [0-9][0-9_]* ("." [0-9_]* {EXPONENT}? | {EXPONENT})
 // Width-based and alphabet-agnostic, hex-checked only inside \u{…} — that is
 // bsc's scanner. The short fixed forms ('\x4', '\o1', 1-2 digit
 // decimals) are legal only at EOF or before a comment; the 0..N widths here
