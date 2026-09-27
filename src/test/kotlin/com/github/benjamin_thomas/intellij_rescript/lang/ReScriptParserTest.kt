@@ -303,4 +303,6 @@ class ReScriptParserTest : ParsingTestCase(
         runParserTest("JsxTrailingDotFloats.res", "JsxTrailingDotFloats.out")
     fun testJsxExponentFloats() =
         runParserTest("JsxExponentFloats.res", "JsxExponentFloats.out")
+    fun testJsxUnbracedValueKeeps() =
+        runParserTest("JsxUnbracedValueKeeps.res", "JsxUnbracedValueKeeps.out")
 }
