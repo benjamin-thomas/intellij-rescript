@@ -112,9 +112,10 @@ attempt falls back to exactly that.
    only those**, with the assertion you expect.
 3. If so, stage it — `git add -A` — and keep the failure's key line for the
    report: it is the evidence that the test demands the code.
-4. If it passes, or fails anywhere else, or fails for another reason, discard
-   it: `git reset --hard HEAD && git clean -fd`. A test that already passes
-   adds nothing; a test failing for the wrong reason proves nothing.
+4. If it fails anywhere else, or for another reason, discard it:
+   `git reset --hard HEAD && git clean -fd`. A test failing for the wrong
+   reason proves nothing. If it passes, the behaviour already holds: it is
+   not a RED but a candidate baseline (below), or nothing.
 
 ### GREEN — the minimal code, and only code
 
@@ -149,10 +150,23 @@ message or in a comment: the report ties commits to rounds.
 ### Baseline rounds
 
 `CLAUDE.md` wants a characterization fixture committed before the change it
-guards. A **baseline** item is that fixture, as a round of its own: its test
-must **pass** on the untouched code, and is committed alone as soon as it does
-— `git add -A && git commit -m "<what it pins>"`. Failing means you misread the
-current behaviour: discard it and write it again, a failed attempt.
+guards. A **baseline** item is a test that must **pass** on the untouched
+code: that fixture, or a behaviour that already holds and is untested.
+Failing means you misread the current behaviour: discard it and write it
+again, a failed attempt.
+
+A test that has never failed is evidence of nothing, so a baseline is
+committed only once it has been seen failing:
+
+- a gold file the next round moves is proven by that round — name it in the
+  test list;
+- anything else is proven by hand: stage the test (`git add -A`), break the
+  behaviour in the production code, run the gate — it must fail on this test
+  only — then `git restore . && git clean -fd` brings the untouched code back
+  under the staged test. Keep the failure's key line for the report.
+
+No break makes it fail → it tests nothing: discard it, and say so in the
+report. Otherwise commit it alone: `git add -A && git commit -m "<what it pins>"`.
 
 ### REFACTOR — optional, folded into the round
 
@@ -193,7 +207,7 @@ Base: <base sha>
 
 | # | commit | behaviour | red failure | failed attempts |
 |---|--------|-----------|-------------|-----------------|
-| 1 | abc1234 | …        | <key line, or "baseline"> | 0 |
+| 1 | abc1234 | …        | <key line, or the baseline's proof: "round n" or the break> | 0 |
 
 Stopped because: <budget spent | test list done | stuck on round k | decision: …>
 Abandoned: <round, what was tried, the test itself — or "nothing">

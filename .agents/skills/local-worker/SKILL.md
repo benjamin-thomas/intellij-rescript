@@ -41,7 +41,9 @@ is yours to find.
 ## 2. The batch
 
 `local-tdd-tcr` with the given budget. Its test list starts from the brief's
-examples, each one a RED test. In confirm mode, ask **"Start? (y/N)"** as TCR
+examples: a RED test for each one that fails on your branch. One that already
+holds is a baseline only if its test can be proven to fail (TCR's "Baseline
+rounds"); otherwise note it as covered. In confirm mode, ask **"Start? (y/N)"** as TCR
 does, and the human answers here; in autonomous mode, don't ask. There
 is no ticket, so TCR's ticket step does not apply.
 
