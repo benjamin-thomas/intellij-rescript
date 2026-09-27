@@ -663,7 +663,7 @@ BIGINT = [0-9][0-9_]*n
 INT = [0-9][0-9_]*
 FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
 HEX_EXPONENT = [pP][+-]?[0-9a-fA-F_]+
-HEX_FLOAT = 0[xX][0-9a-fA-F_]+ ("." [0-9a-fA-F_]* {HEX_EXPONENT}? | {HEX_EXPONENT})
+HEX_FLOAT = 0[xX][0-9a-fA-F_]* ("." [0-9a-fA-F_]* {HEX_EXPONENT}? | {HEX_EXPONENT})
 // Width-based and alphabet-agnostic, hex-checked only inside \u{…} — that is
 // bsc's scanner. The short fixed forms ('\x4', '\o1', 1-2 digit
 // decimals) are legal only at EOF or before a comment; the 0..N widths here
