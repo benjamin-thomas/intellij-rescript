@@ -294,7 +294,9 @@ private bracketBlock   ::= LBRACKET parenContent* RBRACKET { pin = 1 }
 
 // Inside braces: nested declarations are valid.
 // References blockDeclaration (not declaration) to avoid recoverWhile eating past `}`.
-private blockContent ::= blockDeclaration | parenContent
+// firstClassModuleExpr goes first: ModuleBinding commits on `module`, so tried
+// after it, `{module(M)}` becomes a broken declaration instead of a value.
+private blockContent ::= firstClassModuleExpr | blockDeclaration | parenContent
 
 // Inside parens/brackets: keywords are raw tokens, no declarations
 private parenContent ::= jsxValue | delimitedBlock | declKeyword | AT | PCT_PCT | nonDeclToken

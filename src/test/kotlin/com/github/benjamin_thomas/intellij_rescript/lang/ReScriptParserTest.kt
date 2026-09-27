@@ -79,6 +79,14 @@ class ReScriptParserTest : ParsingTestCase(
     fun testTypeFirstClassModule() = runParserTest("TypeFirstClassModule.res", "TypeFirstClassModule.out")
     fun testTypeFirstClassModuleWithTypeEquations() =
         runParserTest("TypeFirstClassModuleWithTypeEquations.res", "TypeFirstClassModuleWithTypeEquations.out")
+    fun testBracedModuleDeclarations() =
+        runParserTest("BracedModuleDeclarations.res", "BracedModuleDeclarations.out")
+    fun testBracedFirstClassModuleBlock() =
+        runParserTest("BracedFirstClassModuleBlock.res", "BracedFirstClassModuleBlock.out")
+    fun testBracedFirstClassModuleRecord() =
+        runParserTest("BracedFirstClassModuleRecord.res", "BracedFirstClassModuleRecord.out")
+    fun testBracedFirstClassModuleJsx() =
+        runParserTest("BracedFirstClassModuleJsx.res", "BracedFirstClassModuleJsx.out")
     fun testNestedLetBindings() = runParserTest("NestedLetBindings.res", "NestedLetBindings.out")
     fun testNestedDelimiters() = runParserTest("NestedDelimiters.res", "NestedDelimiters.out")
     fun testExtensionPoint() = runParserTest("ExtensionPoint.res", "ExtensionPoint.out")
