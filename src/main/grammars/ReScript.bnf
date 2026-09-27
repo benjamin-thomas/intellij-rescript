@@ -403,7 +403,12 @@ private jsxCollectionValue ::= <<gluedCollectionBrace>> LIDENT bracedBlock
 // JsxElement as loose siblings, with no error reported anywhere. Reporting the
 // error needs the precise suffix PLUS a pinned uppercase-ending recovery branch
 // — which works, but buys a diagnostic bsc already gives, so it stays unbuilt.
+//
+// A template postfix is a tagged template, ``b=j`x` ``, spaced or not (bsc takes
+// both). Nothing valid can follow a value with a template, so admitting it after
+// any atom misreads no legal code.
 private jsxValuePostfix ::= jsxValueParen | jsxValueBracket | DOT (LIDENT | UIDENT)
+                          | TemplateLiteral
 // Same as jsxVariantChild but with the payload spelled by the rules below, so a
 // `#tag(x)` payload is bounded the same way an application's arguments are.
 private jsxVariantValue ::= HASH (LIDENT | UIDENT | INT | StringLiteral) jsxValueParen?

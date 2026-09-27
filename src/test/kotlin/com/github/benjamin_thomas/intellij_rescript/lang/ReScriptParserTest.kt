@@ -305,4 +305,6 @@ class ReScriptParserTest : ParsingTestCase(
         runParserTest("JsxUnbracedRegexValues.res", "JsxUnbracedRegexValues.out")
     fun testJsxUnbracedCollectionValues() =
         runParserTest("JsxUnbracedCollectionValues.res", "JsxUnbracedCollectionValues.out")
+    fun testJsxUnbracedTaggedTemplates() =
+        runParserTest("JsxUnbracedTaggedTemplates.res", "JsxUnbracedTaggedTemplates.out")
 }
