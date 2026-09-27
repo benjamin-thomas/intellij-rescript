@@ -676,6 +676,12 @@ JSX_DECL_RESCUE = ("let"|"and") [ \t]+ [a-z_({]
                 | "module" [ \t]+ ("type" [ \t]+)? [A-Z]
                 | ("open"|"include"|"exception") [ \t]+ [A-Z]
                 | "@" | "%%"
+// The whitespace before a rescued declaration line: the whole run, as long as
+// it crosses a line break. Anchoring on the break alone (`[\r\n]+ [ \t]*`)
+// loses to the plain WHITE_SPACE rule whenever blanks precede the break or an
+// indented blank line sits inside the run — longest match takes the run whole
+// and the rescue never fires.
+JSX_RESCUE_BREAK = [ \t\r\n]* [\r\n] [ \t]*
 HEX_INT = 0[xX][0-9a-fA-F][0-9a-fA-F_]*
 OCT_INT = 0[oO][0-7][0-7_]*
 BIN_INT = 0[bB][01][01_]*
@@ -782,7 +788,7 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     // declaration-shaped next line cannot be a child (bsc rejects `let`, `type`,
     // `@…` lines between tags), so the element is abandoned there. Longer than
     // the shared WHITE_SPACE match, so it wins.
-    [\r\n]+ [ \t]* / {JSX_DECL_RESCUE} { dropAbandonedChildrenFrame(); return whiteSpace(); }
+    {JSX_RESCUE_BREAK} / {JSX_DECL_RESCUE} { dropAbandonedChildrenFrame(); return whiteSpace(); }
     "</"                { yybegin(JSX_CLOSE_TAG); return track(ReScriptTypes.JSX_LT_SLASH); }
     // A `}` directly between tags cannot be a child (bsc rejects it), so it
     // closes the brace region the element was opened in — a `{child}`, an
@@ -953,7 +959,7 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     // Unclosed-tag rescue: a declaration-shaped next line ends the tag mid-edit.
     // The lookahead is unconsumed, so the keyword re-lexes in YYINITIAL. The
     // depth guard pops only an abandoned children frame, never a live `${...}` one.
-    [\r\n]+ [ \t]* / {JSX_DECL_RESCUE} { dropAbandonedChildrenFrame(); return whiteSpace(); }
+    {JSX_RESCUE_BREAK} / {JSX_DECL_RESCUE} { dropAbandonedChildrenFrame(); return whiteSpace(); }
     // ONE token, deliberately not LIDENT MINUS LIDENT: `-` stays unlexable in
     // tag states, so a non-value like `neg=-1` cannot form by construction.
     {JSX_HYPHEN_IDENT}  { return track(ReScriptTypes.LIDENT); }
@@ -1049,7 +1055,7 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     // Unclosed-element rescue, guarded exactly like JSX_TAG's: the half-typed
     // closing tag and the element it was closing are both abandoned. An
     // unguarded bail (any newline) would break the legal `</A` NEWLINE `>`.
-    [\r\n]+ [ \t]* / {JSX_DECL_RESCUE} { dropAbandonedChildrenFrame(); return whiteSpace(); }
+    {JSX_RESCUE_BREAK} / {JSX_DECL_RESCUE} { dropAbandonedChildrenFrame(); return whiteSpace(); }
     [\r\n]+             { return whiteSpace(); }
     // A second `</` abandons a half-typed closing tag. The parser completes the
     // abandoned tag with an error, so its element counts as closed here too;

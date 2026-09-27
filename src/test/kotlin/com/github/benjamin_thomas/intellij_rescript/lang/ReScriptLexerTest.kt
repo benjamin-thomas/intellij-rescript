@@ -174,6 +174,14 @@ class ReScriptLexerTest {
         checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxCloseTagDeclRescue.res"))
     }
 
+    // The rescues fire on any whitespace run that crosses a line break: blanks
+    // before the break, or an indented blank line, must not hide the declaration.
+    @Test
+    fun testJsxDeclRescueBlankRuns() {
+        runLexerTest("JsxDeclRescueBlankRuns.res", "JsxDeclRescueBlankRuns.out")
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxDeclRescueBlankRuns.res"))
+    }
+
     @Test
     fun testJsxChildren() = runLexerTest("JsxChildren.res", "JsxChildren.out")
 
