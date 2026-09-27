@@ -23,6 +23,9 @@ class ReScriptLexerTest {
     fun testIdentifiers() = runLexerTest("Identifiers.res", "Identifiers.out")
 
     @Test
+    fun testEscapedIdentifiers() = runLexerTest("EscapedIdentifiers.res", "EscapedIdentifiers.out")
+
+    @Test
     fun testLiterals() = runLexerTest("Literals.res", "Literals.out")
 
     @Test
@@ -107,6 +110,10 @@ class ReScriptLexerTest {
     @Test
     fun testJsxHyphenatedNames() =
         runLexerTest("JsxHyphenatedNames.res", "JsxHyphenatedNames.out")
+
+    @Test
+    fun testJsxEscapedIdentifiers() =
+        runLexerTest("JsxEscapedIdentifiers.res", "JsxEscapedIdentifiers.out")
 
     @Test
     fun testJsxTagNewlineRescue() =

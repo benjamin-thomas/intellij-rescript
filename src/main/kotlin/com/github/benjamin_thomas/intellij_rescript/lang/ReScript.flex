@@ -662,6 +662,10 @@ LOWER_IDENT = [a-z_]{IDENT_TAIL}*
 // with a digit.
 JSX_HYPHEN_IDENT = [a-z_]{IDENT_TAIL}* ("-" [a-zA-Z_]{IDENT_TAIL}*)+
 UPPER_IDENT = [A-Z]{IDENT_TAIL}*
+// `\"type"`, `\"aria-label"`: any name, keywords included. bsc makes it a
+// lowercase identifier whatever its first letter (`let \"Foo" = 1` is legal),
+// and admits no escape inside: the next `"` ends it.
+ESCAPED_IDENT = \\\" [^\"\r\n]* \"
 // What may follow the keyword on a declaration-shaped line. The shape — not the
 // keyword — is what decides: `<A b=` NEWLINE `module(M) />` is legal, a first-class
 // module being an unbraced value, so `module(` must not fire where `module M = …` must.
@@ -735,13 +739,13 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     // tag (`let x = <div />`); `<` after an expression-end token is comparison
     // or a type parameter list (`a < b`, `list<int>`). The lookahead keeps
     // bare operator soup like `== != < >` out of JSX mode: a tag's `<` is
-    // always glued to a name, `>`, or `/`.
+    // always glued to a name (an escaped `\"my-el"` too), `>`, or `/`.
     //
     // A `<` separated from the previous token by a line break is a tag even
     // after an expression end, which is how an element in statement position
     // parses — the `@react.component let make` body returns one right after a
     // `let` ending in `}`. bsc draws the line in the same place.
-    "<" / [A-Za-z_>/]   { if (!prevIsExprEnd || sawLineBreak) {
+    "<" / [A-Za-z_>/\\] { if (!prevIsExprEnd || sawLineBreak) {
                               yybegin(JSX_TAG);
                               return track(ReScriptTypes.JSX_LT);
                           } else {
@@ -774,7 +778,7 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
 // that from becoming a trap.
 <JSX_CHILDREN> {
     "</"                { yybegin(JSX_CLOSE_TAG); return track(ReScriptTypes.JSX_LT_SLASH); }
-    "<" / [A-Za-z_>/]   { yybegin(JSX_TAG); return track(ReScriptTypes.JSX_LT); }
+    "<" / [A-Za-z_>/\\] { yybegin(JSX_TAG); return track(ReScriptTypes.JSX_LT); }
     // Braced child expression: resume normal lexing until the matching `}`
     // returns to this children region (tracked in the JSX_CONTENT frame).
     "{"                 {
@@ -835,8 +839,9 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     "_"                 { return track(ReScriptTypes.UNDERSCORE); }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }
     {UPPER_IDENT}       { return track(ReScriptTypes.UIDENT); }
+    {ESCAPED_IDENT}     { return track(ReScriptTypes.LIDENT); }
 
-    "&&&"               { return track(ReScriptTypes.AMPAMPAMP); }
+    "&&&"              { return track(ReScriptTypes.AMPAMPAMP); }
     "&&"                { return track(ReScriptTypes.AMPAMP); }
     "|||"               { return track(ReScriptTypes.PIPEPIPEPIPE); }
     "||"                { return track(ReScriptTypes.PIPEPIPE); }
@@ -955,6 +960,7 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     "false"             { return track(ReScriptTypes.FALSE); }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }
     {UPPER_IDENT}       { return track(ReScriptTypes.UIDENT); }
+    {ESCAPED_IDENT}     { return track(ReScriptTypes.LIDENT); }
     {CHAR}              { return track(ReScriptTypes.CHAR); }
     "."                 { return track(ReScriptTypes.DOT); }
     "="                 { return track(ReScriptTypes.EQ); }
@@ -1033,6 +1039,7 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     [\r\n]+             { return whiteSpace(); }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }
     {UPPER_IDENT}       { return track(ReScriptTypes.UIDENT); }
+    {ESCAPED_IDENT}     { return track(ReScriptTypes.LIDENT); }
     "."                 { return track(ReScriptTypes.DOT); }
     // Closing tag done: one fewer open element. Popping the frame means the
     // outermost element of this children region closed, so we are back in
