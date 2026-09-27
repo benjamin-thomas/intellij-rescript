@@ -23,6 +23,9 @@ class ReScriptLexerTest {
     fun testIdentifiers() = runLexerTest("Identifiers.res", "Identifiers.out")
 
     @Test
+    fun testEscapedIdentifiers() = runLexerTest("EscapedIdentifiers.res", "EscapedIdentifiers.out")
+
+    @Test
     fun testLiterals() = runLexerTest("Literals.res", "Literals.out")
 
     @Test

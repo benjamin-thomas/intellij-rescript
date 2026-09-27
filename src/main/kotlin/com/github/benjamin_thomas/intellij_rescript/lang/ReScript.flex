@@ -662,6 +662,10 @@ LOWER_IDENT = [a-z_]{IDENT_TAIL}*
 // with a digit.
 JSX_HYPHEN_IDENT = [a-z_]{IDENT_TAIL}* ("-" [a-zA-Z_]{IDENT_TAIL}*)+
 UPPER_IDENT = [A-Z]{IDENT_TAIL}*
+// `\"type"`, `\"aria-label"`: any name, keywords included. bsc makes it a
+// lowercase identifier whatever its first letter (`let \"Foo" = 1` is legal),
+// and admits no escape inside: the next `"` ends it.
+ESCAPED_IDENT = \\\" [^\"\r\n]* \"
 // What may follow the keyword on a declaration-shaped line. The shape — not the
 // keyword — is what decides: `<A b=` NEWLINE `module(M) />` is legal, a first-class
 // module being an unbraced value, so `module(` must not fire where `module M = …` must.
@@ -835,8 +839,9 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     "_"                 { return track(ReScriptTypes.UNDERSCORE); }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }
     {UPPER_IDENT}       { return track(ReScriptTypes.UIDENT); }
+    {ESCAPED_IDENT}     { return track(ReScriptTypes.LIDENT); }
 
-    "&&&"               { return track(ReScriptTypes.AMPAMPAMP); }
+    "&&&"              { return track(ReScriptTypes.AMPAMPAMP); }
     "&&"                { return track(ReScriptTypes.AMPAMP); }
     "|||"               { return track(ReScriptTypes.PIPEPIPEPIPE); }
     "||"                { return track(ReScriptTypes.PIPEPIPE); }
