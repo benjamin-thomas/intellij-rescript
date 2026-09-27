@@ -95,7 +95,9 @@ git notes --ref="agents/$(git branch --show-current)" add -f -F tmp/agents/hando
 ```
 
 Blocked covers TCR's stops too: stuck, a decision, a new dependency, the
-budget spent before the test list.
+budget spent before the test list. A unit that turns out void — its brief
+already holds, or the human drops it in your window — hands off `ready` with
+no commits and says so: the orchestrator retires it.
 
 Then say here only what you did and what blocks you — no "next
 steps". Stay idle: the human may answer you here. If they do, carry on. Your

@@ -143,8 +143,8 @@ worktree, and opens the worker's session in a window of the human's tmux
 session. `tmp/agents/host/log` says what happened: check it. The brief's host
 copy stays readable at `tmp/agents/host/briefs/<unit>.md`, and re-dispatching
 a unit without a new brief reuses it. A running unit, a malformed line and a
-missing brief are refused. The queue accepts nothing but these and
-`clean <unit>`.
+missing brief are refused. The queue accepts nothing but these,
+`clean <unit>` and `drop <unit>`.
 
 Workers inherit your mode. In confirm mode, each one asks the human, in its
 own window, to approve its test list.
@@ -161,10 +161,15 @@ workers' sessions, since each is its own sandbox: their branches and notes are
 the channel. A unit's report is its note:
 `git notes --ref=agents/<subject>--<unit> show <subject>--<unit>`.
 
-- **ready** — merge it (step 7).
+- **ready** — merge it (step 7). With no commits over `<subject>` there is
+  nothing to merge: the unit is void, and you drop it instead:
+  `echo "drop <unit>" >> tmp/agents/inbox/queue`.
 - **blocked** — relay the note to the human: which unit, its window (the
   branch name), what it needs. Its worker is idle there, and the human answers
-  it there. Do not work around it.
+  it there. Do not work around it. A unit the human gives up on is dropped
+  the same way. The host drops only a branch with no commits over
+  `<subject>`; one with commits is the human's, on the host:
+  `manage/agents drop <subject> <unit> --force`.
 
 Keep waiting while other workers are in flight.
 

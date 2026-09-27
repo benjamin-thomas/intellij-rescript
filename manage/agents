@@ -21,6 +21,9 @@
 #       Stops the sessions of units merged into <subject>, and removes their
 #       worktrees, branches and handoff notes. --all also removes the
 #       subject's own, once <subject> is merged into master.
+#   manage/agents drop <subject> <unit>... [--force]
+#       The same for units NOT merged into <subject>: void, or blocked for
+#       good. A unit with commits over <subject> is dropped only with --force.
 #   manage/agents install-completion
 #       Bash completion for subcommands, flags, subjects, units and agents.
 #
@@ -371,6 +374,14 @@ serve_once() {
       fi
       say "$(date +%T) clean $unit"
       (clean "$subject" "$unit") || say "clean $unit failed"
+    elif [[ $line =~ ^drop\ ([a-z0-9-]+)$ ]]; then
+      unit="${BASH_REMATCH[1]}"
+      if ! is_name "$unit"; then
+        say "$(date +%T) queue: rejected a drop — bad unit name"
+        continue
+      fi
+      say "$(date +%T) drop $unit"
+      (drop "$subject" "" "$unit") || say "drop $unit failed"
     elif [ -n "$line" ]; then
       say "$(date +%T) queue: rejected a malformed line"
     fi
@@ -497,10 +508,11 @@ wait_handoff() {
   return 1
 }
 
+# remove_worktree <branch> [force] — force also discards uncommitted changes
 remove_worktree() {
   local branch="$1" wt="$WT_ROOT/$1"
   stop_session "$wt"
-  if [ -e "$wt" ] && ! g worktree remove "$wt"; then
+  if [ -e "$wt" ] && ! g worktree remove ${2:+--force} "$wt"; then
     say "kept $wt: it has uncommitted changes"
     return 1
   fi
@@ -525,6 +537,29 @@ clean() {
       continue
     fi
     remove_worktree "$branch" && say "removed $branch"
+  done
+}
+
+# drop <subject> <force> <unit>... — only units not merged into <subject>; one
+# with commits over it, or uncommitted changes, only with force
+drop() {
+  local subject="$1" force="$2" unit branch ahead
+  shift 2
+  host_only drop
+  for unit in "$@"; do
+    valid_name unit "$unit"
+    branch="$subject--$unit"
+    has_branch "$branch" || die "no unit $unit on $subject"
+    if merged "$subject" "$branch"; then
+      say "kept $branch: merged into $subject, clean it instead"
+      return 1
+    fi
+    ahead="$(g rev-list --count "$subject..$branch")"
+    if [ "$ahead" != 0 ] && [ -z "$force" ]; then
+      say "kept $branch: $ahead commits over $subject (--force discards them)"
+      return 1
+    fi
+    remove_worktree "$branch" "$force" && say "dropped $branch"
   done
 }
 
@@ -623,13 +658,14 @@ subjects() {
 complete_candidates() {
   local m e f
   case "${1:-}" in
-    commands) echo "orchestrate dispatch status wait clean install-completion help" ;;
+    commands) echo "orchestrate dispatch status wait clean drop install-completion help" ;;
     flags)
       case "${2:-}" in
         orchestrate) echo "--goal --autonomous --lead --reviewer --worker-lead --worker-reviewer" ;;
         dispatch) echo "--brief --rounds --autonomous --lead --reviewer" ;;
         wait) echo "--timeout" ;;
         clean) echo "--all" ;;
+          drop) echo "--force" ;;
       esac
       ;;
     subjects)
@@ -694,7 +730,7 @@ _manage_agents() {
     candidates="$("$script" __complete flags "$cmd" 2>/dev/null)"
   elif ((COMP_CWORD == 2)); then
     candidates="$("$script" __complete subjects "$cmd" 2>/dev/null)"
-  elif [[ $cmd == dispatch && COMP_CWORD -eq 3 ]] || [[ $cmd == clean ]]; then
+  elif [[ $cmd == dispatch && COMP_CWORD -eq 3 ]] || [[ $cmd == clean || $cmd == drop ]]; then
     candidates="$("$script" __complete units "${COMP_WORDS[2]}" 2>/dev/null)"
   fi
   COMPREPLY=($(compgen -W "$candidates" -- "$cur"))
@@ -719,11 +755,11 @@ install_completion() {
 # --- command line ---
 
 main() {
-  local cmd="${1:-}" subject mode=confirm rounds=10 timeout=540 all="" goal="" brief_file="" rest=()
+  local cmd="${1:-}" subject mode=confirm rounds=10 timeout=540 all="" force="" goal="" brief_file="" rest=()
   local lead="" reviewer="" wlead="" wreviewer=""
   [ $# = 0 ] || shift
   case "$cmd" in
-    orchestrate | dispatch | status | wait | clean)
+    orchestrate | dispatch | status | wait | clean | drop)
       subject="${1:-}"
       [ -n "$subject" ] || { usage; exit 2; }
       valid_name subject "$subject"
@@ -740,6 +776,7 @@ main() {
           --worker-lead) wlead="${2:-}"; valid_agent "$wlead"; shift ;;
           --worker-reviewer) wreviewer="${2:-}"; valid_agent "$wreviewer"; shift ;;
           --all) all=1 ;;
+          --force) force=1 ;;
           -*) usage; exit 2 ;;
           *) rest+=("$1") ;;
         esac
@@ -769,6 +806,10 @@ main() {
     clean)
       clean "$subject" "${rest[@]}"
       [ -z "$all" ] || clean_subject "$subject"
+      ;;
+    drop)
+      [ ${#rest[@]} -gt 0 ] || { usage; exit 2; }
+      drop "$subject" "$force" "${rest[@]}"
       ;;
     install-completion) install_completion ;;
     __complete) complete_candidates "$@" ;;

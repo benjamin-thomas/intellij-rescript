@@ -2,7 +2,6 @@ package com.github.benjamin_thomas.intellij_rescript.lang
 
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
-import com.intellij.testFramework.UsefulTestCase.assertSameLinesWithFile
 import java.io.File
 import kotlin.test.Test
 
@@ -43,6 +42,6 @@ class ReScriptLexerRestartStateCharacterizationTest {
                     }
                 }
         }
-        assertSameLinesWithFile(gold.canonicalPath, result)
+        assertSameLinesWithGold(gold.canonicalPath, result)
     }
 }

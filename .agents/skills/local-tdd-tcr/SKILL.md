@@ -88,8 +88,12 @@ so no revert touches it: a class left over from a renamed or removed rule can
 break the build, or keep code that still references it compiling. The next
 compile regenerates it.
 
-Gradle prints only the failing test's name and exception class; the assertion
-message and the gold diff are in `build/test-results/test/TEST-<class>.xml`.
+Gradle prints only the failing test's name and exception class. The assertion
+message is in `build/test-results/test/TEST-<class>.xml`; a gold mismatch has
+no message worth reading, but its actual text is written to
+`build/gold-actual/<the gold's path under src/test/resources>`: diff that
+against the gold. A later run of a single class (`--tests`) wipes the other
+classes' XML, so read a failure before running anything else.
 
 ## A round
 
