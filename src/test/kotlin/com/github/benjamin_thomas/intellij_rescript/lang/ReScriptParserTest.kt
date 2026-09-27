@@ -59,6 +59,7 @@ class ReScriptParserTest : ParsingTestCase(
     fun testLetBinding() = runParserTest("LetBinding.res", "LetBinding.out")
 
     fun testCharLiterals() = runParserTest("CharLiterals.res", "CharLiterals.out")
+    fun testHexFloatLiterals() = runParserTest("HexFloatLiterals.res", "HexFloatLiterals.out")
     fun testLetFirstClassModuleExpression() =
         runParserTest("LetFirstClassModuleExpression.res", "LetFirstClassModuleExpression.out")
     fun testLetFirstClassModuleExpressionWithConstraint() =
