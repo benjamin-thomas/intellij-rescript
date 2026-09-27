@@ -1,1 +1,2 @@
 let a = 0x1p3
+let b = 0x1P-3
