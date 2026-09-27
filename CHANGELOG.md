@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.8.0 — JSX Editing
+
+### Editor features
+- **JSX auto-close**: typing `>` at the end of an opening tag inserts the
+  matching closing tag (`<div>` → `<div></div>`, `<>` → `<></>`). This also
+  works inside existing elements and fragments.
+- **Move Statement inside JSX**: on a line inside a multi-line element, Move
+  Statement Up/Down now moves that child among its siblings. It no longer moves
+  the whole component.
+
+### Parser & Lexer
+- **Half-typed JSX stays contained.** An unclosed or half-typed tag no longer
+  causes errors on valid code further down the file.
+- **Float literals** like `8.`, `1e3` and `0x1p3` are now recognized. `8.` was
+  the most common false error in JSX attributes (`<Popover offset=8. />`).
+- **Character literals** (`'a'`, `'\n'`) are now recognized and colored as
+  strings.
+- **Escaped identifiers** (`\"type"`, `\"aria-label"`) no longer show errors.
+- **More JSX attribute values** are accepted without braces: regexes
+  (`b=/re/`), `list{…}`, `dict{…}` and tagged templates (``b=j`x` ``).
+- **First-class modules inside braces** (`logo={module(Icons.Logo)}`, or in
+  record fields and patterns) no longer show errors.
+- `true` and `false` inside JSX tags are now colored as keywords.
+
 ## v0.7.1 — JSX Fixes
 
 ### Parser
