@@ -153,6 +153,19 @@ import com.intellij.psi.TokenType;
         yybegin(IN_BLOCK_COMMENT);
     }
 
+    // Which state a regex literal returns to: expression context, or the tag
+    // whose attribute value it is. Live only, never packed, and sound for the
+    // same reason as blockCommentReturn: the `/` is pushed back into REGEX, and
+    // every REGEX rule leaves the state in the action that returns its token,
+    // so no token boundary lies inside it.
+    private int regexReturn = YYINITIAL;
+
+    private void beginRegex() {
+        regexReturn = yystate();
+        yybegin(REGEX);
+        yypushback(1);
+    }
+
     // The frame stack, and the source of truth for forward lexing. It is NOT
     // bounded by what the restart int can hold: the packed form carries only
     // the innermost PACKED_FRAMES frames, each counter clamped to the width it
@@ -611,9 +624,10 @@ import com.intellij.psi.TokenType;
 
     public void resetWithPackedRestartState(CharSequence buffer, int start, int end, int packedState) {
         prevIsExprEnd = unpackPrevIsExprEnd(packedState);
-        // Never live across a restart (see the field's declaration); reset so
+        // Never live across a restart (see the fields' declarations); reset so
         // that is stated in code rather than merely true.
         blockCommentReturn = YYINITIAL;
+        regexReturn = YYINITIAL;
         sawLineBreak = unpackSawLineBreak(packedState);
         commentDepth = unpackCommentDepth(packedState);
         unpackContextStackInto(unpackContextStack(packedState));
@@ -738,8 +752,7 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
 
     // Regex vs division disambiguation: check previous token
     "/"                 { if (isStartRegexSlash()) {
-                              yybegin(REGEX);
-                              yypushback(1); // un-eat the /
+                              beginRegex();
                           } else {
                               return track(ReScriptTypes.SLASH);
                           }
@@ -935,6 +948,11 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     {BIN_INT}           { return track(ReScriptTypes.INT); }
     {BIGINT}            { return track(ReScriptTypes.BIGINT); }
     {INT}               { return track(ReScriptTypes.INT); }
+    // The only keywords this state knows. Safe because bsc rejects `true` and
+    // `false` as tag or attribute names; the one name that may still be one,
+    // an extension's (`b=%true(x)`), the grammar admits as a keyword.
+    "true"              { return track(ReScriptTypes.TRUE); }
+    "false"             { return track(ReScriptTypes.FALSE); }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }
     {UPPER_IDENT}       { return track(ReScriptTypes.UIDENT); }
     {CHAR}              { return track(ReScriptTypes.CHAR); }
@@ -950,6 +968,15 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     // grammar has to admit them.
     {LINE_COMMENT}      { return track(ReScriptTypes.LINE_COMMENT); }
     "/*"                { beginBlockComment(); }
+    // A regex value (`b=/re/`), only where a value starts: after one, `b=x/y`
+    // is a bsc error. `/>`, `//` and `/*` are longer matches, so they never
+    // reach this rule.
+    "/"                 { if (isStartRegexSlash()) {
+                              beginRegex();
+                          } else {
+                              return TokenType.BAD_CHARACTER;
+                          }
+                        }
     \"                  { yybegin(IN_TAG_STRING); return track(ReScriptTypes.STRING_START); }
     `                   { yybegin(IN_TAG_TEMPLATE); return track(ReScriptTypes.TEMPLATE_START); }
     // Unbraced applied or container value: `b=f(x)`, `b=Some(1)`, `b=#tag(x)`,
@@ -1018,13 +1045,13 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
 // Regex literal state: match /pattern/flags as a single token
 <REGEX> {
     "/" ( [^/\\\n] | "\\". )* "/" [dgimsuvy]* {
-        yybegin(YYINITIAL);
+        yybegin(regexReturn);
         return track(ReScriptTypes.REGEX);
     }
 
     // Failed to match a complete regex — fall back to SLASH
     "/" {
-        yybegin(YYINITIAL);
+        yybegin(regexReturn);
         return track(ReScriptTypes.SLASH);
     }
 }

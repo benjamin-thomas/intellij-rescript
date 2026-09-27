@@ -671,4 +671,35 @@ let y = 1
                 "let y = <B e=2.>{f(1.)}</B>",
         )
     }
+
+    // Like the block-comment state, the regex state is entered and left within
+    // one advance(): a pushed-back `/` enters it, and the action returning the
+    // literal (or its SLASH fallback) leaves it. That is what lets it keep what
+    // it needs in plain fields rather than in the packed restart int.
+    @Test
+    fun testRegexStateIsNeverObservable() {
+        val text = "let a = /x/g / 2\n" +
+            "let b = /unterminated\n" +
+            "let c = <A d=/y/ e=/z\n/>\n"
+        val lexer = ReScriptLexerAdapter()
+        lexer.start(text)
+        while (lexer.tokenType != null) {
+            assertNotEquals(
+                _ReScriptLexer.REGEX shr 1,
+                lexer.state and _ReScriptLexer.LEXICAL_STATE_MASK,
+                "a token boundary at ${lexer.tokenStart} is inside a regex",
+            )
+            lexer.advance()
+        }
+    }
+
+    // A regex value must come back to its tag, from a full lex and from a
+    // restart alike. The first assertion checks the regex is lexed at all.
+    @Test
+    fun testCorrectRestartWithRegexAttributeValue() {
+        val text = "let v = <A b=/re/> x </A>\nlet w = <B c=/a\\/b/gi d=1 />"
+        val tokens = lexTokens(ReScriptLexerAdapter(), text)
+        assertTrue(tokens.contains("REGEX ('/re/')"), tokens)
+        checkCorrectRestart(ReScriptLexerAdapter(), text)
+    }
 }
