@@ -662,6 +662,12 @@ BIN_INT = 0[bB][01][01_]*
 BIGINT = [0-9][0-9_]*n
 INT = [0-9][0-9_]*
 FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
+// bsc's scanner shape. `e` is a hex digit, so only `p` starts an exponent
+// (`0x1.8e3` has none), and the exponent digits are hex too. Every digit run
+// may be empty: bsc's scanner takes `0x1p` whole, then reports the missing
+// exponent digits — a report that belongs to an annotator here.
+HEX_EXPONENT = [pP][+-]?[0-9a-fA-F_]*
+HEX_FLOAT = 0[xX][0-9a-fA-F_]* ("." [0-9a-fA-F_]* {HEX_EXPONENT}? | {HEX_EXPONENT})
 // Width-based and alphabet-agnostic, hex-checked only inside \u{…} — that is
 // bsc's scanner. The short fixed forms ('\x4', '\o1', 1-2 digit
 // decimals) are legal only at EOF or before a comment; the 0..N widths here
@@ -805,6 +811,7 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     "as"                { return track(ReScriptTypes.AS); }
 
     {FLOAT}             { return track(ReScriptTypes.FLOAT); }
+    {HEX_FLOAT}         { return track(ReScriptTypes.FLOAT); }
     {HEX_INT}           { return track(ReScriptTypes.INT); }
     {OCT_INT}           { return track(ReScriptTypes.INT); }
     {BIN_INT}           { return track(ReScriptTypes.INT); }
@@ -921,6 +928,7 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     {JSX_HYPHEN_IDENT}  { return track(ReScriptTypes.LIDENT); }
     {WHITE_SPACE}       { return whiteSpace(); }
     {FLOAT}             { return track(ReScriptTypes.FLOAT); }
+    {HEX_FLOAT}         { return track(ReScriptTypes.FLOAT); }
     {HEX_INT}           { return track(ReScriptTypes.INT); }
     {OCT_INT}           { return track(ReScriptTypes.INT); }
     {BIN_INT}           { return track(ReScriptTypes.INT); }
