@@ -44,7 +44,7 @@ class ReScriptParserTest : ParsingTestCase(
         // lexer's packed restart state exists to satisfy.
         val psiFile = parseFile(inputFile.removeSuffix(".res"), loadFile(inputFile))
         if (!hasParseErrors) ensureNoErrorElements()
-        assertSameLinesWithFile(
+        assertSameLinesWithGold(
             File(myFullDataPath, expectedOutputFile).canonicalPath,
             toParseTreeText(psiFile, skipSpaces, printRanges),
         )

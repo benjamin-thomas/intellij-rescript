@@ -3,6 +3,7 @@ package com.github.benjamin_thomas.intellij_rescript.lang
 import com.intellij.lexer.Lexer
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
+import com.intellij.platform.testFramework.core.FileComparisonFailedError
 import com.intellij.psi.tree.TokenSet
 import com.intellij.testFramework.LexerTestCase
 import com.intellij.testFramework.UsefulTestCase.assertSameLinesWithFile
@@ -11,7 +12,30 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.fail
 
-private val FIXTURES_DIR = System.getProperty("user.dir") + "/src/test/resources/com/github/benjamin_thomas/intellij_rescript/lexer/fixtures"
+private val RESOURCES_DIR = File(System.getProperty("user.dir"), "src/test/resources")
+private val FIXTURES_DIR = File(RESOURCES_DIR, "com/github/benjamin_thomas/intellij_rescript/lexer/fixtures").path
+private val ACTUAL_DIR = File(System.getProperty("user.dir"), "build/gold-actual")
+
+/**
+ * A mismatch's expected and actual texts travel inside the
+ * FileComparisonFailedError, which only the IDE's test runner unpacks: Gradle's
+ * console and XML get the message alone. So the actual text also goes under
+ * build/gold-actual, at the gold's path, and the message says so.
+ */
+fun assertSameLinesWithGold(goldPath: String, actual: String) {
+    try {
+        assertSameLinesWithFile(goldPath, actual)
+    } catch (e: FileComparisonFailedError) {
+        val relative = File(goldPath).canonicalFile.relativeToOrSelf(RESOURCES_DIR.canonicalFile).path
+        val copy = File(ACTUAL_DIR, relative)
+        copy.parentFile.mkdirs()
+        copy.writeText(actual)
+        throw FileComparisonFailedError(
+            "${e.message}\nActual text written to ${copy.path}: diff it against the gold.",
+            e.expectedStringPresentation, e.actualStringPresentation, goldPath, copy.path,
+        )
+    }
+}
 
 fun runSnapshotTest(lexer: Lexer, inputFile: String, expectedOutputFile: String) {
     val source = File(FIXTURES_DIR, inputFile)
@@ -20,7 +44,7 @@ fun runSnapshotTest(lexer: Lexer, inputFile: String, expectedOutputFile: String)
     val fileText = FileUtil.loadFile(source, Charsets.UTF_8)
     val text = StringUtil.convertLineSeparators(fileText.trim())
     val result = LexerTestCase.printTokens(text, 0, lexer)
-    assertSameLinesWithFile(gold.canonicalPath, result)
+    assertSameLinesWithGold(gold.canonicalPath, result)
 }
 
 /** Token dump for assertions a snapshot cannot make — `runSnapshotTest` normalizes line endings. */

@@ -30,6 +30,9 @@ dependencies {
     }
     testImplementation(kotlin("test"))
     testImplementation("junit:junit:4.13.2")
+    // FileComparisonFailedError's supertype: the test framework brings it at
+    // run time only, and catching or throwing the error needs it to compile.
+    testImplementation("org.opentest4j:opentest4j:1.3.0")
 }
 
 grammarKit {
