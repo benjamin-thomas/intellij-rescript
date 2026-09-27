@@ -128,6 +128,22 @@ In confirm mode, show the briefs on request. The human may amend the wave: a
 unit held back, a budget, another pair. In autonomous mode, show it and go on
 without asking.
 
+## Progress, always in view
+
+Every message to the human opens with one status line, and the workspace
+label carries the same, so it stays on screen between messages:
+
+```
+<subject> · wave <n> of <m> · merged <k>, in flight <i>, blocked <b> · <t> min into this wave, wave <n-1> took <t'> min
+```
+
+```bash
+herdr workspace rename "$HERDR_WORKSPACE_ID" "<subject> · wave <n>/<m>"
+```
+
+`<m>` is the plan as it stands, re-derived each wave: say so when it changes.
+Durations are measured (`date`, merge timestamps), never guessed.
+
 ## 5. Dispatch
 
 With each unit's brief already in the inbox, queue one line per unit:
