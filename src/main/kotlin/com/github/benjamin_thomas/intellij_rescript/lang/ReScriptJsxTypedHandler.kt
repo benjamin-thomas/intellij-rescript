@@ -7,10 +7,12 @@ import com.intellij.codeInsight.editorActions.TypedHandlerDelegate
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
+import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.tree.TokenSet
+import com.intellij.psi.util.PsiTreeUtil
 
 class ReScriptJsxTypedHandler : TypedHandlerDelegate() {
 
@@ -38,6 +40,9 @@ class ReScriptJsxTypedHandler : TypedHandlerDelegate() {
  */
 fun jsxAutoCloseText(gt: PsiElement): String? {
     if (gt.node.elementType != ReScriptTypes.JSX_GT) return null
+    // Typed just before the tag's own `>`: the tag was complete already, but
+    // the doubled `>` breaks the PSI into looking unclosed
+    if (PsiTreeUtil.nextLeaf(gt, true)?.text == ">") return null
     return when (val parent = gt.parent) {
         is ReScriptJsxElement -> elementCloseText(parent)
         is ReScriptJsxFragment -> fragmentCloseText(parent, gt)
@@ -50,14 +55,50 @@ fun jsxAutoCloseText(gt: PsiElement): String? {
 private fun elementCloseText(element: ReScriptJsxElement): String? {
     val tag = element.jsxTagName?.text ?: return null
     // Retyping the opening `>` of an element that already has its closing tag
-    if (element.jsxClosingTag != null) return null
+    if (element.jsxClosingTag != null && !tookParentsClosingTag(element)) return null
     return "</$tag>"
 }
+
+// The parser hands a closing tag to the innermost open element, whatever its
+// name, so a tag typed inside a parent takes the parent's closing tag, the
+// parent takes its own parent's, and so on up to an ancestor left without one.
+// Each closing tag taken must fit, by name, the level it was taken from.
+private fun tookParentsClosingTag(jsx: PsiElement): Boolean {
+    val parent = jsx.parent
+    if (parent !is ReScriptJsxElement && parent !is ReScriptJsxFragment) return false
+    if (heldClosingName(jsx) != openingName(parent)) return false
+    return heldClosingName(parent) == null || tookParentsClosingTag(parent)
+}
+
+// The name in the closing tag [jsx] holds: "" for `</>`, null when it holds none
+private fun heldClosingName(jsx: PsiElement): String? = when (jsx) {
+    is ReScriptJsxElement -> jsx.jsxClosingTag?.let { nameAfter(it.firstChild) }
+    is ReScriptJsxFragment -> closingSlash(jsx)?.let(::nameAfter)
+    else -> null
+}
+
+// Names compare by their tokens, as `<Mod . outer>` and `</Mod.outer>` are the
+// same tag. A fragment that took an element's `</div>` holds only its `</`:
+// the name follows outside the fragment.
+private fun nameAfter(slash: PsiElement): String =
+    generateSequence(PsiTreeUtil.nextVisibleLeaf(slash)) { PsiTreeUtil.nextVisibleLeaf(it) }
+        .filterNot { it is PsiComment }
+        .takeWhile { it.node.elementType in TAG_NAME_TOKENS }
+        .joinToString("") { it.text }
+
+private fun openingName(jsx: PsiElement): String =
+    (jsx as? ReScriptJsxElement)?.jsxTagName?.node?.getChildren(TAG_NAME_TOKENS)
+        ?.joinToString("") { it.text } ?: ""
+
+private val TAG_NAME_TOKENS = TokenSet.create(ReScriptTypes.UIDENT, ReScriptTypes.LIDENT, ReScriptTypes.DOT)
 
 // The opening `>` of a fragment directly follows `<`; the closing one follows `</`
 private fun fragmentCloseText(fragment: ReScriptJsxFragment, gt: PsiElement): String? {
     if (gt.prevSibling?.node?.elementType != ReScriptTypes.JSX_LT) return null
     // Retyped the opening `>` of a fragment that already has its `</>`
-    if (fragment.node.getChildren(TokenSet.create(ReScriptTypes.JSX_LT_SLASH)).isNotEmpty()) return null
+    if (closingSlash(fragment) != null && !tookParentsClosingTag(fragment)) return null
     return "</>"
 }
+
+private fun closingSlash(fragment: ReScriptJsxFragment): PsiElement? =
+    fragment.node.findChildByType(ReScriptTypes.JSX_LT_SLASH)?.psi
