@@ -362,9 +362,15 @@ serve_once() {
       fi
       say "$(date +%T) dispatch $unit $rounds $lead $reviewer"
       (dispatch "$subject" "$unit" "$rounds" "$mode" "$lead" "$reviewer" "$brief" window) || say "dispatch $unit failed"
-    elif [[ $line =~ ^clean\ ([a-z0-9-]+)$ ]] && is_name "${BASH_REMATCH[1]}"; then
-      say "$(date +%T) clean ${BASH_REMATCH[1]}"
-      (clean "$subject" "${BASH_REMATCH[1]}") || say "clean ${BASH_REMATCH[1]} failed"
+    elif [[ $line =~ ^clean\ ([a-z0-9-]+)$ ]]; then
+      # is_name runs its own =~, which replaces BASH_REMATCH.
+      unit="${BASH_REMATCH[1]}"
+      if ! is_name "$unit"; then
+        say "$(date +%T) queue: rejected a clean — bad unit name"
+        continue
+      fi
+      say "$(date +%T) clean $unit"
+      (clean "$subject" "$unit") || say "clean $unit failed"
     elif [ -n "$line" ]; then
       say "$(date +%T) queue: rejected a malformed line"
     fi

@@ -225,12 +225,14 @@ printf '{"project":"%s","tmux_window_id":"@42","pid":%s}\n' "$W1" $$ >"$SANDBOX_
 check "clean keeps a unit not merged yet" git show-ref --verify -q refs/heads/jsx--float-literals
 git -C "$WT/jsx" merge -q --no-ff --no-edit jsx--float-literals
 check "a merged unit shows as merged" test "$(state_of float-literals)" = merged
-"$A" clean jsx 2>/dev/null
-check "clean stops the unit's session" launched "kill	$$"
-check "clean removes the merged worktree" test ! -e "$W1"
-check "clean removes the merged branch" fails git show-ref --verify -q refs/heads/jsx--float-literals
-check "clean removes its handoff notes" fails git show-ref --verify -q refs/notes/agents/jsx--float-literals
-check "clean keeps the unmerged unit" test -d "$W2"
+printf 'clean bad--unit\nclean float-literals\n' >"$STATE/inbox/queue"
+"$A" _serve-once jsx confirm "$L" "$R" 2>"$TMP/serve.log"
+check "a queued clean of a malformed unit is rejected" grep -q 'rejected' "$TMP/serve.log"
+check "a queued clean stops the unit's session" launched "kill	$$"
+check "a queued clean removes the merged worktree" test ! -e "$W1"
+check "a queued clean removes the merged branch" fails git show-ref --verify -q refs/heads/jsx--float-literals
+check "a queued clean removes its handoff notes" fails git show-ref --verify -q refs/notes/agents/jsx--float-literals
+check "a queued clean keeps the unmerged unit" test -d "$W2"
 
 check "clean --all keeps a subject not landed on master" fails "$A" clean jsx --all
 git merge -q --no-ff --no-edit jsx
