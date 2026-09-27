@@ -1,0 +1,8 @@
+ReScript File
+  ReScriptLetBindingImpl(LET_BINDING)
+    PsiElement(LET)('let')
+    ReScriptLetBindingPatternImpl(LET_BINDING_PATTERN)
+      PsiElement(LIDENT)('a')
+    PsiElement(EQ)('=')
+    ReScriptExprImpl(EXPR)
+      PsiElement(FLOAT)('0x1p3')

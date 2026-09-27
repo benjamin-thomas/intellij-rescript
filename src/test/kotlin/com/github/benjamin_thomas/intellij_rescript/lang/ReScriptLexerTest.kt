@@ -261,6 +261,9 @@ class ReScriptLexerTest {
     fun testNumericHex() = runLexerTest("NumericHex.res", "NumericHex.out")
 
     @Test
+    fun testNumericHexFloats() = runLexerTest("NumericHexFloats.res", "NumericHexFloats.out")
+
+    @Test
     fun testNumericOctal() = runLexerTest("NumericOctal.res", "NumericOctal.out")
 
     @Test

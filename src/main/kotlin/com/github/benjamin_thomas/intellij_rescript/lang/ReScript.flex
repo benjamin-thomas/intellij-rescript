@@ -662,6 +662,7 @@ BIN_INT = 0[bB][01][01_]*
 BIGINT = [0-9][0-9_]*n
 INT = [0-9][0-9_]*
 FLOAT = [0-9][0-9_]* "." [0-9][0-9_]* ([eE][+-]?[0-9][0-9_]*)?
+HEX_FLOAT = 0[xX][0-9a-fA-F][0-9a-fA-F_]* [pP][0-9a-fA-F][0-9a-fA-F_]*
 // Width-based and alphabet-agnostic, hex-checked only inside \u{…} — that is
 // bsc's scanner. The short fixed forms ('\x4', '\o1', 1-2 digit
 // decimals) are legal only at EOF or before a comment; the 0..N widths here
@@ -805,6 +806,7 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     "as"                { return track(ReScriptTypes.AS); }
 
     {FLOAT}             { return track(ReScriptTypes.FLOAT); }
+    {HEX_FLOAT}         { return track(ReScriptTypes.FLOAT); }
     {HEX_INT}           { return track(ReScriptTypes.INT); }
     {OCT_INT}           { return track(ReScriptTypes.INT); }
     {BIN_INT}           { return track(ReScriptTypes.INT); }
