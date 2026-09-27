@@ -692,4 +692,14 @@ let y = 1
             lexer.advance()
         }
     }
+
+    // A regex value must come back to its tag, from a full lex and from a
+    // restart alike. The first assertion checks the regex is lexed at all.
+    @Test
+    fun testCorrectRestartWithRegexAttributeValue() {
+        val text = "let v = <A b=/re/> x </A>\nlet w = <B c=/a\\/b/gi d=1 />"
+        val tokens = lexTokens(ReScriptLexerAdapter(), text)
+        assertTrue(tokens.contains("REGEX ('/re/')"), tokens)
+        checkCorrectRestart(ReScriptLexerAdapter(), text)
+    }
 }
