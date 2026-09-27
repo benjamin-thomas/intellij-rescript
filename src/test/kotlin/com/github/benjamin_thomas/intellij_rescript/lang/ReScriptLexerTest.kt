@@ -134,6 +134,14 @@ class ReScriptLexerTest {
     fun testJsxUnclosedElementKeeps() =
         runLexerTest("JsxUnclosedElementKeeps.res", "JsxUnclosedElementKeeps.out")
 
+    // A `}` directly between tags cannot be a child; it closes the region the
+    // element was opened in, so the element is abandoned there.
+    @Test
+    fun testJsxChildrenStrayBrace() {
+        runLexerTest("JsxChildrenStrayBrace.res", "JsxChildrenStrayBrace.out")
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxChildrenStrayBrace.res"))
+    }
+
     @Test
     fun testJsxChildren() = runLexerTest("JsxChildren.res", "JsxChildren.out")
 

@@ -773,11 +773,15 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
 // ReScript atoms (idents, literals, `{expr}`, nested elements), so this state
 // shares YYINITIAL's rule bulk below and only overrides the JSX-specific and
 // context-entering rules. This block sits BEFORE the shared block so that on
-// same-length ties JFlex's first-match-wins picks these overrides; today no
-// same-length competitor exists in the shared block, but the ordering keeps
-// that from becoming a trap.
+// same-length ties JFlex's first-match-wins picks these overrides: the `}`
+// below beats the shared `}` rule only because of that order.
 <JSX_CHILDREN> {
     "</"                { yybegin(JSX_CLOSE_TAG); return track(ReScriptTypes.JSX_LT_SLASH); }
+    // A `}` directly between tags cannot be a child (bsc rejects it), so it
+    // closes the brace region the element was opened in — a `{child}`, an
+    // attribute, an interpolation or a block. The element is abandoned there:
+    // drop its frame and let expression context close the region.
+    "}"                 { dropAbandonedChildrenFrame(); yypushback(1); }
     "<" / [A-Za-z_>/\\] { yybegin(JSX_TAG); return track(ReScriptTypes.JSX_LT); }
     // Braced child expression: resume normal lexing until the matching `}`
     // returns to this children region (tracked in the JSX_CONTENT frame).
@@ -880,8 +884,9 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
                         }
     "}"                 {
                             if (topIsJsxContent()) {
-                                // Closing a `{child expr}` brace (or a stray `}`
-                                // directly between tags when the depth is 0).
+                                // Closing a `{child expr}` brace. Directly between
+                                // tags (depth 0) <JSX_CHILDREN> intercepts `}`
+                                // first, so the depth is positive here.
                                 if (jsxContentBraceDepth() > 0) {
                                     decrementJsxContentBraceDepth();
                                     if (jsxContentBraceDepth() == 0) yybegin(JSX_CHILDREN);
