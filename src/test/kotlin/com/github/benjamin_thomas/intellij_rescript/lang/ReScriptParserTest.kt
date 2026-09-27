@@ -246,6 +246,10 @@ class ReScriptParserTest : ParsingTestCase(
     // The element's error stays inside it; the declarations after it parse as usual.
     fun testJsxMissingClosingTagBeforeDecl() =
         runParserTest("JsxMissingClosingTagBeforeDecl.res", "JsxMissingClosingTagBeforeDecl.out", hasParseErrors = true)
+    // A tag still being typed when the parent's closing tag arrives: the error
+    // is the unfinished tag's, the closing tag is the parent's.
+    fun testJsxUnfinishedTagBeforeClosingTag() =
+        runParserTest("JsxUnfinishedTagBeforeClosingTag.res", "JsxUnfinishedTagBeforeClosingTag.out", hasParseErrors = true)
     // An unclosed brace captures what follows — the same behaviour as any unclosed block,
     // and the lexer reads `</div>` there as comparison soup, not closing-tag tokens.
     fun testJsxUnterminatedBracedChild() =

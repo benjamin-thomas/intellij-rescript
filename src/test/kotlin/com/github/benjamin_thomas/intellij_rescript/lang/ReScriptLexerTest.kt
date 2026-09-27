@@ -150,6 +150,14 @@ class ReScriptLexerTest {
         checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxChildrenDeclRescue.res"))
     }
 
+    // `</` inside an unfinished opening tag abandons that tag; the closing tag
+    // it starts belongs to the enclosing element.
+    @Test
+    fun testJsxTagAbandonedByClosingTag() {
+        runLexerTest("JsxTagAbandonedByClosingTag.res", "JsxTagAbandonedByClosingTag.out")
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxTagAbandonedByClosingTag.res"))
+    }
+
     @Test
     fun testJsxChildren() = runLexerTest("JsxChildren.res", "JsxChildren.out")
 

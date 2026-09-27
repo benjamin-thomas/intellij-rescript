@@ -1026,6 +1026,11 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     // frame is pushed only when the enclosing context is not itself a
     // depth-0 children region (top level, attr/child braces, interpolation).
     ">"                 { enterJsxChildren(); return track(ReScriptTypes.JSX_GT); }
+    // `</` never belongs inside an opening tag — an unbraced element value
+    // (`b=<C />`) is legal, `b=</C>` is not — so the tag being typed is
+    // abandoned and this closing tag is the enclosing element's. The tag never
+    // opened a children region, so there is no count to undo.
+    "</"                { yybegin(JSX_CLOSE_TAG); return track(ReScriptTypes.JSX_LT_SLASH); }
     // Self-closing element: back to wherever the element appeared — the
     // children region of an enclosing element, or expression context.
     "/>"                { leaveSelfClosingElement(); return track(ReScriptTypes.JSX_SLASH_GT); }
