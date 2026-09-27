@@ -40,6 +40,9 @@ class ReScriptJsxTypedHandler : TypedHandlerDelegate() {
  */
 fun jsxAutoCloseText(gt: PsiElement): String? {
     if (gt.node.elementType != ReScriptTypes.JSX_GT) return null
+    // Typed just before the tag's own `>`: the tag was complete already, but
+    // the doubled `>` breaks the PSI into looking unclosed
+    if (PsiTreeUtil.nextLeaf(gt, true)?.text == ">") return null
     return when (val parent = gt.parent) {
         is ReScriptJsxElement -> elementCloseText(parent)
         is ReScriptJsxFragment -> fragmentCloseText(parent, gt)

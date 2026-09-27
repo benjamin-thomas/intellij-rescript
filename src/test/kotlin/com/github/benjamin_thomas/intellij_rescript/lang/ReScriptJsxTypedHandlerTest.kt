@@ -70,6 +70,15 @@ class ReScriptJsxTypedHandlerTest : BasePlatformTestCase() {
         )
     }
 
+    fun testGreaterThanBeforeTagsOwnGreaterThanInsertsNoClosingTag() {
+        // Arrange: caret just before the `>` of a tag that is already closed
+        myFixture.configureByText("Test.res", "let x = <div><div<caret>></div></div>")
+        // Act: type a second `>`
+        myFixture.type('>')
+        // Assert: no closing tag inserted
+        myFixture.checkResult("let x = <div><div><caret>></div></div>")
+    }
+
     fun testAutoCloseIsOneUndoStep() {
         // Arrange: type `>` to trigger the auto-close
         myFixture.configureByText("Test.res", "let x = <div<caret>")
