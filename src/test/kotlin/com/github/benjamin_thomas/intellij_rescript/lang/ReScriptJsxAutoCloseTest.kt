@@ -14,6 +14,15 @@ import kotlin.test.assertNull
  */
 class ReScriptJsxAutoCloseTest : BasePlatformTestCase() {
 
+    /**
+     * What gets inserted when the last char of [text] is the `>` just typed.
+     *
+     * Examples:
+     * - `closingFor("let x = <div>")` is the user typing `>` at the end of
+     *   `let x = <div`. It returns `"</div>"`.
+     * - `closingFor("let x = <div></div>")` is the user typing `>` at the end of
+     *   `let x = <div></div`. It returns null: that `>` ends a closing tag.
+     */
     private fun closingFor(text: String): String? {
         val file = PsiFileFactory.getInstance(project)
             .createFileFromText("Test.res", ReScriptFileType, text)
@@ -22,10 +31,23 @@ class ReScriptJsxAutoCloseTest : BasePlatformTestCase() {
     }
 
     fun testNoInsertWhenElementAlreadyHasClosingTag() {
-        // Retyped the opening tag's `>`; the `|` marks the just-typed char
+        // Retyped the opening tag's `>`
         assertNull(closingForMarked("let x = <div|>child</div>"))
     }
 
+    /**
+     * Like [closingFor], for a `>` typed mid-text. The `|` marks the caret: the
+     * char right after it is the one just typed. Every `|` is removed before
+     * parsing, so [marked] must not contain another one.
+     *
+     * Examples:
+     * - `closingForMarked("let x = <div><span|></div>")` is the user turning
+     *   `let x = <div><span</div>` into `let x = <div><span></div>` by typing
+     *   `>` after `<span`. It returns `"</span>"`: the `</div>` is the div's.
+     * - `closingForMarked("let x = <div|>child</div>")` is the user turning
+     *   `let x = <divchild</div>` into `let x = <div>child</div>` by typing
+     *   `>` after `<div`. It returns null: the div already has its closing tag.
+     */
     private fun closingForMarked(marked: String): String? {
         val text = marked.replace("|", "")
         val file = PsiFileFactory.getInstance(project)
