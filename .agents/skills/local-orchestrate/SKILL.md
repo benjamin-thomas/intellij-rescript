@@ -64,7 +64,15 @@ Never carry it over unchecked.
   tests in your worktree. Remove them before going on: `git status` clean.
 - Split what is left into units. Each is a slice one worker can finish within
   its budget, with its own tests.
-- Merged units' `Discovered:` lists feed in here.
+- Merged units' `Discovered:`, `Learned:` and `Contortions:` lines feed in
+  here.
+- Design, with evidence: which knowledge do two or more remaining units need,
+  and does it live in one place in the code? The question fires when a second
+  unit needs what one feature worked out privately, when fixes in one area
+  cost reverts or review defects, or when a worker or the reviewer reported a
+  contortion. A refactor then comes before the units that need it, and it is
+  the human's: hand it over as a blocker for those units, with the evidence.
+  A worker cannot be dispatched to refactor.
 
 ## 3. Briefs
 
@@ -223,6 +231,7 @@ Branch: <subject> — <n> commits, <m> merges over master
 Conflicts resolved: <merge sha — how, or "none">
 Blocked: <unit — what it needs, or "nothing">
 Discovered, not done: <each could become a ticket, or "nothing">
+Design: <knowledge more than one unit rebuilt, or a contortion, and where it should live — or "nothing">
 Reviewer, whole branch: <verdict, defects, notes>
 
 Review:  git log --reverse -p --no-merges master..<subject>
