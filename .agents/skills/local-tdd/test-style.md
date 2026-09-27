@@ -51,3 +51,13 @@ class ReScriptStatementMoverTest : BasePlatformTestCase() {
   "Arrange" block doesn't affect the test's outcome, that's a sign our test is
   essentially "useless". Flag it to the human rather than keep it: most times,
   deleting the test is the right call.
+
+## Fixtures move `RestartStates.out`
+
+`ReScriptLexerRestartStateCharacterizationTest` lexes every `.res` file under
+`src/test/resources/com/github/benjamin_thomas/intellij_rescript/` — parser,
+folding, annotator and lexer fixtures alike — into
+`lexer/fixtures/RestartStates.out`, one line per token:
+`<fixture> <offset> <token> 0x<state> <exact>`. A new fixture moves that gold
+in the same step as its own: derive its lines by hand, from a fixture that
+already lexes the same way, never from the test's output.
