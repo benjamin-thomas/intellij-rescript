@@ -127,6 +127,13 @@ class ReScriptLexerTest {
     fun testJsxTagNewlineRescueInterpolation() =
         runLexerTest("JsxTagNewlineRescueInterpolation.res", "JsxTagNewlineRescueInterpolation.out")
 
+    // Unclosed elements that already stay contained: the tag rescue, closed
+    // elements followed by `array<int>` / `x<y`, and an element left open
+    // inside a braced child.
+    @Test
+    fun testJsxUnclosedElementKeeps() =
+        runLexerTest("JsxUnclosedElementKeeps.res", "JsxUnclosedElementKeeps.out")
+
     @Test
     fun testJsxChildren() = runLexerTest("JsxChildren.res", "JsxChildren.out")
 
@@ -667,6 +674,11 @@ class ReScriptLexerTest {
 let y = 1
 }</outer>} after`""",
         )
+    }
+
+    @Test
+    fun testCorrectRestartWithJsxUnclosedElementKeeps() {
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxUnclosedElementKeeps.res"))
     }
 
     @Test
