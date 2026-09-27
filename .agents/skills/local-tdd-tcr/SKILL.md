@@ -102,14 +102,15 @@ attempt falls back to exactly that.
 
 ### RED — the test must fail, and fail for the right reason
 
-1. Write **one** test for the next behaviour, plus whatever stubs it needs to
-   compile (a red step is never a compile error). For a gold-file test, write
+1. Write the tests for the next behaviour: one, or several when one cause
+   shows in several examples, each of which must fail. Add whatever stubs they
+   need to compile (a red step is never a compile error). For a gold-file test, write
    the `.res` fixture and hand-write the gold you expect. Never let the
    framework write it: `assertSameLinesWithFile` turns a missing gold into a
    copy of the current output, and the test then passes on the very code it
    was meant to drive.
-2. Run the gate. It must fail **on the tests this round wrote or changed, and
-   only those**, with the assertion you expect.
+2. Run the gate. It must fail **on the tests this round wrote or changed —
+   every one of them, and only those** — with the assertions you expect.
 3. If so, stage it — `git add -A` — and keep the failure's key line for the
    report: it is the evidence that the test demands the code.
 4. If it fails anywhere else, or for another reason, discard it:
