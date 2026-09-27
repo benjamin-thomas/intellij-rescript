@@ -225,6 +225,7 @@ printf '{"project":"%s","tmux_window_id":"@42","pid":%s}\n' "$W1" $$ >"$SANDBOX_
 check "clean keeps a unit not merged yet" git show-ref --verify -q refs/heads/jsx--float-literals
 git -C "$WT/jsx" merge -q --no-ff --no-edit jsx--float-literals
 check "a merged unit shows as merged" test "$(state_of float-literals)" = merged
+check "drop refuses a merged unit" fails "$A" drop jsx float-literals --force
 printf 'clean bad--unit\nclean float-literals\n' >"$STATE/inbox/queue"
 "$A" _serve-once jsx confirm "$L" "$R" 2>"$TMP/serve.log"
 check "a queued clean of a malformed unit is rejected" grep -q 'rejected' "$TMP/serve.log"
@@ -237,8 +238,23 @@ check "a queued clean keeps the unmerged unit" test -d "$W2"
 check "clean --all keeps a subject not landed on master" fails "$A" clean jsx --all
 git merge -q --no-ff --no-edit jsx
 check "clean --all keeps a subject with an unmerged unit" fails "$A" clean jsx --all
-git worktree remove "$W2"
-git branch -D -q jsx--fragments
+
+# --- drop ---
+
+W3="$WT/jsx--type-holes"
+"$A" dispatch jsx type-holes --brief "$TMP/brief.md" --lead "$L" --reviewer "$R" 2>/dev/null
+work "$W3"
+printf 'drop type-holes\ndrop fragments\n' >"$STATE/inbox/queue"
+"$A" _serve-once jsx confirm "$L" "$R" 2>"$TMP/serve.log"
+check "a queued drop keeps a unit that has commits" test -d "$W3"
+check "the refused drop says why" grep -q 'type-holes.*1 commit' "$TMP/serve.log"
+check "a queued drop removes a unit with no commits" test ! -e "$W2"
+check "a queued drop removes its branch" fails git show-ref --verify -q refs/heads/jsx--fragments
+check "drop keeps a unit with commits without --force" fails "$A" drop jsx type-holes
+check "drop --force removes a unit with commits" exits 0 "$A" drop jsx type-holes --force
+check "the dropped unit is gone" test ! -e "$W3" -a -z "$(state_of type-holes)"
+check "completion offers drop and its flag" grep -qx -- --force <(comp flags drop | tr ' ' '\n')
+
 "$A" clean jsx --all 2>/dev/null
 check "clean --all removes a landed subject" test ! -e "$WT/jsx"
 
