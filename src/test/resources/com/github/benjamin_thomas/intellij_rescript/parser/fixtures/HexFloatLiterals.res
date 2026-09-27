@@ -1,2 +1,4 @@
 let a = 0x1p3
 let b = 0x1P-3
+let c = 0x1.8p3
+let d = 0x1.fp3
