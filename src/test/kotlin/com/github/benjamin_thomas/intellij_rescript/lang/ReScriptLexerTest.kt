@@ -127,6 +127,61 @@ class ReScriptLexerTest {
     fun testJsxTagNewlineRescueInterpolation() =
         runLexerTest("JsxTagNewlineRescueInterpolation.res", "JsxTagNewlineRescueInterpolation.out")
 
+    // Unclosed elements that already stay contained: the tag rescue, closed
+    // elements followed by `array<int>` / `x<y`, and an element left open
+    // inside a braced child.
+    @Test
+    fun testJsxUnclosedElementKeeps() =
+        runLexerTest("JsxUnclosedElementKeeps.res", "JsxUnclosedElementKeeps.out")
+
+    // A `}` directly between tags cannot be a child; it closes the region the
+    // element was opened in, so the element is abandoned there.
+    @Test
+    fun testJsxChildrenStrayBrace() {
+        runLexerTest("JsxChildrenStrayBrace.res", "JsxChildrenStrayBrace.out")
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxChildrenStrayBrace.res"))
+    }
+
+    // A declaration-shaped line cannot be a child, so it ends whatever element
+    // is still open: the declarations after a missing closing tag lex as usual.
+    @Test
+    fun testJsxChildrenDeclRescue() {
+        runLexerTest("JsxChildrenDeclRescue.res", "JsxChildrenDeclRescue.out")
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxChildrenDeclRescue.res"))
+    }
+
+    // `</` inside an unfinished opening tag abandons that tag; the closing tag
+    // it starts belongs to the enclosing element.
+    @Test
+    fun testJsxTagAbandonedByClosingTag() {
+        runLexerTest("JsxTagAbandonedByClosingTag.res", "JsxTagAbandonedByClosingTag.out")
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxTagAbandonedByClosingTag.res"))
+    }
+
+    // `</` inside a half-typed closing tag abandons it, counting its element
+    // closed, and starts the next closing tag.
+    @Test
+    fun testJsxCloseTagAbandonedByClosingTag() {
+        runLexerTest("JsxCloseTagAbandonedByClosingTag.res", "JsxCloseTagAbandonedByClosingTag.out")
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxCloseTagAbandonedByClosingTag.res"))
+    }
+
+    // A declaration-shaped line after a half-typed closing tag ends the element
+    // the tag was closing, not just the tag.
+    @Test
+    fun testJsxCloseTagDeclRescue() {
+        runLexerTest("JsxCloseTagDeclRescue.res", "JsxCloseTagDeclRescue.out")
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxCloseTagDeclRescue.res"))
+    }
+
+    // The rescues fire on any whitespace run that crosses a line break: blanks
+    // before the break, or an indented blank line, must not hide the declaration.
+    @Test
+    fun testJsxDeclRescueBlankRuns() {
+        runLexerTest("JsxDeclRescueBlankRuns.res", "JsxDeclRescueBlankRuns.out")
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxDeclRescueBlankRuns.res"))
+    }
+
     @Test
     fun testJsxChildren() = runLexerTest("JsxChildren.res", "JsxChildren.out")
 
@@ -667,6 +722,11 @@ class ReScriptLexerTest {
 let y = 1
 }</outer>} after`""",
         )
+    }
+
+    @Test
+    fun testCorrectRestartWithJsxUnclosedElementKeeps() {
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxUnclosedElementKeeps.res"))
     }
 
     @Test

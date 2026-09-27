@@ -47,6 +47,10 @@ fun runSnapshotTest(lexer: Lexer, inputFile: String, expectedOutputFile: String)
     assertSameLinesWithGold(gold.canonicalPath, result)
 }
 
+/** A lexer fixture's text as runSnapshotTest lexes it, for checks a snapshot cannot make. */
+fun fixtureText(inputFile: String): String =
+    StringUtil.convertLineSeparators(FileUtil.loadFile(File(FIXTURES_DIR, inputFile), Charsets.UTF_8).trim())
+
 /** Token dump for assertions a snapshot cannot make — `runSnapshotTest` normalizes line endings. */
 fun lexTokens(lexer: Lexer, text: String): String = LexerTestCase.printTokens(text, 0, lexer)
 

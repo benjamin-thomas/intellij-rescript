@@ -348,7 +348,8 @@ import com.intellij.psi.TokenType;
         }
     }
 
-    // The `>` of `</name >`: one fewer open element. Popping the frame means the
+    // The `>` of `</name >`, or a `</` that abandons a half-typed closing tag:
+    // one fewer open element. Popping the frame means the
     // outermost element of this children region closed — the push invariant
     // guarantees the frame below is never a depth-0 children region — so we are
     // back in expression context.
@@ -366,7 +367,8 @@ import com.intellij.psi.TokenType;
         }
     }
 
-    // Unclosed-tag rescue: pops only an abandoned children frame, never a live
+    // Abandons the element being lexed (a rescue at a declaration line, a `}`
+    // between tags): pops only an abandoned children frame, never a live
     // `${...}` one.
     private void dropAbandonedChildrenFrame() {
         if (directlyInJsxChildren()) popFrame();
@@ -674,6 +676,12 @@ JSX_DECL_RESCUE = ("let"|"and") [ \t]+ [a-z_({]
                 | "module" [ \t]+ ("type" [ \t]+)? [A-Z]
                 | ("open"|"include"|"exception") [ \t]+ [A-Z]
                 | "@" | "%%"
+// The whitespace before a rescued declaration line: the whole run, as long as
+// it crosses a line break. Anchoring on the break alone (`[\r\n]+ [ \t]*`)
+// loses to the plain WHITE_SPACE rule whenever blanks precede the break or an
+// indented blank line sits inside the run — longest match takes the run whole
+// and the rescue never fires.
+JSX_RESCUE_BREAK = [ \t\r\n]* [\r\n] [ \t]*
 HEX_INT = 0[xX][0-9a-fA-F][0-9a-fA-F_]*
 OCT_INT = 0[oO][0-7][0-7_]*
 BIN_INT = 0[bB][01][01_]*
@@ -773,11 +781,20 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
 // ReScript atoms (idents, literals, `{expr}`, nested elements), so this state
 // shares YYINITIAL's rule bulk below and only overrides the JSX-specific and
 // context-entering rules. This block sits BEFORE the shared block so that on
-// same-length ties JFlex's first-match-wins picks these overrides; today no
-// same-length competitor exists in the shared block, but the ordering keeps
-// that from becoming a trap.
+// same-length ties JFlex's first-match-wins picks these overrides: the `}`
+// below beats the shared `}` rule only because of that order.
 <JSX_CHILDREN> {
+    // Unclosed-element rescue, the children-side twin of JSX_TAG's: a
+    // declaration-shaped next line cannot be a child (bsc rejects `let`, `type`,
+    // `@…` lines between tags), so the element is abandoned there. Longer than
+    // the shared WHITE_SPACE match, so it wins.
+    {JSX_RESCUE_BREAK} / {JSX_DECL_RESCUE} { dropAbandonedChildrenFrame(); return whiteSpace(); }
     "</"                { yybegin(JSX_CLOSE_TAG); return track(ReScriptTypes.JSX_LT_SLASH); }
+    // A `}` directly between tags cannot be a child (bsc rejects it), so it
+    // closes the brace region the element was opened in — a `{child}`, an
+    // attribute, an interpolation or a block. The element is abandoned there:
+    // drop its frame and let expression context close the region.
+    "}"                 { dropAbandonedChildrenFrame(); yypushback(1); }
     "<" / [A-Za-z_>/\\] { yybegin(JSX_TAG); return track(ReScriptTypes.JSX_LT); }
     // Braced child expression: resume normal lexing until the matching `}`
     // returns to this children region (tracked in the JSX_CONTENT frame).
@@ -880,8 +897,9 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
                         }
     "}"                 {
                             if (topIsJsxContent()) {
-                                // Closing a `{child expr}` brace (or a stray `}`
-                                // directly between tags when the depth is 0).
+                                // Closing a `{child expr}` brace. Directly between
+                                // tags (depth 0) <JSX_CHILDREN> intercepts `}`
+                                // first, so the depth is positive here.
                                 if (jsxContentBraceDepth() > 0) {
                                     decrementJsxContentBraceDepth();
                                     if (jsxContentBraceDepth() == 0) yybegin(JSX_CHILDREN);
@@ -941,7 +959,7 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     // Unclosed-tag rescue: a declaration-shaped next line ends the tag mid-edit.
     // The lookahead is unconsumed, so the keyword re-lexes in YYINITIAL. The
     // depth guard pops only an abandoned children frame, never a live `${...}` one.
-    [\r\n]+ [ \t]* / {JSX_DECL_RESCUE} { dropAbandonedChildrenFrame(); return whiteSpace(); }
+    {JSX_RESCUE_BREAK} / {JSX_DECL_RESCUE} { dropAbandonedChildrenFrame(); return whiteSpace(); }
     // ONE token, deliberately not LIDENT MINUS LIDENT: `-` stays unlexable in
     // tag states, so a non-value like `neg=-1` cannot form by construction.
     {JSX_HYPHEN_IDENT}  { return track(ReScriptTypes.LIDENT); }
@@ -1016,6 +1034,11 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     // frame is pushed only when the enclosing context is not itself a
     // depth-0 children region (top level, attr/child braces, interpolation).
     ">"                 { enterJsxChildren(); return track(ReScriptTypes.JSX_GT); }
+    // `</` never belongs inside an opening tag — an unbraced element value
+    // (`b=<C />`) is legal, `b=</C>` is not — so the tag being typed is
+    // abandoned and this closing tag is the enclosing element's. The tag never
+    // opened a children region, so there is no count to undo.
+    "</"                { yybegin(JSX_CLOSE_TAG); return track(ReScriptTypes.JSX_LT_SLASH); }
     // Self-closing element: back to wherever the element appeared — the
     // children region of an enclosing element, or expression context.
     "/>"                { leaveSelfClosingElement(); return track(ReScriptTypes.JSX_SLASH_GT); }
@@ -1029,14 +1052,15 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     {LINE_COMMENT}      { return track(ReScriptTypes.LINE_COMMENT); }
     "/*"                { beginBlockComment(); }
     [ \t]+              { return TokenType.WHITE_SPACE; }
-    // Mid-edit bail, guarded exactly like JSX_TAG's. An unguarded bail (any
-    // newline) breaks the legal `</A` NEWLINE `>`: it drops to children and
-    // lexes the `>` as a comparison, leaving the tag unclosed.
-    [\r\n]+ [ \t]* / {JSX_DECL_RESCUE} {
-                            yybegin(JSX_CHILDREN);
-                            return whiteSpace();
-                        }
+    // Unclosed-element rescue, guarded exactly like JSX_TAG's: the half-typed
+    // closing tag and the element it was closing are both abandoned. An
+    // unguarded bail (any newline) would break the legal `</A` NEWLINE `>`.
+    {JSX_RESCUE_BREAK} / {JSX_DECL_RESCUE} { dropAbandonedChildrenFrame(); return whiteSpace(); }
     [\r\n]+             { return whiteSpace(); }
+    // A second `</` abandons a half-typed closing tag. The parser completes the
+    // abandoned tag with an error, so its element counts as closed here too;
+    // this `</` then starts the next closing tag.
+    "</"                { leaveClosedElement(); yybegin(JSX_CLOSE_TAG); return track(ReScriptTypes.JSX_LT_SLASH); }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }
     {UPPER_IDENT}       { return track(ReScriptTypes.UIDENT); }
     {ESCAPED_IDENT}     { return track(ReScriptTypes.LIDENT); }
