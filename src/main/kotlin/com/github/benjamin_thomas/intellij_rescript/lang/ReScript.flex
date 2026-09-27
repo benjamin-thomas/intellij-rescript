@@ -367,7 +367,8 @@ import com.intellij.psi.TokenType;
         }
     }
 
-    // Unclosed-tag rescue: pops only an abandoned children frame, never a live
+    // Abandons the element being lexed (a rescue at a declaration line, a `}`
+    // between tags): pops only an abandoned children frame, never a live
     // `${...}` one.
     private void dropAbandonedChildrenFrame() {
         if (directlyInJsxChildren()) popFrame();
@@ -1045,13 +1046,10 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     {LINE_COMMENT}      { return track(ReScriptTypes.LINE_COMMENT); }
     "/*"                { beginBlockComment(); }
     [ \t]+              { return TokenType.WHITE_SPACE; }
-    // Mid-edit bail, guarded exactly like JSX_TAG's. An unguarded bail (any
-    // newline) breaks the legal `</A` NEWLINE `>`: it drops to children and
-    // lexes the `>` as a comparison, leaving the tag unclosed.
-    [\r\n]+ [ \t]* / {JSX_DECL_RESCUE} {
-                            yybegin(JSX_CHILDREN);
-                            return whiteSpace();
-                        }
+    // Unclosed-element rescue, guarded exactly like JSX_TAG's: the half-typed
+    // closing tag and the element it was closing are both abandoned. An
+    // unguarded bail (any newline) would break the legal `</A` NEWLINE `>`.
+    [\r\n]+ [ \t]* / {JSX_DECL_RESCUE} { dropAbandonedChildrenFrame(); return whiteSpace(); }
     [\r\n]+             { return whiteSpace(); }
     // A second `</` abandons a half-typed closing tag. The parser completes the
     // abandoned tag with an error, so its element counts as closed here too;

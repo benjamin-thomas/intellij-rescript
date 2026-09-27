@@ -166,6 +166,14 @@ class ReScriptLexerTest {
         checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxCloseTagAbandonedByClosingTag.res"))
     }
 
+    // A declaration-shaped line after a half-typed closing tag ends the element
+    // the tag was closing, not just the tag.
+    @Test
+    fun testJsxCloseTagDeclRescue() {
+        runLexerTest("JsxCloseTagDeclRescue.res", "JsxCloseTagDeclRescue.out")
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxCloseTagDeclRescue.res"))
+    }
+
     @Test
     fun testJsxChildren() = runLexerTest("JsxChildren.res", "JsxChildren.out")
 
