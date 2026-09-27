@@ -43,6 +43,12 @@ grammarKit {
             targetRootOutputDir.set(file("src/main/gen"))
             pathToParser.set("com/github/benjamin_thomas/intellij_rescript/lang/ReScriptParser.java")
             pathToPsiRoot.set("com/github/benjamin_thomas/intellij_rescript/lang/psi")
+            // Boots a headless IDE core, whose system and config dirs default
+            // to the IDE home: the IDE Gradle extracted into its transform
+            // cache. A write there makes Gradle re-extract the 4 GB IDE on the
+            // next build, and keep the touched copy aside forever.
+            systemProperty("idea.system.path", file("build/grammarkit/system"))
+            systemProperty("idea.config.path", file("build/grammarkit/config"))
         }
     }
 }
