@@ -158,6 +158,14 @@ class ReScriptLexerTest {
         checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxTagAbandonedByClosingTag.res"))
     }
 
+    // `</` inside a half-typed closing tag abandons it, counting its element
+    // closed, and starts the next closing tag.
+    @Test
+    fun testJsxCloseTagAbandonedByClosingTag() {
+        runLexerTest("JsxCloseTagAbandonedByClosingTag.res", "JsxCloseTagAbandonedByClosingTag.out")
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxCloseTagAbandonedByClosingTag.res"))
+    }
+
     @Test
     fun testJsxChildren() = runLexerTest("JsxChildren.res", "JsxChildren.out")
 

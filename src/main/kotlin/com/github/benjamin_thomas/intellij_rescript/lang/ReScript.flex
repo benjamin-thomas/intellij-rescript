@@ -348,7 +348,8 @@ import com.intellij.psi.TokenType;
         }
     }
 
-    // The `>` of `</name >`: one fewer open element. Popping the frame means the
+    // The `>` of `</name >`, or a `</` that abandons a half-typed closing tag:
+    // one fewer open element. Popping the frame means the
     // outermost element of this children region closed — the push invariant
     // guarantees the frame below is never a depth-0 children region — so we are
     // back in expression context.
@@ -1052,6 +1053,10 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
                             return whiteSpace();
                         }
     [\r\n]+             { return whiteSpace(); }
+    // A second `</` abandons a half-typed closing tag. The parser completes the
+    // abandoned tag with an error, so its element counts as closed here too;
+    // this `</` then starts the next closing tag.
+    "</"                { leaveClosedElement(); yybegin(JSX_CLOSE_TAG); return track(ReScriptTypes.JSX_LT_SLASH); }
     {LOWER_IDENT}       { return track(ReScriptTypes.LIDENT); }
     {UPPER_IDENT}       { return track(ReScriptTypes.UIDENT); }
     {ESCAPED_IDENT}     { return track(ReScriptTypes.LIDENT); }
