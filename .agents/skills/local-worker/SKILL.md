@@ -82,6 +82,8 @@ Rounds: <used>/<budget>, <reverted attempts> reverted
 Review: <pass, or the defects left>
 Reviewer notes: <verbatim, or "none">
 Discovered: <out of scope, or "nothing">
+Learned: <what you had to work out that is written nowhere, or "nothing">
+Contortions: <where you patched around the code rather than through it, or "nothing">
 Confusions: <anything in the brief or the skills that was unclear, or "nothing">
 ```
 
