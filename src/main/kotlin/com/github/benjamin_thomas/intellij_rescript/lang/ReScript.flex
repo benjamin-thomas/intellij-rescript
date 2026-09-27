@@ -776,6 +776,11 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
 // same-length ties JFlex's first-match-wins picks these overrides: the `}`
 // below beats the shared `}` rule only because of that order.
 <JSX_CHILDREN> {
+    // Unclosed-element rescue, the children-side twin of JSX_TAG's: a
+    // declaration-shaped next line cannot be a child (bsc rejects `let`, `type`,
+    // `@…` lines between tags), so the element is abandoned there. Longer than
+    // the shared WHITE_SPACE match, so it wins.
+    [\r\n]+ [ \t]* / {JSX_DECL_RESCUE} { dropAbandonedChildrenFrame(); return whiteSpace(); }
     "</"                { yybegin(JSX_CLOSE_TAG); return track(ReScriptTypes.JSX_LT_SLASH); }
     // A `}` directly between tags cannot be a child (bsc rejects it), so it
     // closes the brace region the element was opened in — a `{child}`, an

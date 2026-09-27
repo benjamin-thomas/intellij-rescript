@@ -142,6 +142,14 @@ class ReScriptLexerTest {
         checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxChildrenStrayBrace.res"))
     }
 
+    // A declaration-shaped line cannot be a child, so it ends whatever element
+    // is still open: the declarations after a missing closing tag lex as usual.
+    @Test
+    fun testJsxChildrenDeclRescue() {
+        runLexerTest("JsxChildrenDeclRescue.res", "JsxChildrenDeclRescue.out")
+        checkCorrectRestart(ReScriptLexerAdapter(), fixtureText("JsxChildrenDeclRescue.res"))
+    }
+
     @Test
     fun testJsxChildren() = runLexerTest("JsxChildren.res", "JsxChildren.out")
 
