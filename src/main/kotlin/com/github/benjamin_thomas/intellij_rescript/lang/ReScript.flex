@@ -928,6 +928,7 @@ CHAR = ' ( [^\\] | {CHAR_ESCAPE} ) '
     {JSX_HYPHEN_IDENT}  { return track(ReScriptTypes.LIDENT); }
     {WHITE_SPACE}       { return whiteSpace(); }
     {FLOAT}             { return track(ReScriptTypes.FLOAT); }
+    {HEX_FLOAT}         { return track(ReScriptTypes.FLOAT); }
     {HEX_INT}           { return track(ReScriptTypes.INT); }
     {OCT_INT}           { return track(ReScriptTypes.INT); }
     {BIN_INT}           { return track(ReScriptTypes.INT); }
