@@ -30,6 +30,8 @@ merge history are the product, not a by-product.
 - `manage/agents status <subject>` and `manage/agents wait <subject>` read git
   and work here. Worktrees and sessions are made on the host: you ask for them
   through `tmp/agents/inbox/` (step 5).
+- `git worktree list` shows the other worktrees as prunable, because their
+  directories are not mounted in your sandbox. Never `git worktree prune`.
 
 ## Grant
 
@@ -165,7 +167,7 @@ report: a title `Merge <unit>: <what it does>` of 50 characters or fewer,
 then the note without its first line. Write it to `tmp/agents/merge-msg.txt`.
 
 ```bash
-git -c merge.conflictstyle=zdiff3 -c rerere.enabled=true merge --no-ff -F tmp/agents/merge-msg.txt <subject>--<unit>
+git -c merge.conflictstyle=diff3 -c rerere.enabled=true merge --no-ff -F tmp/agents/merge-msg.txt <subject>--<unit>
 rm -rf src/main/gen && ./gradlew --no-daemon test
 ```
 
