@@ -4,9 +4,6 @@
 # Gradle
 rw:~/.gradle
 
-# Kotlin compiler daemon state (writes ts-marker files here)
-rw:~/.local/share/kotlin
-
 # Reference projects (read-only)
 ro:~/code/github.com/rockofox/intellij-haskell-lsp
 ro:~/code/github.com/elm-tooling/intellij-elm
